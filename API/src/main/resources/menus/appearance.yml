@@ -1,0 +1,73 @@
+# Please refer to the configuration wiki page (https://github.com/XZot1K/DisplayShopsAPI/wiki/Configuration) for documentation.
+# By default, some options for each button are left out to remove clutter. Refer to the link above to see which options may be implemented.
+
+title: "&8Shop Appearance"
+size: 45
+
+empty-slots: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+               19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35 ]
+filler-material: "BLACK_STAINED_GLASS_PANE"
+
+search-entry:
+  title: "&8Enter Search Text:"
+
+selected-format:
+  enchanted: true
+  name: "&a{material}"
+  lore: [ "", "&aActive Appearance" ]
+
+locked-format:
+  name: "&c{material}"
+  lore:
+    - ""
+    - "&aClick &7to unlock this"
+    - "&7base block appearance."
+    - ""
+    - "{requirement}"
+    - "&7Cost: &e${price}"
+
+unlocked-format:
+  name: "&e{material}"
+  lore:
+    - ""
+    - "&aClick &7to select this"
+    - "&7as the base block appearance."
+
+sort-alphabetically: true
+
+appearances:
+  - "END_PORTAL_FRAME:-1:50.0:&7Requires the &edisplayshops.bbm.END_PORTAL_FRAME &7permission."
+  - "ENDER_PORTAL_FRAME:-1:50.0:&7Requires the &edisplayshops.bbm.ENDER_PORTAL_FRAME &7permission."
+  - "CHEST:-1:25.0:&7Requires the &edisplayshops.bbm.CHEST &7permission."
+  - "BARREL:-1:25.0:&7Requires the &edisplayshops.bbm.BARREL &7permission."
+  - "CRAFTING_BENCH:-1:75.0:&7Requires the &edisplayshops.bbm.CRAFTING_BENCH &7permission."
+  - "WORKBENCH:-1:75.0:&7Requires the &edisplayshops.bbm.WORKBENCH &7permission."
+  - "FURNACE:-1:80.0:&7Requires the &edisplayshops.bbm.FURNACE &7permission."
+  - "ENDER_CHEST:-1:250.0:&7Requires the &edisplayshops.bbm.ENDER_CHEST &7permission."
+  - "LOCKED_CHEST:-1:50.0:&7Requires the &edisplayshops.bbm.LOCKED_CHEST &7permission."
+  - "JUKEBOX:-1:80.0:&7Requires the &edisplayshops.bbm.JUKEBOX &7permission."
+  - "NOTE_BLOCK:-1:100.0:&7Requires the &edisplayshops.bbm.NOTE_BLOCK &7permission."
+  - "DIAMOND_BLOCK:-1:150.0:&7Requires the &edisplayshops.bbm.DIAMOND_BLOCK &7permission."
+  - "GOLD_BLOCK:-1:100.0:&7Requires the &edisplayshops.bbm.GOLD_BLOCK &7permission."
+  - "IRON_BLOCK:-1:100.0:&7Requires the &edisplayshops.bbm.IRON_BLOCK &7permission."
+  - "COAL_BLOCK:-1:80.0:&7Requires the &edisplayshops.bbm.COAL_BLOCK &7permission."
+  - "LAPIS_BLOCK:-1:80.0:&7Requires the &edisplayshops.bbm.LAPIS_BLOCK &7permission."
+  - "QUARTZ_BLOCK:-1:60.0:&7Requires the &edisplayshops.bbm.QUARTZ_BLOCK &7permission."
+
+buttons:
+  previous:
+    slot: 36
+    material: "HEAD:MHF_ArrowLeft"
+    name: "&ePrevious Page"
+  next:
+    slot: 37
+    material: "HEAD:MHF_ArrowRight"
+    name: "&eNext Page"
+  search:
+    slot: 40
+    material: "OAK_SIGN"
+    name: "&dSearch"
+  return:
+    slot: 44
+    material: "HEAD:MHF_ArrowLeft"
+    name: "&cReturn"

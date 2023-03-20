@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.api.Manager;
 import xzot1k.plugins.ds.api.PacketManager;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
+import xzot1k.plugins.ds.api.objects.Menu;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.io.File;
@@ -46,6 +47,25 @@ public interface DisplayShopsAPI {
     // custom configurations
 
     /**
+     * @param name The name of the menu or an inventory name.
+     * @return The menu found that matches.
+     */
+    Menu getMenu(@NotNull String name);
+
+    /**
+     * @param name The inventory name.
+     * @return If any menu matches the same title.
+     */
+    boolean matchesAnyMenu(@NotNull String name);
+
+    /**
+     * @param menuName      The name of the menu to check.
+     * @param inventoryName The title of the menu to compare.
+     * @return Whether the title compares to the menu.
+     */
+    boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName);
+
+    /**
      * Gets the id associated to the item in the blocked-items.yml.
      *
      * @param itemStack The item to check the id for.
@@ -64,13 +84,6 @@ public interface DisplayShopsAPI {
      * @return The FileConfiguration found.
      */
     FileConfiguration getLangConfig();
-
-    /**
-     * Gets the menus file configuration.
-     *
-     * @return The FileConfiguration found.
-     */
-    FileConfiguration getMenusConfig();
 
     /**
      * Saves the default configuration files (Doesn't replace existing).
@@ -188,5 +201,6 @@ public interface DisplayShopsAPI {
      * @return Returns the packet manager.
      */
     PacketManager getPacketManager();
+
 
 }

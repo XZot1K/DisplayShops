@@ -1,0 +1,108 @@
+# Please refer to the configuration wiki page (https://github.com/XZot1K/DisplayShopsAPI/wiki/Configuration) for documentation.
+# By default, some options for each button are left out to remove clutter. Refer to the link above to see which options may be implemented.
+#
+
+title: "&cShop Edit Menu"
+size: 36
+
+filler-material: "BLACK_STAINED_GLASS_PANE"
+
+sale-item-slot: 1
+trade-item-slot: 10
+
+item-change:
+  material: "BARRIER"
+  name: "&dItem Selection"
+  lore: [ "", "&eInfo: &7Select an item", "&7from your inventory", "&7then reselect this",
+          "&7item to set it.", "", "&aClick &7to cancel", "&7the item change", "&7process." ]
+
+description-entry:
+  title: "&8Enter The Description:"
+  too-similar: "Too Similar."
+
+buttons:
+  sale-item-arrow:
+    slot: 0
+    material: "HEAD:MHF_ArrowRight"
+    name: "&eItem Being Sold &c\u21E8"
+    lore: [ "", "&7Click the shop item to", "&7change the item being", "&7sold by the shop.", "", "&aClick &7to clear the", "&7shop sale item." ]
+  trade-item-arrow:
+    slot: 9
+    material: "HEAD:MHF_ArrowRight"
+    name: "&eItem Wanted &c\u21E8"
+    lore: [ "", "&7Click the shop item to", "&7change the item wanted", "&7by the shop for trade.", "", "&aClick &7to clear the", "&7shop trade item." ]
+  buy-price:
+    slot: 3
+    material: "GOLD_INGOT"
+    name: "&eBuy Price: &a{currency-symbol}{base-buy-price}"
+    lore: [ "", "&aClick &7to adjust", "&7the buy price." ]
+  sell-price:
+    slot: 4
+    material: "EMERALD"
+    name: "&eSell Price: &a{currency-symbol}{base-sell-price}"
+    lore: [ "", "&aClick &7to adjust", "&7the sell price." ]
+  unit-count:
+    slot: 5
+    material: "REDSTONE_TORCH"
+    name: "&eUnit Count: &a{unit-count}"
+    lore: [ "", "&aClick &7to adjust", "&7the unit count." ]
+  stock:
+    slot: 12
+    material: "CHEST_MINECART"
+    name: "&eStock: &a{stock}"
+    lore: [ "", "&aClick &7to manage", "&7the stock of", "&7the shop." ]
+  balance:
+    slot: 13
+    material: "HOPPER_MINECART"
+    name: "&eBalance: &a{currency-symbol}{balance}"
+    lore: [ "", "&aClick &7to manage", "&7the balance of", "&7the shop." ]
+  appearance:
+    slot: 27
+    material: "END_PORTAL_FRAME"
+    name: "&bChange Appearance"
+    lore: [ "", "&aClick &7to change", "&7the appearance of", "&7the shop's base-block." ]
+  description:
+    slot: 28
+    material: "OAK_SIGN"
+    name: "&6Change Description"
+    lore: [ "", "&f{description}", "", "&aClick &7to change", "&7the description of", "&7the shop." ]
+  assistants:
+    slot: 29
+    material: "PLAYER_HEAD"
+    name: "&bManage Assistants"
+    lore: [ "", "&7Current Assistants: &e{assistant-count}", "&aClick &7to manage", "&7the assistants of", "&7the shop." ]
+  delete:
+    slot: 31
+    material: "BARRIER"
+    name: "&c\u2716 &4Destroy Shop &c\u2716"
+    lore: [ "", "&aClick &7to destroy the shop." ]
+  clear-limits:
+    slot: 24
+    material: "RED_DYE"
+    name: "&cClear Limit Counters"
+    lore: [ "", "&aClick &7to clear", "&7all limit counters." ]
+  global-buy-limit:
+    slot: 7
+    material: "HOPPER"
+    name: "&dBuy Player Limit"
+    lore: [ "", "&aClick &7to adjust", "&7the per-player", "&7buy transaction", "&7limit." ]
+  global-sell-limit:
+    slot: 8
+    material: "HOPPER"
+    name: "&dSell Player Limit"
+    lore: [ "", "&aClick &7to adjust", "&7the per-player", "&7sell transaction", "&7limit." ]
+  player-buy-limit:
+    slot: 16
+    material: "HOPPER"
+    name: "&dBuy Player Limit"
+    lore: [ "", "&aClick &7to adjust", "&7the per-player", "&7buy transaction", "&7limit." ]
+  player-sell-limit:
+    slot: 17
+    material: "HOPPER"
+    name: "&dSell Player Limit"
+    lore: [ "", "&aClick &7to adjust", "&7the per-player", "&7sell transaction", "&7limit." ]
+  close:
+    slot: 35
+    material: "HEAD:MHF_ArrowDown"
+    name: "&cClose"
+    lore: [ "", "&aClick &7to close the", "&7shop edit menu." ]
