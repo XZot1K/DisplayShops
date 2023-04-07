@@ -22,7 +22,7 @@ import java.math.BigInteger;
 
 public class SUtil implements SerializeUtil {
 
-    private DisplayShops INSTANCE;
+    private final DisplayShops INSTANCE;
 
     public SUtil(DisplayShops instance) {this.INSTANCE = instance;}
 

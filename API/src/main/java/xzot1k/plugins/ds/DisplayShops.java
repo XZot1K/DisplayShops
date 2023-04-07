@@ -9,9 +9,11 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.api.Manager;
 import xzot1k.plugins.ds.api.PacketManager;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
+import xzot1k.plugins.ds.api.objects.Menu;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.io.File;
@@ -43,17 +45,30 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     @Override
     public void log(Level level, String message) {
-
     }
 
     @Override
     public void setupTasks() {
-
     }
 
     @Override
     public String getLatestVersion() {
         return null;
+    }
+
+    @Override
+    public Menu getMenu(@NotNull String name) {
+        return null;
+    }
+
+    @Override
+    public boolean matchesAnyMenu(@NotNull String name) {
+        return false;
+    }
+
+    @Override
+    public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {
+        return false;
     }
 
     @Override
@@ -63,7 +78,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     @Override
     public void reloadConfigs() {
-
     }
 
     @Override
@@ -72,17 +86,12 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     @Override
-    public FileConfiguration getMenusConfig() {
-        return null;
-    }
-
-    @Override
     public void saveDefaultConfigs() {
-
     }
 
     @Override
-    public void refreshShop(Shop shop) {}
+    public void refreshShop(Shop shop) {
+    }
 
     @Override
     public DisplayPacket getDisplayPacket(Shop shop, Player player) {
@@ -91,27 +100,22 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     @Override
     public void killCurrentShopPacket(Player player) {
-
     }
 
     @Override
     public void clearDisplayPackets(Player player) {
-
     }
 
     @Override
     public void removeDisplayPacket(Shop shop, Player player) {
-
     }
 
     @Override
     public void updateDisplayPacket(Shop shop, Player player, DisplayPacket displayPacket) {
-
     }
 
     @Override
     public void sendDisplayPacket(Shop shop, Player player, boolean showHolograms) {
-
     }
 
     @Override

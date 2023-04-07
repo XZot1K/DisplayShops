@@ -298,7 +298,7 @@ public class Commands implements CommandExecutor {
         }
 
         EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getMenusConfig().getDouble("shop-edit-menu.balance-manage-item.price"));
+                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.balance"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
 
         if (useVault) {
@@ -397,7 +397,7 @@ public class Commands implements CommandExecutor {
         }
 
         EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getMenusConfig().getDouble("shop-edit-menu.stock-manage-item.price"));
+                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.withdraw-stock"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
 
         shop.setStock(shop.getStock() - amount);
@@ -468,10 +468,10 @@ public class Commands implements CommandExecutor {
         }
 
         EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getMenusConfig().getDouble("shop-edit-menu.stock-manage-item.price"));
+                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.deposit-stock"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
 
-        int difference = (maxStock - shop.getStock()), amountToRemove = (difference > 0 && difference >= amount ? (int) amount : Math.max(difference, 0));
+        int difference = (maxStock - shop.getStock()), amountToRemove = (difference > 0 && difference >= amount ? amount : Math.max(difference, 0));
         if (amountToRemove == 0 || shop.getStock() >= maxStock) {
             message = getPluginInstance().getLangConfig().getString("stock-deposit-fail");
             if (message != null && !message.equalsIgnoreCase(""))
@@ -550,7 +550,7 @@ public class Commands implements CommandExecutor {
         }
 
         EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getMenusConfig().getDouble("shop-edit-menu.change-price-item.price"));
+                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.sale-item-change"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
 
         shop.setSellPrice(price);
@@ -624,7 +624,7 @@ public class Commands implements CommandExecutor {
         }
 
         EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getMenusConfig().getDouble("shop-edit-menu.change-price-item.price"));
+                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.buy-price"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
 
         shop.setBuyPrice(price);
@@ -634,7 +634,7 @@ public class Commands implements CommandExecutor {
         getPluginInstance().getInSightTask().refreshShop(shop);
 
         String message;
-        if (price <= -1) message = getPluginInstance().getLangConfig().getString("buying-disabled");
+        if (price == -1) message = getPluginInstance().getLangConfig().getString("buying-disabled");
         else message = getPluginInstance().getLangConfig().getString("buy-price-set");
         getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(message)
                 .replace("{price}", getPluginInstance().getManager().formatNumber(price, true)));
@@ -1697,7 +1697,7 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        shop.purge(true);
+        shop.purge(player, true);
         String message = getPluginInstance().getLangConfig().getString("shop-deleted");
         if (message != null && !message.equalsIgnoreCase(""))
             getPluginInstance().getManager().sendMessage(player, message);
@@ -1845,7 +1845,8 @@ public class Commands implements CommandExecutor {
             }
         }
 
-        player.openInventory(getPluginInstance().getManager().buildVisitMenu(player, filter));
+        Menu visitMenu = getPluginInstance().getMenu("visit");
+        if (visitMenu != null) player.openInventory(visitMenu.build(player, filter));
     }
 
     private void runGive(CommandSender commandSender, String[] args) {

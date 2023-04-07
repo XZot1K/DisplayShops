@@ -192,7 +192,7 @@ public class DPacket implements DisplayPacket {
         double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ),
                 tax = getPluginInstance().getConfig().getDouble("transaction-tax");
         for (int i = hologramFormat.size(); --i >= 0; ) {
-            String line = (String) hologramFormat.get(i);
+            String line = hologramFormat.get(i);
             if (line.contains("{buy-price}") && shop.getBuyPrice(true) < 0.0 || line.contains("{sell-price}") && shop.getSellPrice(true) < 0.0
                     || line.contains("{description}") && (shop.getDescription() == null || shop.getDescription().equalsIgnoreCase(""))) continue;
             if (line.contains("{description}") && shop.getDescription() != null && !shop.getDescription().equalsIgnoreCase("")) {

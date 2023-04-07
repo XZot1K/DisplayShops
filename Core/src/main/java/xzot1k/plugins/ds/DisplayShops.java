@@ -23,10 +23,13 @@ import xzot1k.plugins.ds.api.DManager;
 import xzot1k.plugins.ds.api.PacketManager;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
 import xzot1k.plugins.ds.api.objects.DataPack;
+import xzot1k.plugins.ds.api.objects.Menu;
 import xzot1k.plugins.ds.api.objects.Shop;
 import xzot1k.plugins.ds.core.Commands;
 import xzot1k.plugins.ds.core.Listeners;
 import xzot1k.plugins.ds.core.TabCompleter;
+import xzot1k.plugins.ds.core.gui.BackendMenu;
+import xzot1k.plugins.ds.core.gui.MenuListener;
 import xzot1k.plugins.ds.core.hooks.PapiHelper;
 import xzot1k.plugins.ds.core.hooks.PlotSquaredListener;
 import xzot1k.plugins.ds.core.hooks.SkyBlockListener;
@@ -38,13 +41,17 @@ import xzot1k.plugins.ds.core.tasks.VisualTask;
 import java.io.*;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.*;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
@@ -65,6 +72,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     // hook handlers
     private Listeners listeners;
+    private MenuListener menuListener;
     private Economy vaultEconomy;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
@@ -77,8 +85,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     // Data handlers
     private Connection databaseConnection;
-    private FileConfiguration langConfig, menusConfig;
-    private File langFile, menusFile, loggingFile;
+    private FileConfiguration langConfig;
+    private File langFile, loggingFile;
+    private HashMap<String, Menu> menuMap;
 
     /**
      * @return Returns the plugin's instance.
@@ -92,16 +101,19 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         long startTime = System.currentTimeMillis();
         DisplayShops.pluginInstance = this;
         saveDefaultConfigs();
+        saveDefaultMenuConfigs();
 
-        setServerVersion(Double.parseDouble(getServer().getClass().getPackage().getName().replace(".", ",").split(",")[3]
+        setServerVersion(Double.parseDouble(getServer().getClass().getPackage().getName()
+                .replace(".", ",").split(",")[3]
                 .replace("_R", ".").replaceAll("[rvV_]*", "")));
         updateConfigs();
 
-        setShopMemory(new HashMap<>());
-        setDisplayPacketMap(new HashMap<>());
-        setTeleportingPlayers(new ArrayList<>());
-        this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
+        menuMap = new HashMap<>();
+        shopMemory = new HashMap<>();
+        displayPacketMap = new HashMap<>();
+        teleportingPlayers = new ArrayList<>();
 
+        this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
         this.packetManager = new xzot1k.plugins.ds.core.PacketManager(this);
 
         setPaperSpigot(false);
@@ -134,6 +146,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setManager(new DManager(this));
 
+        loadMenus();
+
         long databaseStartTime = System.currentTimeMillis();
         final boolean fixedTables = setupDatabase();
         if (getDatabaseConnection() != null)
@@ -149,6 +163,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         new SkyBlockListener(this);
 
         getServer().getPluginManager().registerEvents(listeners = new Listeners(this), this);
+        getServer().getPluginManager().registerEvents(menuListener = new MenuListener(this), this);
 
         Plugin ps = getServer().getPluginManager().getPlugin("PlotSquared");
         if (ps != null && ps.getDescription().getVersion().startsWith("5")) try {
@@ -240,8 +255,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
                 getServer().addRecipe(shapedRecipe);
             } catch (Exception e) {
-                log(Level.WARNING, "Unable to create the custom recipe for the shop creation item. This is normally due to the version of Minecraft not supporting the new 'NamespacedKey' API values. "
-                        + "To avoid this issue entirely -> DISABLE THE 'craftable' OPTION IN THE 'shop-creation-item' SECTION LOCATED IN THE 'config.yml' file.");
+                log(Level.WARNING, "Unable to create the custom recipe for the shop creation item. This is normally due to the version of Minecraft" +
+                        " not supporting the new 'NamespacedKey' API values. "
+                        + "To avoid this issue entirely -> DISABLE THE 'craftable' OPTION IN THE 'shop-creation-item' SECTION LOCATED IN THE " +
+                        "'config.yml' file.");
             }
         }
 
@@ -279,7 +296,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                     current++;
 
                     if ((shopCountPercentage <= 0 || (current % shopCountPercentage) == 0 || current == shopCount))
-                        log(Level.INFO, "Saving shops " + current + "/" + shopCount + " (" + Math.min(100, (int) (((double) current / (double) shopCount) * 100)) + "%)...");
+                        log(Level.INFO, "Saving shops " + current + "/" + shopCount + " (" + Math.min(100,
+                                (int) (((double) current / (double) shopCount) * 100)) + "%)...");
                 }
 
                 Statement statement = getDatabaseConnection().createStatement();
@@ -340,83 +358,16 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
                 statement.executeUpdate("PRAGMA integrity_check;");
                 String shopParameters = "(id TEXT PRIMARY KEY NOT NULL, location TEXT NOT NULL, owner TEXT, assistants TEXT, buy_price REAL,"
-                        + " sell_price REAL, stock INTEGER, shop_item TEXT, trade_item TEXT, buy_limit INTEGER, sell_limit INTEGER,"
-                        + " shop_item_amount INTEGER, buy_counter INTEGER, sell_counter INTEGER, balance REAL, command_only_mode NUMERIC,"
-                        + " commands TEXT, change_time_stamp TEXT, description TEXT, base_material TEXT, extra_data TEXT)",
+                        + " sell_price REAL, stock INTEGER, shop_item TEXT, trade_item TEXT, limits LONGTEXT, shop_item_amount INTEGER, balance REAL,"
+                        + " command_only_mode NUMERIC, commands TEXT, change_time_stamp TEXT, description TEXT, base_material TEXT, extra_data TEXT)",
                         markRegionParameters = "(id TEXT PRIMARY KEY NOT NULL, point_one TEXT, point_two TEXT, renter TEXT, rent_time_stamp TEXT,"
                                 + " extended_duration INTEGER, extra_data TEXT)",
-                        playerDataParameters = "(uuid TEXT PRIMARY KEY NOT NULL, bbm_unlocks TEXT, cooldowns TEXT, transaction_limits TEXT, notify TEXT)",
+                        playerDataParameters = "(uuid TEXT PRIMARY KEY NOT NULL, bbm_unlocks TEXT, cooldowns TEXT, transaction_limits TEXT, notify " +
+                                "TEXT)",
                         recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency REAL, item_amount INTEGER, item TEXT)";
 
-                statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
-                if (!tableExists("shops")) {
-                    getServer().getLogger().warning("There was an issue creating the \"shops\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
+                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters);
 
-                statement.execute("CREATE TABLE IF NOT EXISTS market_regions " + markRegionParameters + ";");
-                if (!tableExists("market_regions")) {
-                    getServer().getLogger().warning("There was an issue creating the \"market_regions\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
-
-                statement.execute("CREATE TABLE IF NOT EXISTS player_data " + playerDataParameters + ";");
-                if (!tableExists("player_data")) {
-                    getServer().getLogger().warning("There was an issue creating the \"player_data\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
-
-                statement.execute("CREATE TABLE IF NOT EXISTS recovery " + recoveryParameters + ";");
-                if (!tableExists("recovery")) {
-                    getServer().getLogger().warning("There was an issue creating the \"recovery\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
-
-                ResultSet rs = statement.executeQuery("SELECT * FROM player_data;");
-                boolean hasTL = hasColumn(rs, "transaction_limits"), hasNotify = hasColumn(rs, "notify");
-                if (!hasTL && !hasNotify) {
-                    statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
-                    statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns) SELECT uuid, bbm_unlocks, cooldowns FROM player_data;");
-                    statement.execute("DROP TABLE IF EXISTS player_data;");
-                    statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
-                } else if (hasTL && !hasNotify) {
-                    statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
-                    statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns, transaction_limits) SELECT uuid, bbm_unlocks, "
-                            + "cooldowns, transaction_limits FROM player_data;");
-                    statement.execute("DROP TABLE IF EXISTS player_data;");
-                    statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
-                }
-
-                rs.close();
-
-                ResultSet resultSet = statement.executeQuery("SELECT * FROM shops;");
-                if (!hasColumn(resultSet, "base_material") || hasColumn(resultSet, "base_location")) {
-                    resultSet.close();
-                    try {
-                        statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/table-fix-backup.db").getPath()
-                                .replace("'", "").replace("\"", "") + "';");
-                    } catch (SQLException e) {
-                        log(Level.WARNING, "Unable to backup the 'table-fix-backup.db' file.");
-                    }
-
-                    for (String tableName : new String[]{"market_regions", "player_data"}) {
-                        statement.execute("CREATE TABLE IF NOT EXISTS temp_" + tableName + " "
-                                + (tableName.equals("market_regions") ? markRegionParameters : playerDataParameters) + ";");
-                        statement.execute("INSERT INTO temp_" + tableName + " SELECT * FROM " + tableName + ";");
-                        statement.execute("DROP TABLE IF EXISTS " + tableName + ";");
-                        statement.execute("ALTER TABLE temp_" + tableName + " RENAME TO " + tableName + ";");
-                    }
-
-                    getManager().loadShops(false, false);
-                    statement.execute("DROP TABLE IF EXISTS shops;");
-
-                    statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
-                    for (Shop shop : getManager().getShopMap().values()) shop.save(false);
-                    fixedTables = true;
-                }
-
-                resultSet.close();
-                statement.close();
             } else {
                 try {
                     Class.forName("com.mysql.cj.jdbc.Driver");
@@ -426,81 +377,26 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                 final boolean useSSL = getConfig().getBoolean("mysql.use-ssl");
                 final String databaseName = getConfig().getString("mysql.database"), port = getConfig().getString("mysql.port"),
                         username = getConfig().getString("mysql.username"), password = getConfig().getString("mysql.password"),
-                        syntax = "jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?useSSL=" + (useSSL ? "true" : "false")
-                                + "&autoReconnect=true&useUnicode=yes";
+                        syntax = "jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?useSSL=" + (useSSL ? "true" : "false") +
+                                "&autoReconnect=true&useUnicode=yes";
 
                 setDatabaseConnection(DriverManager.getConnection(syntax, username, password));
                 Statement statement = getDatabaseConnection().createStatement();
 
-                final String shopParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, location LONGTEXT NOT NULL, owner LONGTEXT, assistants LONGTEXT, buy_price DOUBLE,"
-                        + " sell_price DOUBLE, stock INT, shop_item LONGTEXT, trade_item LONGTEXT, buy_limit INT, sell_limit INT,"
-                        + " shop_item_amount INT, buy_counter INT, sell_counter INT, balance DOUBLE, command_only_mode BOOLEAN,"
-                        + " commands LONGTEXT, change_time_stamp LONGTEXT, description LONGTEXT, base_material LONGTEXT, extra_data LONGTEXT)",
-                        markRegionParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, point_one LONGTEXT, point_two LONGTEXT, renter LONGTEXT, rent_time_stamp LONGTEXT,"
+                final String shopParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, location LONGTEXT NOT NULL, owner LONGTEXT, assistants " +
+                        "LONGTEXT, buy_price DOUBLE, sell_price DOUBLE, stock INT, shop_item LONGTEXT, trade_item LONGTEXT, limits LONGTEXT, " +
+                        "shop_item_amount INT, balance " +
+                        "DOUBLE, command_only_mode BOOLEAN, commands LONGTEXT, change_time_stamp LONGTEXT, description LONGTEXT, base_material " +
+                        "LONGTEXT, extra_data LONGTEXT)",
+                        markRegionParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, point_one LONGTEXT, point_two LONGTEXT, renter LONGTEXT, " +
+                                "rent_time_stamp LONGTEXT,"
                                 + " extended_duration INT, extra_data LONGTEXT)",
-                        playerDataParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, bbm_unlocks LONGTEXT, cooldowns LONGTEXT, transaction_limits LONGTEXT, notify LONGTEXT)",
+                        playerDataParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, bbm_unlocks LONGTEXT, cooldowns LONGTEXT, " +
+                                "transaction_limits LONGTEXT, notify LONGTEXT)",
                         recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency DOUBLE, item_amount INT, item LONGTEXT)";
 
-                statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
-                if (!tableExists("shops")) {
-                    getServer().getLogger().warning("There was an issue creating the \"shops\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
+                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters);
 
-                statement.execute("CREATE TABLE IF NOT EXISTS market_regions " + markRegionParameters + ";");
-                if (!tableExists("market_regions")) {
-                    getServer().getLogger().warning("There was an issue creating the \"market_regions\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
-
-                statement.execute("CREATE TABLE IF NOT EXISTS player_data " + playerDataParameters + ";");
-                if (!tableExists("player_data")) {
-                    getServer().getLogger().warning("There was an issue creating the \"player_data\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
-
-                statement.execute("CREATE TABLE IF NOT EXISTS recovery " + recoveryParameters + ";");
-                if (!tableExists("recovery")) {
-                    getServer().getLogger().warning("There was an issue creating the \"recovery\" table. This could be related to user permissions via SQL.");
-                    return false;
-                }
-
-                ResultSet rs = statement.executeQuery("SELECT * FROM player_data;");
-                boolean hasTL = hasColumn(rs, "transaction_limits"), hasNotify = hasColumn(rs, "notify");
-                if (!hasTL && !hasNotify) {
-                    statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
-                    statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns) SELECT uuid, bbm_unlocks, cooldowns FROM player_data;");
-                    statement.execute("DROP TABLE IF EXISTS player_data;");
-                    statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
-                } else if (hasTL && !hasNotify) {
-                    statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
-                    statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns, transaction_limits) SELECT uuid, bbm_unlocks, "
-                            + "cooldowns, transaction_limits FROM player_data;");
-                    statement.execute("DROP TABLE IF EXISTS player_data;");
-                    statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
-                }
-
-                rs.close();
-
-                ResultSet resultSet = statement.executeQuery("SELECT * FROM shops;");
-                if (hasColumn(resultSet, "base_location")) {
-                    for (String tableName : new String[]{"market_regions", "player_data"}) {
-                        statement.execute("CREATE TABLE IF NOT EXISTS temp_" + tableName + " "
-                                + (tableName.equals("market_regions") ? markRegionParameters : playerDataParameters) + ";");
-                        statement.execute("INSERT INTO temp_" + tableName + " SELECT * FROM " + tableName + ";");
-                        statement.execute("DROP TABLE IF EXISTS " + tableName + ";");
-                        statement.execute("ALTER TABLE temp_" + tableName + " RENAME TO " + tableName + ";");
-                    }
-
-                    getManager().loadShops(false, false);
-                    statement.execute("DROP TABLE IF EXISTS shops;");
-                    statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
-                    for (Shop shop : getManager().getShopMap().values()) shop.save(false);
-                    fixedTables = true;
-                }
-
-                resultSet.close();
-                statement.close();
                 exportMySQLDatabase();
             }
         } catch (ClassNotFoundException | SQLException | IOException e) {
@@ -509,6 +405,86 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         return fixedTables;
+    }
+
+    private boolean handleDatabaseFixing(@NotNull Statement statement, @NotNull String shopParameters, @NotNull String markRegionParameters,
+                                         @NotNull String playerDataParameters,
+                                         @NotNull String recoveryParameters) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
+        if (!tableExists("shops")) {
+            getServer().getLogger().warning("There was an issue creating the \"shops\" table. This could be related to user permissions via SQL.");
+            return false;
+        }
+
+        statement.execute("CREATE TABLE IF NOT EXISTS market_regions " + markRegionParameters + ";");
+        if (!tableExists("market_regions")) {
+            getServer().getLogger().warning("There was an issue creating the \"market_regions\" table. This could be related to user permissions " +
+                    "via SQL.");
+            return false;
+        }
+
+        statement.execute("CREATE TABLE IF NOT EXISTS player_data " + playerDataParameters + ";");
+        if (!tableExists("player_data")) {
+            getServer().getLogger().warning("There was an issue creating the \"player_data\" table. This could be related to user permissions via " +
+                    "SQL.");
+            return false;
+        }
+
+        statement.execute("CREATE TABLE IF NOT EXISTS recovery " + recoveryParameters + ";");
+        if (!tableExists("recovery")) {
+            getServer().getLogger().warning("There was an issue creating the \"recovery\" table. This could be related to user permissions via SQL.");
+            return false;
+        }
+
+        ResultSet rs = statement.executeQuery("SELECT * FROM player_data;");
+        boolean hasTL = hasColumn(rs, "transaction_limits"), hasNotify = hasColumn(rs, "notify");
+        if (!hasTL && !hasNotify) {
+            statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
+            statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns) SELECT uuid, bbm_unlocks, cooldowns FROM player_data;");
+            statement.execute("DROP TABLE IF EXISTS player_data;");
+            statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
+        } else if (hasTL && !hasNotify) {
+            statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
+            statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns, transaction_limits) SELECT uuid, bbm_unlocks, "
+                    + "cooldowns, transaction_limits FROM player_data;");
+            statement.execute("DROP TABLE IF EXISTS player_data;");
+            statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
+        }
+
+        rs.close();
+
+        ResultSet resultSet = statement.executeQuery("SELECT * FROM shops;");
+
+        if (!hasColumn(resultSet, "base_material") || hasColumn(resultSet, "base_location")
+                || !hasColumn(resultSet, "limits")) {
+            resultSet.close();
+            try {
+                statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/table-fix-backup.db").getPath()
+                        .replace("'", "").replace("\"", "") + "';");
+            } catch (SQLException e) {
+                log(Level.WARNING, "Unable to backup the 'table-fix-backup.db' file.");
+            }
+
+            for (String tableName : new String[]{"shops", "market_regions", "player_data"}) {
+                statement.execute("CREATE TABLE IF NOT EXISTS temp_" + tableName + " "
+                        + (tableName.equals("shops") ? shopParameters : (tableName.equals("market_regions")
+                        ? markRegionParameters : playerDataParameters)) + ";");
+                statement.execute("INSERT INTO temp_" + tableName + " SELECT * FROM " + tableName + ";");
+                statement.execute("DROP TABLE IF EXISTS " + tableName + ";");
+                statement.execute("ALTER TABLE temp_" + tableName + " RENAME TO " + tableName + ";");
+            }
+
+            getManager().loadShops(false, false);
+            statement.execute("DROP TABLE IF EXISTS shops;");
+
+            statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
+            for (Shop shop : getManager().getShopMap().values()) shop.save(false);
+            return true;
+        }
+
+        resultSet.close();
+        statement.close();
+        return false;
     }
 
     public boolean hasColumn(ResultSet rs, String columnName) throws SQLException {
@@ -697,7 +673,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         long startTime = System.currentTimeMillis();
         int totalUpdates = 0;
 
-        String[] configNames = {"config", "lang", "menus"};
+        String[] configNames = {"config", "lang"};
         for (int i = -1; ++i < configNames.length; ) {
             String name = configNames[i];
 
@@ -707,164 +683,124 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 
             FileConfiguration yaml = YamlConfiguration.loadConfiguration(reader);
-            int updateCount = updateKeys(yaml, name.equalsIgnoreCase("config") ? getConfig() : name.equalsIgnoreCase("lang") ? getLangConfig() : getMenusConfig());
+            int updateCount = updateKeys(yaml, name.equalsIgnoreCase("config") ? getConfig() : getLangConfig());
 
-            switch (name) {
-                case "config":
+            if (name.equals("config")) {
+                String createSound = getConfig().getString("immersion-section.shop-creation-sound");
+                if (Math.floor(getServerVersion()) <= 1_8) {
 
-                    String createSound = getConfig().getString("immersion-section.shop-creation-sound");
-                    if (Math.floor(getServerVersion()) <= 1_8) {
-
-                        if (createSound != null && createSound.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) {
-                            getConfig().set("immersion-section.shop-creation-sound", "ITEM_PICKUP");
-                            updateCount++;
-                        }
-
-                        String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
-                        if (deleteSound != null && (deleteSound.equalsIgnoreCase("BLOCK_WOOD_BREAK")
-                                || deleteSound.equalsIgnoreCase("BLOCK_WOOD_STEP"))) {
-                            getConfig().set("immersion-section.shop-delete-sound", "STEP_WOOD");
-                            updateCount++;
-                        }
-
-                        String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
-                        if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")
-                                || visitSound.equalsIgnoreCase("ENTITY_ENDERMEN_TELEPORT"))) {
-                            getConfig().set("immersion-section.shop-visit-sound", "ENDERMAN_TELEPORT");
-                            updateCount++;
-                        }
-
-                        String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
-                        if (bbmSound != null && (bbmSound.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")
-                                || bbmSound.equalsIgnoreCase("ENTITY_ARROW_SHOOT"))) {
-                            getConfig().set("immersion-section.shop-bbm-sound", "SHOOT_ARROW");
-                            updateCount++;
-                        }
-
-                    } else if (Math.floor(getServerVersion()) <= 1_12) {
-
-                        if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
-                            getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
-                            updateCount++;
-                        }
-
-                        String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
-                        if (deleteSound != null && (deleteSound.equalsIgnoreCase("BLOCK_WOOD_BREAK")
-                                || deleteSound.equalsIgnoreCase("STEP_WOOD"))) {
-                            getConfig().set("immersion-section.shop-delete-sound", "BLOCK_WOOD_STEP");
-                            updateCount++;
-                        }
-
-                        if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
-                            getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
-                            updateCount++;
-                        }
-
-                        String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
-                        if (bbmSound != null && (bbmSound.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")
-                                || bbmSound.equalsIgnoreCase("SHOOT_ARROW"))) {
-                            getConfig().set("immersion-section.shop-bbm-sound", "ENTITY_ARROW_SHOOT");
-                            updateCount++;
-                        }
-
-                        String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
-                        if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")
-                                || visitSound.equalsIgnoreCase("ENDERMAN_TELEPORT"))) {
-                            getConfig().set("immersion-section.shop-visit-sound", "ENTITY_ENDERMEN_TELEPORT");
-                            updateCount++;
-                        }
-
-                    } else {
-                        if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
-                            getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
-                            updateCount++;
-                        }
-
-                        String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
-                        if (deleteSound != null && deleteSound.equalsIgnoreCase("STEP_WOOD")) {
-                            getConfig().set("immersion-section.shop-delete-sound", "BLOCK_WOOD_BREAK");
-                            updateCount++;
-                        }
-
-                        String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
-                        if (bbmSound != null && bbmSound.equalsIgnoreCase("SHOOT_ARROW")) {
-                            getConfig().set("immersion-section.shop-bbm-sound", "ENTITY_SNOWBALL_THROW");
-                            updateCount++;
-                        }
-
-                        String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
-                        if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMEN_TELEPORT")
-                                || visitSound.equalsIgnoreCase("ENDERMAN_TELEPORT"))) {
-                            getConfig().set("immersion-section.shop-visit-sound", "ENTITY_ENDERMAN_TELEPORT");
-                            updateCount++;
-                        }
+                    if (createSound != null && createSound.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) {
+                        getConfig().set("immersion-section.shop-creation-sound", "ITEM_PICKUP");
+                        updateCount++;
                     }
 
-                    String baseBlockMaterial = getConfig().getString("shop-block-material"), craftingRecipeLineTwo = getConfig().getString("shop-creation-item.recipe.line-two");
-                    if (Math.floor(getServerVersion()) <= 1_12) {
-                        if (baseBlockMaterial != null && baseBlockMaterial.contains("END_PORTAL_FRAME")) {
-                            getConfig().set("shop-block-material", baseBlockMaterial.replace("END_PORTAL_FRAME", "ENDER_PORTAL_FRAME"));
-                            updateCount++;
-                        }
-
-                        if (craftingRecipeLineTwo == null || craftingRecipeLineTwo.equalsIgnoreCase("") || craftingRecipeLineTwo.contains("END_STONE")) {
-                            getConfig().set("shop-creation-item.recipe.line-two", Objects.requireNonNull(craftingRecipeLineTwo).replace("END_STONE", craftingRecipeLineTwo.replace("END_STONE",
-                                    "ENDER_STONE")));
-                            updateCount++;
-                        }
-                    } else {
-                        if (baseBlockMaterial != null && baseBlockMaterial.contains("ENDER_PORTAL_FRAME")) {
-                            getConfig().set("shop-block-material", baseBlockMaterial.replace("ENDER_PORTAL_FRAME", "END_PORTAL_FRAME"));
-                            updateCount++;
-                        }
-
-                        if (craftingRecipeLineTwo == null || craftingRecipeLineTwo.equalsIgnoreCase("") || craftingRecipeLineTwo.contains("ENDER_STONE")) {
-                            getConfig().set("shop-creation-item.recipe.line-two", Objects.requireNonNull(craftingRecipeLineTwo).replace("ENDER_STONE", craftingRecipeLineTwo.replace("ENDER_STONE",
-                                    "END_STONE")));
-                            updateCount++;
-                        }
+                    String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
+                    if (deleteSound != null && (deleteSound.equalsIgnoreCase("BLOCK_WOOD_BREAK")
+                            || deleteSound.equalsIgnoreCase("BLOCK_WOOD_STEP"))) {
+                        getConfig().set("immersion-section.shop-delete-sound", "STEP_WOOD");
+                        updateCount++;
                     }
 
-                    break;
-                case "menus":
-                    ConfigurationSection currentConfigurationSection = getMenusConfig().getConfigurationSection("");
-                    if (currentConfigurationSection != null)
-                        for (String key : currentConfigurationSection.getKeys(true))
-                            if (key.toLowerCase().endsWith("material")) {
-                                String currentMaterialName = Objects.requireNonNull(currentConfigurationSection.getString(key)).toUpperCase().replace(" ", "_").replace("-", "_");
+                    String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
+                    if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")
+                            || visitSound.equalsIgnoreCase("ENTITY_ENDERMEN_TELEPORT"))) {
+                        getConfig().set("immersion-section.shop-visit-sound", "ENDERMAN_TELEPORT");
+                        updateCount++;
+                    }
 
-                                if (Math.floor(getServerVersion()) <= 1_12) {
-                                    if (currentMaterialName.toUpperCase().endsWith("_WOOL")) {
-                                        getMenusConfig().set(key, "WOOL");
-                                        getMenusConfig().set(key.replaceAll("(?i)material", "durability"), key.toLowerCase().contains("deposit") ? 14 : 5);
-                                        updateCount++;
-                                    } else if (currentMaterialName.equalsIgnoreCase("CHEST_MINECART")) {
-                                        getMenusConfig().set(key, currentMaterialName.replace("CHEST_MINECART", "STORAGE_MINECART"));
-                                        updateCount++;
-                                    } else if (currentMaterialName.equalsIgnoreCase("BLACK_STAINED_GLASS_PANE")) {
-                                        getMenusConfig().set(key, currentMaterialName.replace("BLACK_STAINED_GLASS_PANE", "STAINED_GLASS_PANE"));
-                                        getMenusConfig().set(key.replaceAll("(?i)material", "durability"), 15);
-                                        updateCount++;
-                                    }
-                                } else {
-                                    if (currentMaterialName.equalsIgnoreCase("WOOL")) {
-                                        getMenusConfig().set(key, key.toLowerCase().contains("deposit") ? currentMaterialName.replace("WOOL", "GREEN_WOOL")
-                                                : currentMaterialName.replace("WOOL", "RED_WOOL"));
-                                        updateCount++;
-                                    } else if (currentMaterialName.equalsIgnoreCase("STORAGE_MINECART")) {
-                                        getMenusConfig().set(key, currentMaterialName.replace("STORAGE_MINECART", "CHEST_MINECART"));
-                                        updateCount++;
-                                    } else if (currentMaterialName.equalsIgnoreCase("STAINED_GLASS_PANE")) {
-                                        getMenusConfig().set(key, currentMaterialName.replace("STAINED_GLASS_PANE", "BLACK_STAINED_GLASS_PANE"));
-                                        updateCount++;
-                                    }
-                                }
+                    String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
+                    if (bbmSound != null && (bbmSound.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")
+                            || bbmSound.equalsIgnoreCase("ENTITY_ARROW_SHOOT"))) {
+                        getConfig().set("immersion-section.shop-bbm-sound", "SHOOT_ARROW");
+                        updateCount++;
+                    }
 
-                            }
+                } else if (Math.floor(getServerVersion()) <= 1_12) {
 
-                    break;
-                default:
-                    break;
+                    if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
+                        getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
+                        updateCount++;
+                    }
+
+                    String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
+                    if (deleteSound != null && (deleteSound.equalsIgnoreCase("BLOCK_WOOD_BREAK")
+                            || deleteSound.equalsIgnoreCase("STEP_WOOD"))) {
+                        getConfig().set("immersion-section.shop-delete-sound", "BLOCK_WOOD_STEP");
+                        updateCount++;
+                    }
+
+                    if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
+                        getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
+                        updateCount++;
+                    }
+
+                    String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
+                    if (bbmSound != null && (bbmSound.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")
+                            || bbmSound.equalsIgnoreCase("SHOOT_ARROW"))) {
+                        getConfig().set("immersion-section.shop-bbm-sound", "ENTITY_ARROW_SHOOT");
+                        updateCount++;
+                    }
+
+                    String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
+                    if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")
+                            || visitSound.equalsIgnoreCase("ENDERMAN_TELEPORT"))) {
+                        getConfig().set("immersion-section.shop-visit-sound", "ENTITY_ENDERMEN_TELEPORT");
+                        updateCount++;
+                    }
+
+                } else {
+                    if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
+                        getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
+                        updateCount++;
+                    }
+
+                    String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
+                    if (deleteSound != null && deleteSound.equalsIgnoreCase("STEP_WOOD")) {
+                        getConfig().set("immersion-section.shop-delete-sound", "BLOCK_WOOD_BREAK");
+                        updateCount++;
+                    }
+
+                    String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
+                    if (bbmSound != null && bbmSound.equalsIgnoreCase("SHOOT_ARROW")) {
+                        getConfig().set("immersion-section.shop-bbm-sound", "ENTITY_SNOWBALL_THROW");
+                        updateCount++;
+                    }
+
+                    String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
+                    if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMEN_TELEPORT")
+                            || visitSound.equalsIgnoreCase("ENDERMAN_TELEPORT"))) {
+                        getConfig().set("immersion-section.shop-visit-sound", "ENTITY_ENDERMAN_TELEPORT");
+                        updateCount++;
+                    }
+                }
+
+                String baseBlockMaterial = getConfig().getString("shop-block-material"), craftingRecipeLineTwo = getConfig().getString("shop" +
+                        "-creation-item.recipe.line-two");
+                if (Math.floor(getServerVersion()) <= 1_12) {
+                    if (baseBlockMaterial != null && baseBlockMaterial.contains("END_PORTAL_FRAME")) {
+                        getConfig().set("shop-block-material", baseBlockMaterial.replace("END_PORTAL_FRAME", "ENDER_PORTAL_FRAME"));
+                        updateCount++;
+                    }
+
+                    if (craftingRecipeLineTwo == null || craftingRecipeLineTwo.equalsIgnoreCase("") || craftingRecipeLineTwo.contains("END_STONE")) {
+                        getConfig().set("shop-creation-item.recipe.line-two", Objects.requireNonNull(craftingRecipeLineTwo).replace("END_STONE",
+                                craftingRecipeLineTwo.replace("END_STONE",
+                                        "ENDER_STONE")));
+                        updateCount++;
+                    }
+                } else {
+                    if (baseBlockMaterial != null && baseBlockMaterial.contains("ENDER_PORTAL_FRAME")) {
+                        getConfig().set("shop-block-material", baseBlockMaterial.replace("ENDER_PORTAL_FRAME", "END_PORTAL_FRAME"));
+                        updateCount++;
+                    }
+
+                    if (craftingRecipeLineTwo == null || craftingRecipeLineTwo.equalsIgnoreCase("") || craftingRecipeLineTwo.contains("ENDER_STONE")) {
+                        getConfig().set("shop-creation-item.recipe.line-two", Objects.requireNonNull(craftingRecipeLineTwo).replace("ENDER_STONE",
+                                craftingRecipeLineTwo.replace("ENDER_STONE",
+                                        "END_STONE")));
+                        updateCount++;
+                    }
+                }
             }
 
             try {
@@ -879,9 +815,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                     case "config":
                         saveConfig();
                         break;
-                    case "menus":
-                        saveMenusConfig();
-                        break;
                     case "lang":
                         saveLangConfig();
                         break;
@@ -891,13 +824,15 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
             if (updateCount > 0) {
                 totalUpdates += updateCount;
-                log(Level.INFO, updateCount + " things were fixed, updated, or removed in the '" + name + ".yml' configuration file. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
+                log(Level.INFO,
+                        updateCount + " things were fixed, updated, or removed in the '" + name + ".yml' configuration file. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
             }
         }
 
         if (totalUpdates > 0) {
             reloadConfigs();
-            log(Level.INFO, "A total of " + totalUpdates + " thing(s) were fixed, updated, or removed from all the configuration together. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
+            log(Level.INFO,
+                    "A total of " + totalUpdates + " thing(s) were fixed, updated, or removed from all the configuration together. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
             log(Level.WARNING, "Please go checkout the configuration files as they are no longer the same as their default counterparts.");
         } else
             log(Level.INFO, "Everything inside the configuration seems to be up to date. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
@@ -936,6 +871,71 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     // custom configurations
 
+    private void saveDefaultMenuConfigs() {
+        try {
+            final File menusDir = new File(getDataFolder(), "menus");
+            menusDir.mkdirs();
+
+            final URL dir = getClass().getResource("/menus");
+            if (dir != null) {
+                final FileSystem fileSystem = FileSystems.newFileSystem(dir.toURI(), Collections.emptyMap());
+                final Path path = fileSystem.getPath("/menus");
+
+                Stream<Path> walk = Files.walk(path);
+                walk.parallel().filter(p -> !p.getFileName().toString().equals("menus")).forEach(source -> {
+                    final Path newPath = Paths.get(getDataFolder().getPath(), "menus", source.getFileName().toString());
+                    File file = new File(newPath.toUri());
+                    if (file.exists()) return;
+
+                    try {
+                        Files.copy(source, newPath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+
+                walk.close();
+                fileSystem.close();
+            }
+        } catch (IOException | URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadMenus() {
+        final File dir = new File(getDataFolder(), "/menus");
+        if (dir.exists() && dir.isDirectory()) {
+
+            final File[] files = dir.listFiles();
+            if (files != null && files.length > 0) for (int i = -1; ++i < files.length; ) {
+                final File file = files[i];
+                getMenuMap().put(file.getName().toLowerCase().replace(".yml", ""), new BackendMenu(file));
+            }
+        }
+    }
+
+    @Override
+    public Menu getMenu(@NotNull String name) {
+        final Menu menu = getMenuMap().getOrDefault(name.toLowerCase(), null);
+        if (menu != null) return menu;
+
+        Map.Entry<String, Menu> menuEntry = getMenuMap().entrySet().parallelStream()
+                .filter(entry -> entry.getValue().matches(name))
+                .findFirst().orElse(null);
+        return ((menuEntry != null) ? menuEntry.getValue() : null);
+    }
+
+    @Override
+    public boolean matchesAnyMenu(@NotNull String name) {
+        return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));
+    }
+
+    @Override
+    public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {
+        final Menu menu = getMenuMap().getOrDefault(menuName, null);
+        return (menu != null && menu.matches(inventoryName));
+    }
+
     /**
      * Reloads all configs associated with DisplayShops.
      */
@@ -955,11 +955,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             log(Level.WARNING, e.getMessage());
         }
 
-        if (menusFile == null) menusFile = new File(getDataFolder(), "menus.yml");
-        menusConfig = YamlConfiguration.loadConfiguration(menusFile);
-
-        defConfigStream = new InputStreamReader(Objects.requireNonNull(this.getResource("menus.yml")), StandardCharsets.UTF_8);
-        defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
         langConfig.setDefaults(defConfig);
 
         try {
@@ -980,24 +975,12 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     /**
-     * Gets the menus file configuration.
-     *
-     * @return The FileConfiguration found.
-     */
-    public FileConfiguration getMenusConfig() {
-        if (menusConfig == null) reloadConfigs();
-        return menusConfig;
-    }
-
-    /**
      * Saves the default configuration files (Doesn't replace existing).
      */
     public void saveDefaultConfigs() {
         saveDefaultConfig();
         if (langFile == null) langFile = new File(getDataFolder(), "lang.yml");
         if (!langFile.exists()) saveResource("lang.yml", false);
-        if (menusFile == null) menusFile = new File(getDataFolder(), "menus.yml");
-        if (!menusFile.exists()) saveResource("menus.yml", false);
 
         reloadConfigs();
     }
@@ -1006,15 +989,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         if (langConfig == null || langFile == null) return;
         try {
             getLangConfig().save(langFile);
-        } catch (IOException e) {
-            log(Level.WARNING, e.getMessage());
-        }
-    }
-
-    private void saveMenusConfig() {
-        if (menusConfig == null || menusFile == null) return;
-        try {
-            getMenusConfig().save(menusFile);
         } catch (IOException e) {
             log(Level.WARNING, e.getMessage());
         }
@@ -1316,7 +1290,19 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return listeners;
     }
 
-    public PacketManager getPacketManager() {return packetManager;}
+    public MenuListener getMenuListener() {
+        return menuListener;
+    }
 
-    public boolean isItemAdderInstalled() {return isItemAdderInstalled;}
+    public PacketManager getPacketManager() {
+        return packetManager;
+    }
+
+    public boolean isItemAdderInstalled() {
+        return isItemAdderInstalled;
+    }
+
+    public HashMap<String, Menu> getMenuMap() {
+        return menuMap;
+    }
 }

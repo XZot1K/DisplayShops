@@ -35,9 +35,29 @@ public class DPacket implements DisplayPacket {
 
     private static final AtomicInteger ENTITY_ID_COUNTER_FIELD = getAI();
     private static final Supplier<Integer> idGenerator = setGenerator();
+
+    private static AtomicInteger getAI() {
+        try {
+            for (Field field : Entity.class.getDeclaredFields()) {
+                if (field.getType() == AtomicInteger.class) {
+                    field.setAccessible(true);
+                    return ((AtomicInteger) field.get(null));
+                }
+            }
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return new AtomicInteger();
+    }
+
+    private static Supplier<Integer> setGenerator() {
+        return Objects.requireNonNull(ENTITY_ID_COUNTER_FIELD)::incrementAndGet;
+    }
+
     private final DisplayShops INSTANCE;
     private final Collection<Integer> entityIds = new ArrayList<>();
     private net.minecraft.world.item.ItemStack itemStack;
+
     public DPacket(@NotNull DisplayShops instance, @NotNull Player player, @NotNull Shop shop, boolean showHolograms) {
         this.INSTANCE = instance;
         if (!player.isOnline()) return;
@@ -209,24 +229,6 @@ public class DPacket implements DisplayPacket {
         }
     }
 
-    private static AtomicInteger getAI() {
-        try {
-            for (Field field : Entity.class.getDeclaredFields()) {
-                if (field.getType() == AtomicInteger.class) {
-                    field.setAccessible(true);
-                    return ((AtomicInteger) field.get(null));
-                }
-            }
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        return new AtomicInteger();
-    }
-
-    private static Supplier<Integer> setGenerator() {
-        return Objects.requireNonNull(ENTITY_ID_COUNTER_FIELD)::incrementAndGet;
-    }
-
     private PlayerConnection getPlayerConnection(@NotNull Player player) {
         return ((CraftPlayer) player).getHandle().b;
     }
@@ -236,7 +238,7 @@ public class DPacket implements DisplayPacket {
 
         pds.d(id);
         pds.a(UUID.randomUUID());
-        pds.d(isItem ? 54 : 2); // (item is 54, armor stand is 2, and slime is 83)
+        pds.d(isItem ? 54 : 2); // (item is 54 , armor stand is 2, and slime is 83)
 
         // Position
         pds.writeDouble(x);

@@ -137,9 +137,10 @@ public interface Shop {
     /**
      * Deletes the shop's data, deletes the base-block, drops the stock, destroys the display packet, and unregisters the object.
      *
-     * @param async Whether the file deletion is async or not.
+     * @param player If provided, some additional effects will be displayed.
+     * @param async  Whether the file deletion is async or not.
      */
-    void purge(boolean async);
+    void purge(@Nullable Player player, boolean async);
 
     /**
      * Gets the dynamic price that will be added/subtracted to the buy/sell price.
@@ -158,10 +159,15 @@ public interface Shop {
      */
     boolean canEdit(@NotNull Player player);
 
+    /**
+     * Checks to see if the editor is actually editing the shop, if not the current editor data is cleared.
+     */
+    void checkCurrentEditor(@Nullable Player player);
+
     // getters & setters
     ItemStack getShopItem();
 
-    void setShopItem(@NotNull ItemStack shopItem);
+    void setShopItem(@Nullable ItemStack shopItem);
 
     /**
      * Gets the shop's unit buy price.
@@ -199,13 +205,65 @@ public interface Shop {
 
     void setShopId(@NotNull UUID shopId);
 
-    int getBuyLimit();
+    /**
+     * @return The global counter for how many times the shop has been bought from.
+     */
+    int getGlobalBuyCounter();
 
-    void setBuyLimit(int buyLimit);
+    /**
+     * @param buyCounter The new amount to set the global buy counter to.
+     */
+    void setGlobalBuyCounter(int buyCounter);
 
-    int getBuyCounter();
+    /**
+     * @return The global counter for how many times the shop has been sold to.
+     */
+    int getGlobalSellCounter();
 
-    void setBuyCounter(int buyCounter);
+    /**
+     * @param sellCounter The new amount to set the global sell counter to.
+     */
+    void setGlobalSellCounter(int sellCounter);
+
+    /**
+     * @return The per-player buy limit for the shop.
+     */
+    int getPlayerBuyLimit();
+
+    /**
+     * @param playerBuyLimit The new per-player buy limit for the shop.
+     */
+    void setPlayerBuyLimit(int playerBuyLimit);
+
+    /**
+     * @return The per-player sell limit for the shop.
+     */
+    int getPlayerSellLimit();
+
+    /**
+     * @param playerSellLimit The new per-player sell limit for the shop.
+     */
+    void setPlayerSellLimit(int playerSellLimit);
+
+    /**
+     * @return The per-shop global buy limit for the shop.
+     */
+    int getGlobalBuyLimit();
+
+    /**
+     * @param globalBuyLimit The new per-shop global buy limit for the shop.
+     */
+    void setGlobalBuyLimit(int globalBuyLimit);
+
+    /**
+     * @return The per-shop global sell limit for the shop.
+     */
+    int getGlobalSellLimit();
+
+    /**
+     * @param globalSellLimit The new per-shop global sell limit for the shop.
+     */
+    void setGlobalSellLimit(int globalSellLimit);
 
     /**
      * Obtains the balance of the shop which is used to purchase and store currency collected from invetors.
@@ -237,7 +295,7 @@ public interface Shop {
 
     ItemStack getTradeItem();
 
-    void setTradeItem(@NotNull ItemStack tradeItem);
+    void setTradeItem(@Nullable ItemStack tradeItem);
 
     long getChangeTimeStamp();
 
@@ -250,14 +308,6 @@ public interface Shop {
     long getLastSellTimeStamp();
 
     void setLastSellTimeStamp(long sellTimeStamp);
-
-    int getSellLimit();
-
-    void setSellLimit(int sellLimit);
-
-    int getSellCounter();
-
-    void setSellCounter(int sellCounter);
 
     String getDescription();
 

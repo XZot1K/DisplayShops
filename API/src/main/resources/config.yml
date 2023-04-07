@@ -156,6 +156,19 @@ transaction-cooldown: 1
 # This is the price the player must pay to get a shop creation item.
 creation-item-price: 250
 
+prices:
+  withdraw-stock: 0.0
+  deposit-stock: 0.0
+  sale-item-change: 0.0
+  trade-item-change: 0.0
+  buy-price: 0.0
+  sell-price: 0.0
+  balance: 0.0
+  global-buy-limit: 0.0
+  global-sell-limit: 0.0
+  player-buy-limit: 0.0
+  player-sell-limit: 0.0
+
 # If this is greater than zero, the defined percentage will be taken from the buy/sell transaction value before it reaches a player in the form of tax.
 transaction-tax: 0
 
@@ -174,6 +187,9 @@ dynamic-sell-percentage: 0.05
 
 # This is used to enhance the format of the numbers displayed throughout the plugin. (Note: Set this to 0 for whole numbers)
 minimum-fraction-digits: 2
+
+# This is the symbol used to prefix currency-related values.
+currency-symbol: "$"
 
 # If this option is enabled, numerical entries must all be whole numbers. Decimals and non-numerals will send the "invalid-amount" message to the player.
 whole-number-entries: false
@@ -259,6 +275,12 @@ sell-price-limit: 9999999999
 # This is the maximum buy price a player can set on their shop.
 buy-price-limit: 9999999999
 
+# This is the maximum limit a player can set on their global & player specific shop buy limitations.
+buy-limit-cap: 9999999999
+
+# This is the maximum limit a player can set on their global & player specific shop sell limitations.
+sell-limit-cap: 9999999999
+
 # This is the maximum stored currency a shop can have as a balance.
 max-stored-currency: 9999999999
 
@@ -289,6 +311,9 @@ require-empty-stock: true
 
 # If this option is enabled, the transaction interface will close after a transaction is complete.
 close-transaction-gui: true
+
+# If enabled, a shop can not be modified or purchased/sold to/from while undergoing edits by a player.
+editor-prevention: false
 
 # This is the block distance a shop must be from another shop (Regardless another shop is unable to be placed in a one block radius).
 required-shop-distance: 1
@@ -356,11 +381,17 @@ event-commands:
   # This is the list of commands that will be executed when the shop has had items deposited.
   shop-deposit: [ ]
 
-  # This is the list of commands that will be executed when the shop's buy limit is changed.
-  shop-buy-limit: [ ]
+  # This is the list of commands that will be executed when the shop's global buy limit is changed.
+  global-buy-limit: [ ]
 
-  # This is the list of commands that will be executed when the shop's sell limit is changed.
-  shop-sell-limit: [ ]
+  # This is the list of commands that will be executed when the shop's global sell limit is changed.
+  global-sell-limit: [ ]
+
+  # This is the list of commands that will be executed when the shop's player buy limit is changed.
+  player-buy-limit: [ ]
+
+  # This is the list of commands that will be executed when the shop's player sell limit is changed.
+  player-sell-limit: [ ]
 
   # This is the list of commands that will be executed when the shop's amount is changed.
   shop-amount: [ ]
