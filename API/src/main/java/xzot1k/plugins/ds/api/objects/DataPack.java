@@ -6,9 +6,10 @@ package xzot1k.plugins.ds.api.objects;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xzot1k.plugins.ds.api.enums.InteractionType;
+import xzot1k.plugins.ds.api.enums.ChatInteractionType;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -28,22 +29,27 @@ public interface DataPack {
     /**
      * Gets the current transaction limit counter under the shop.
      *
-     * @param shop     The shop to check for.
-     * @param isBuy    Whether the transaction was buy or sell.
-     * @param isGlobal Whether the limited needs to be global or player specific.
+     * @param shop  The shop to check for.
+     * @param isBuy Whether the transaction was buy or sell.
      * @return The current counter for the shop.
      */
-    long getCurrentTransactionCounter(Shop shop, boolean isBuy, boolean isGlobal);
+    long getCurrentTransactionCounter(@NotNull Shop shop, boolean isBuy);
 
     /**
      * Checks if the transaction limit was reached.
      *
-     * @param shop     The shop to check against.
-     * @param isBuy    Whether the transaction was buy or sell.
-     * @param isGlobal Whether the limited needs to be global or player specific.
+     * @param shop  The shop to check against.
+     * @param isBuy Whether the transaction was buy or sell.
      * @return Whether the limit was met.
      */
-    boolean hasMetTransactionLimit(Shop shop, boolean isBuy, boolean isGlobal);
+    boolean hasMetTransactionLimit(@NotNull Shop shop, boolean isBuy);
+
+    /**
+     * Updates player's personal chat task values by cancelling the previous and cancelling the new after a configurable duration.
+     *
+     * @param player The player to update the chat task for.
+     */
+    void updateChatTimeoutTask(@NotNull Player player);
 
     /**
      * Updates the cooldown id for the player.
@@ -144,6 +150,21 @@ public interface DataPack {
     void setSelectedShop(@Nullable Shop selectedShop);
 
     /**
+     * Gets the current chat interaction type in-progress. This is what is used to define what
+     * the player's entry is being used for.
+     *
+     * @return The chat interaction type. (Returns NULL if no chat interaction is active)
+     */
+    ChatInteractionType getChatInteractionType();
+
+    /**
+     * Sets the chat interaction identification type.
+     *
+     * @param chatInteractionType The type to set as.
+     */
+    void setChatInteractionType(@Nullable ChatInteractionType chatInteractionType);
+
+    /**
      * Obtains the selected region of a player, if there is one.
      *
      * @return The region object. (Returns NULL if no region is selected)
@@ -171,6 +192,10 @@ public interface DataPack {
      */
     void setInSelectionMode(boolean inSelectionMode);
 
+    BukkitTask getCurrentChatTask();
+
+    void setCurrentChatTask(@Nullable BukkitTask currentChatTask);
+
     /**
      * Gets the player cooldown map for the player.
      *
@@ -179,40 +204,56 @@ public interface DataPack {
     HashMap<String, Long> getCooldownMap();
 
     /**
-     * Gets the current page the player is on from the page map.
-     *
-     * @return The current page.
-     */
-    int getCurrentPage();
-
-    /**
-     * Sets the current page the player is on from the page map.
-     */
-    void setCurrentPage(int currentPage);
-
-    /**
-     * Gets the page map for the player if it exists.
+     * Gets the base-block page map for the player if it exists.
      *
      * @return The map itself.
      */
-    HashMap<Integer, List<ItemStack>> getPageMap();
+    HashMap<Integer, List<ItemStack>> getBaseBlockPageMap();
 
     /**
-     * Sets the page map for the player.
+     * Sets the base-block page map for the player.
      *
-     * @param pageMap The map to set it as.
+     * @param baseBlockPageMap The map to set it as.
      */
-    void setPageMap(@Nullable HashMap<Integer, List<ItemStack>> pageMap);
+    void setBaseBlockPageMap(@Nullable HashMap<Integer, List<ItemStack>> baseBlockPageMap);
 
     /**
-     * @return Whether the player has a next page in their current menu interaction.
+     * Gets the current page the player is on from the base block page map.
+     *
+     * @return The current page.
      */
-    boolean hasNextPage();
+    int getCurrentBaseBlockPage();
 
     /**
-     * @return Whether the player has a previous page in their current menu interaction.
+     * Sets the current page the player is on from the base block page map.
      */
-    boolean hasPreviousPage();
+    void setCurrentBaseBlockPage(int currentBaseBlockPage);
+
+    /**
+     * Gets the visit page map for the player if it exists.
+     *
+     * @return The map itself.
+     */
+    HashMap<Integer, List<ItemStack>> getVisitPageMap();
+
+    /**
+     * Sets the visit page map for the player.
+     *
+     * @param visitPageMap The map to set it as.
+     */
+    void setVisitPageMap(@Nullable HashMap<Integer, List<ItemStack>> visitPageMap);
+
+    /**
+     * Gets the current page the player is on from the visit page map.
+     *
+     * @return The current page.
+     */
+    int getCurrentVisitPage();
+
+    /**
+     * Sets the current page the player is on from the visit page map.
+     */
+    void setCurrentVisitPage(int currentBaseBlockPage);
 
     /**
      * Determines if player will be notified .
@@ -220,45 +261,5 @@ public interface DataPack {
     boolean isTransactionNotify();
 
     void setTransactionNotify(boolean transactionNotify);
-
-    /**
-     * @return The current interaction type the player is performing.
-     */
-    InteractionType getInteractionType();
-
-    /**
-     * Sets the interaction type the player is currently performing.
-     *
-     * @param interactionType The new interaction type to update with.
-     */
-    void setInteractionType(@Nullable InteractionType interactionType);
-
-    /**
-     * Gets the value attached to the current interaction performed by the player.
-     *
-     * @return The current value attached to the interaction.
-     */
-    Object getInteractionValue();
-
-    /**
-     * Sets the value attached to the current interaction performed by the player.
-     *
-     * @param interactionValue The new value to set as the attached interaction value.
-     */
-    void setInteractionValue(@Nullable Object interactionValue);
-
-    /**
-     * Gets the value attached to the current interaction performed by the player, intended for retrieval way later in the process.
-     *
-     * @return The current value attached to the interaction, intended for retrieval way later in the process.
-     */
-    Object getLongTermInteractionValue();
-
-    /**
-     * Sets the value attached to the current interaction performed by the player, intended for retrieval way later in the process.
-     *
-     * @param interactionValue The new value to set as the attached interaction value, intended for retrieval way later in the process.
-     */
-    void setLongTermInteractionValue(@Nullable Object interactionValue);
 
 }

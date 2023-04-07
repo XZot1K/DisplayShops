@@ -62,13 +62,11 @@ quick-withdraw: "&aYou have withdrawn &e{amount} &astock from this shop."
 quick-deposit: "&aYou have deposited &e{amount} &astock into this shop."
 limit-reset: "&aYou have reset the buy and sell limit of this shop."
 buy-limit: "&aPlease enter the buy limit you wish to give the shop (Type &e{cancel} &ato cancel):"
-player-sell-limit-set: "&aYou have set the player sell limit of this shop to &e{amount}&a."
-global-sell-limit-set: "&aYou have set the global sell limit of this shop to &e{amount}&a."
+sell-limit-set: "&aYou have set the sell limit of this shop to &e{amount}&a."
 sell-limit-exceeded: "&cThis shop would exceed its sell limit if this action is processed."
 sell-limit: "&aPlease enter the sell limit you wish to give the shop (Type &e{cancel} &ato cancel):"
 invalid-limit: "&cThe limit value you entered was invalid."
-global-buy-limit-set: "&aYou have set the global buy limit of this shop to &e{amount}&a."
-player-buy-limit-set: "&aYou have set the player buy limit of this shop to &e{amount}&a."
+buy-limit-set: "&aYou have set the buy limit of this shop to &e{amount}&a."
 buy-limit-exceeded: "&cThis would exceed its buy limit if this action was processed."
 selection-mode-disabled: "&cYou have exited selection mode and your current region selection was cleared."
 selection-mode-enabled: "&aYou have entered selection mode. &eLeft-Click &aa block to set your first point and &eRight-Click &ato set your second selection."
@@ -184,13 +182,22 @@ visit-filter-prompt: "&aPlease enter the shop's item name and/or material type t
 visit-filter-count: "&aFound &e{count} &ashop results with &e{filter} &ain either the name, description, type, and/or price!"
 visit-filter-none: "&cNo shops contain &e{filter} &cin their name, description, type, and/or price."
 balance-command-usage: "&cUsage: &e/displayshops balance <deposit|withdraw> <amount>"
-sale-item-cleared: "&aThe shop sale item has been cleared."
-trade-item-cleared: "&aThe shop trade item has been cleared."
-limits-cleared: "&aAll global and per-player limit counters were cleared."
 
 ## Hook Messages ##
 towny-no-access: "&cYou do not have access to this shop plot."
 worldguard-no-access: "&cThe &eWorldGuard &cregion does not permit the usage of shops (Associated Flag: &eDS_USE&c)."
+
+## Transaction Buy/Sell Blocked Button Reasons ##
+transaction-reasons:
+  no-buy-price: "&cThe buy price is set at zero (disabled)."
+  no-sell-price: "&cThe sell price is set at zero (disabled)."
+  buy-count-exceeded: "&cThe buy limit has been exceeded."
+  sell-count-exceeded: "&cThe sell limit has been exceeded."
+  insufficient-stock: "&cThe shop does not have enough stock."
+  insufficient-shop-balance: "&cThe shop does not have enough funding."
+  stock-exceeded: "&cThe shop has reached its maximum stock."
+  commands-present: "&cThe shop has commands attached to it."
+  inventory-full: "&cInsufficient inventory space."
 
 ## Duration Countdown Format ##
 duration-format:

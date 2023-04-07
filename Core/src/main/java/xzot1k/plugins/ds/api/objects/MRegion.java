@@ -66,8 +66,23 @@ public class MRegion implements MarketRegion {
 
     @Override
     public void resetHelper(Shop shop) {
-        shop.reset();
         shop.setOwnerUniqueId(UUID.randomUUID());
+        shop.setShopItem(null);
+        shop.setTradeItem(null);
+        shop.setShopItemAmount(1);
+        shop.setStock(0);
+        shop.setCurrentEditor(null);
+        shop.setBuyCounter(0);
+        shop.setSellCounter(0);
+        shop.setBuyLimit(-1);
+        shop.setSellLimit(-1);
+        shop.setCommandOnlyMode(false);
+        shop.getCommands().clear();
+        shop.getAssistants().clear();
+        shop.setDynamicPriceChange(false);
+        shop.setDynamicBuyCounter(0);
+        shop.setDynamicSellCounter(0);
+        shop.setStoredBalance(0.0);
     }
 
     @Override

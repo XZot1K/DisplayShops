@@ -9,11 +9,9 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.api.Manager;
 import xzot1k.plugins.ds.api.PacketManager;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
-import xzot1k.plugins.ds.api.objects.Menu;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.io.File;
@@ -27,81 +25,119 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     private static DisplayShops pluginInstance;
 
-    public DisplayShops() {DisplayShops.pluginInstance = this;}
+    public DisplayShops() {
+        DisplayShops.pluginInstance = this;
+    }
 
-    public static DisplayShops getPluginInstance() {return pluginInstance;}
-
-    @Override
-    public void onEnable() {}
-
-    @Override
-    public void onDisable() {}
+    public static DisplayShops getPluginInstance() {
+        return pluginInstance;
+    }
 
     @Override
-    public void log(Level level, String message) {}
+    public void onEnable() {
+    }
 
     @Override
-    public void setupTasks() {}
+    public void onDisable() {
+    }
 
     @Override
-    public String getLatestVersion() {return null;}
+    public void log(Level level, String message) {
+
+    }
 
     @Override
-    public Menu getMenu(@NotNull String name) {return null;}
+    public void setupTasks() {
+
+    }
 
     @Override
-    public boolean matchesAnyMenu(@NotNull String name) {return false;}
+    public String getLatestVersion() {
+        return null;
+    }
 
     @Override
-    public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {return false;}
+    public long getBlockedItemId(ItemStack itemStack) {
+        return -1;
+    }
 
     @Override
-    public long getBlockedItemId(ItemStack itemStack) {return -1;}
+    public void reloadConfigs() {
+
+    }
 
     @Override
-    public void reloadConfigs() {}
+    public FileConfiguration getLangConfig() {
+        return null;
+    }
 
     @Override
-    public FileConfiguration getLangConfig() {return null;}
+    public FileConfiguration getMenusConfig() {
+        return null;
+    }
 
     @Override
-    public void saveDefaultConfigs() {}
+    public void saveDefaultConfigs() {
+
+    }
 
     @Override
     public void refreshShop(Shop shop) {}
 
     @Override
-    public DisplayPacket getDisplayPacket(Shop shop, Player player) {return null;}
+    public DisplayPacket getDisplayPacket(Shop shop, Player player) {
+        return null;
+    }
 
     @Override
-    public void killCurrentShopPacket(Player player) {}
+    public void killCurrentShopPacket(Player player) {
+
+    }
 
     @Override
-    public void clearDisplayPackets(Player player) {}
+    public void clearDisplayPackets(Player player) {
+
+    }
 
     @Override
-    public void removeDisplayPacket(Shop shop, Player player) {}
+    public void removeDisplayPacket(Shop shop, Player player) {
+
+    }
 
     @Override
-    public void updateDisplayPacket(Shop shop, Player player, DisplayPacket displayPacket) {}
+    public void updateDisplayPacket(Shop shop, Player player, DisplayPacket displayPacket) {
+
+    }
 
     @Override
-    public void sendDisplayPacket(Shop shop, Player player, boolean showHolograms) {}
+    public void sendDisplayPacket(Shop shop, Player player, boolean showHolograms) {
+
+    }
 
     @Override
-    public Manager getManager() {return null;}
+    public Manager getManager() {
+        return null;
+    }
 
     @Override
-    public double getServerVersion() {return 0;}
+    public double getServerVersion() {
+        return 0;
+    }
 
     @Override
-    public boolean isPaperSpigot() {return false;}
+    public boolean isPaperSpigot() {
+        return false;
+    }
 
     @Override
-    public boolean isPrismaInstalled() {return false;}
+    public boolean isPrismaInstalled() {
+        return false;
+    }
 
     @Override
-    public Connection getDatabaseConnection() {return null;}
+    public Connection getDatabaseConnection() {
+        return null;
+    }
 
     @Override
     public List<UUID> getTeleportingPlayers() {

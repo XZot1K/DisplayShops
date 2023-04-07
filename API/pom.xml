@@ -11,7 +11,7 @@
 
     <artifactId>API</artifactId>
     <name>API</name>
-    <version>2.0</version>
+    <version>1.3.9</version>
     <packaging>jar</packaging>
 
 
@@ -45,7 +45,8 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <minimizeJar>true</minimizeJar>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
 
                             <relocations>
                                 <relocation>
@@ -85,7 +86,7 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
-            <version>1.19.4-R0.1-SNAPSHOT</version>
+            <version>1.19.3-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

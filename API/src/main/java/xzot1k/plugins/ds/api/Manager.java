@@ -17,6 +17,7 @@ import org.bukkit.potion.PotionType;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xzot1k.plugins.ds.api.enums.ChatInteractionType;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.objects.DataPack;
@@ -62,32 +63,25 @@ public interface Manager {
      * @param price           The price in use.
      * @return the economy call event
      */
-    EconomyCallEvent initiateShopEconomyTransaction(@NotNull Player investor, @Nullable OfflinePlayer producer, @Nullable Shop shop,
+    EconomyCallEvent initiateShopEconomyTransaction(@NotNull Player investor, @NotNull OfflinePlayer producer, @NotNull Shop shop,
                                                     @NotNull EconomyCallType economyCallType, double price);
+
+    /**
+     * Runs the chat interaction operation as normal using the given parameters.
+     *
+     * @param player           The player of who is in the chat interaction.
+     * @param playerEntryValue The value/message the player entered.
+     * @return Returns true if the interaction completes successfully; otherwise, the return is false.
+     */
+    boolean initiateChatInteractionOperation(@NotNull Player player, @NotNull ChatInteractionType chatInteractionType, @NotNull String playerEntryValue);
 
     /**
      * Sends a color translated message to the players as either a normal chat message or action bar message.
      *
-     * @param player       The player to send the message to.
-     * @param message      The message to send (color codes accepted, if the message contains {bar} at the front it will be sent to the action bar).
-     * @param placeholders The placeholders in the format <placeholder>:<replacement>.
+     * @param player  The player to send the message to.
+     * @param message The message to send (color codes accepted, if the message contains {bar} at the front it will be sent to the action bar).
      */
-    void sendMessage(@NotNull Player player, @NotNull String message, @Nullable String... placeholders);
-
-    /**
-     * @param text         The text to apply replacements to.
-     * @param placeholders The placeholders in the format <placeholder>:<replacement>.
-     * @return The text with applied replacements.
-     */
-    String applyPlaceholders(@Nullable String text, @Nullable String... placeholders);
-
-    /**
-     * @param player       The player to associate PlaceholderAPI replacements with.
-     * @param text         The text to apply replacements to.
-     * @param placeholders The placeholders in the format <placeholder>:<replacement>.
-     * @return The text with applied replacements.
-     */
-    String applyPlaceholders(@NotNull Player player, @Nullable String text, @Nullable String... placeholders);
+    void sendMessage(@NotNull Player player, @NotNull String message);
 
     /**
      * Obtains available space for a defined item.
@@ -441,6 +435,40 @@ public interface Manager {
      * @return The shop currency physical item stack.
      */
     ItemStack buildShopCurrencyItem(int amount);
+
+    /**
+     * Gets the base-block selection GUI and calculates the player's access, current shop base-block, etc.
+     *
+     * @param player The player to use for permission basing.
+     * @param shop   The shop to use to get information from.
+     * @return The complete GUI.
+     */
+    Inventory getBaseBlockSelectionMenu(@NotNull Player player, @NotNull Shop shop);
+
+    /**
+     * Builds and sets the shop edit menu from the configuration to the variable.
+     *
+     * @param player The player the edit menu needs to be built for.
+     * @return The built inventory.
+     */
+    Inventory buildShopEditMenu(@NotNull Player player);
+
+    /**
+     * Builds and sets the shop transaction menu from the configuration to the variable.
+     *
+     * @param player The player to personalize the menu for.
+     * @param shop   The shop the interactions should be made for.
+     */
+    Inventory buildTransactionMenu(@NotNull Player player, @NotNull Shop shop);
+
+    /**
+     * Updates the transaction gui with live information.
+     *
+     * @param inventory The inventory to update.
+     * @param shop      The shop to use the information from.
+     * @param player    The player to personalize the menu for.
+     */
+    void updateTransactionMenu(@NotNull Inventory inventory, @NotNull Player player, @NotNull Shop shop, int unitCount);
 
     /**
      * Checks if the passed world is in the world blacklist.

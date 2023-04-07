@@ -59,7 +59,7 @@ public class PlotSquaredListener implements Listener {
                     && !plot.getWorldName().equalsIgnoreCase(shop.getBaseLocation().getWorldName()))))) continue;
             final org.bukkit.Location location = shop.getBaseLocation().asBukkitLocation();
             if (!plot.getArea().contains(location.getChunk().getX(), location.getChunk().getZ())) continue;
-            shop.purge(null, true);
+            shop.purge(true);
         }
     }
 

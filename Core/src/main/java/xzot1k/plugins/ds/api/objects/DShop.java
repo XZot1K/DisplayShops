@@ -11,7 +11,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.events.ShopVisitEvent;
@@ -33,9 +32,7 @@ public class DShop implements Shop {
 
     private UUID shopId, ownerUniqueId, currentEditor;
     private ItemStack shopItem, tradeItem;
-    private int stock, shopItemAmount, globalBuyCounter, globalSellCounter, playerBuyLimit,
-            playerSellLimit, globalBuyLimit, globalSellLimit, dynamicBuyPriceCounter,
-            dynamicSellPriceCounter;
+    private int[] integerValues;
     private long changeTimeStamp, lastBuyTimeStamp, lastSellTimeStamp;
     private String description, storedBaseBlockMaterial;
     private BigDecimal buyPrice, sellPrice, storedBalance;
@@ -46,51 +43,78 @@ public class DShop implements Shop {
 
     public DShop(UUID shopId, UUID ownerUniqueId, LocationClone baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
         this.INSTANCE = DisplayShops.getPluginInstance();
-
-        reset();
-
         setShopId(shopId);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(baseLocation);
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
+        setStoredBalance(0);
+        setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
+        setSellPrice(INSTANCE.getConfig().getDouble("default-sell-price"));
+        setCommandOnlyMode(false);
+        setDynamicPriceChange(false);
+        setCommands(new ArrayList<>());
+        setAssistants(new ArrayList<>());
+        setDescription("");
+        updateTimeStamp();
     }
 
     public DShop(UUID shopId, UUID ownerUniqueId, Location baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
         this.INSTANCE = DisplayShops.getPluginInstance();
-
-        reset();
-
         setShopId(shopId);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(new LClone(baseLocation));
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
+        setStoredBalance(0);
+        setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
+        setSellPrice(INSTANCE.getConfig().getDouble("default-sell-price"));
+        setCommandOnlyMode(false);
+        setDynamicPriceChange(false);
+        setCommands(new ArrayList<>());
+        setAssistants(new ArrayList<>());
+        setDescription("");
+        updateTimeStamp();
     }
 
     public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, Location baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
         this.INSTANCE = DisplayShops.getPluginInstance();
-
-        reset();
-
         setShopId(shopId);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(new LClone(baseLocation));
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
         setShopItem(shopItem);
         setShopItemAmount(shopItemAmount);
+        setStoredBalance(0);
+        setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
+        setSellPrice(INSTANCE.getConfig().getDouble("default-sell-price"));
+        setCommandOnlyMode(false);
+        setDynamicPriceChange(false);
+        setCommands(new ArrayList<>());
+        setAssistants(new ArrayList<>());
+        setDescription("");
+        updateTimeStamp();
     }
 
-    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, LocationClone baseLocation, int shopItemAmount,
-                 String storedBaseBlockMaterial) {
+    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, LocationClone baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
         this.INSTANCE = DisplayShops.getPluginInstance();
-
-        reset();
-
         setShopId(shopId);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(baseLocation);
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
         setShopItem(shopItem);
         setShopItemAmount(shopItemAmount);
+        setStoredBalance(0);
+        setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
+        setSellPrice(INSTANCE.getConfig().getDouble("default-sell-price"));
+        setCommandOnlyMode(false);
+        setDynamicPriceChange(false);
+        setCommands(new ArrayList<>());
+        setAssistants(new ArrayList<>());
+        setDescription("");
+        updateTimeStamp();
     }
 
     /**
@@ -131,8 +155,7 @@ public class DShop implements Shop {
 
         World world = INSTANCE.getServer().getWorld(getBaseLocation().getWorldName());
         if (world == null) {
-            INSTANCE.log(Level.WARNING,
-                    "The shop \"" + getShopId() + "\" is having some issues with the world (" + getBaseLocation().getWorldName() + ").");
+            INSTANCE.log(Level.WARNING, "The shop \"" + getShopId() + "\" is having some issues with the world (" + getBaseLocation().getWorldName() + ").");
             return;
         }
 
@@ -236,8 +259,7 @@ public class DShop implements Shop {
                 return;
             }
 
-            Player playerToGive = ((ownerPlayer != null && ownerPlayer.isOnline() && ownerPlayer.getPlayer() != null) ? ownerPlayer.getPlayer() :
-                    null);
+            Player playerToGive = ((ownerPlayer != null && ownerPlayer.isOnline() && ownerPlayer.getPlayer() != null) ? ownerPlayer.getPlayer() : null);
             if (playerToGive == null) return;
 
             if (!playerToGive.isOnline()) {
@@ -271,21 +293,20 @@ public class DShop implements Shop {
         if (getShopId() == null || getShopId().toString().isEmpty()) return;
 
         try {
-            StringBuilder commands = new StringBuilder(), assistants = new StringBuilder(), limits = new StringBuilder();
-
-            for (int i = -1; ++i < getCommands().size(); ) {
-                commands.append(getCommands().get(i));
-                if (i < getCommands().size()) commands.append(";");
+            StringBuilder commands = new StringBuilder(), assistants = new StringBuilder();
+            int index = 0;
+            for (String command : getCommands()) {
+                commands.append(command);
+                if (index < getCommands().size()) commands.append(";");
+                index++;
             }
 
-            for (int i = -1; ++i < getAssistants().size(); ) {
-                assistants.append(getAssistants().get(i).toString());
-                if (i < getAssistants().size()) assistants.append(";");
+            index = 0;
+            for (UUID playerUniqueId : getAssistants()) {
+                assistants.append(playerUniqueId.toString());
+                if (index < getAssistants().size()) assistants.append(";");
+                index++;
             }
-
-            limits.append(getGlobalBuyLimit()).append(";").append(getGlobalBuyCounter()).append(";")
-                    .append(getGlobalSellLimit()).append(";").append(getGlobalSellCounter()).append(";")
-                    .append(getPlayerBuyLimit()).append(";").append(getPlayerSellLimit());
 
             String shopItem, tradeItem;
             shopItem = tradeItem = null;
@@ -302,34 +323,32 @@ public class DShop implements Shop {
                 }
             }
 
-            final String host = INSTANCE.getConfig().getString("mysql.host"), commandString = commands.toString().replace("'", "\\'").replace("\"",
-                    "\\\""),
-                    extraDataLine =
-                            (canDynamicPriceChange() + ";" + getLastBuyTimeStamp() + ":" + getDynamicBuyCounter() + ";" + getLastSellTimeStamp() +
-                                    ":" + getDynamicSellCounter()), syntax,
-
-                    valuesString = (getShopId().toString() + "', '" + getBaseLocation().toString() + "',"
-                            + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', '" + assistants + "', " + getBuyPrice(false)
-                            + ", " + getSellPrice(false) + ", " + getStock() + ", '" + (shopItem != null ? shopItem : "") + "', '" + (tradeItem != null ? tradeItem : "")
-                            + "', '" + limits + "', " + getShopItemAmount() + ", " + getStoredBalance() + ", '" + (isCommandOnlyMode() ? 1 : 0) +
-                            "', '" + commandString + "', '"
-                            + getChangeTimeStamp() + "', '" + (getDescription() == null ? "" : getDescription().replace("'", "").replace("\"", ""))
-                            + "', '" + getStoredBaseBlockMaterial() + "', '" + extraDataLine.replace("'", "").replace("\"", ""));
-
+            final String host = INSTANCE.getConfig().getString("mysql.host"), commandString = commands.toString().replace("'", "\\'").replace("\"", "\\\""),
+                    extraDataLine = (canDynamicPriceChange() + ";" + getLastBuyTimeStamp() + ":" + getDynamicBuyCounter() + ";" + getLastSellTimeStamp() + ":" + getDynamicSellCounter()), syntax;
             if (host == null || host.isEmpty())
                 syntax = "INSERT OR REPLACE INTO shops(id, location, owner, assistants, buy_price, sell_price, stock, shop_item,"
-                        + " trade_item, limits, shop_item_amount, balance, command_only_mode, commands, change_time_stamp,"
-                        + " description, base_material, extra_data) VALUES('" + valuesString + "');";
+                        + " trade_item, buy_limit, sell_limit, shop_item_amount, buy_counter, sell_counter, balance, command_only_mode, commands,"
+                        + " change_time_stamp, description, base_material, extra_data) VALUES('" + getShopId().toString() + "', '" + getBaseLocation().toString() + "',"
+                        + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', '" + assistants + "', " + getBuyPrice(false)
+                        + ", " + getSellPrice(false) + ", " + getStock() + ", '" + (shopItem != null ? shopItem : "") + "', '" + (tradeItem != null ? tradeItem : "")
+                        + "', " + getBuyLimit() + ", " + getSellLimit() + ", " + getShopItemAmount() + ", " + getBuyCounter() + ", " + getSellCounter() + ", " + getStoredBalance()
+                        + ", '" + (isCommandOnlyMode() ? 1 : 0) + "', '" + commandString + "', '" + getChangeTimeStamp() + "', '" + (getDescription() == null ? ""
+                        : getDescription().replace("'", "").replace("\"", "")) + "', '" + getStoredBaseBlockMaterial() + "', '"
+                        + extraDataLine.replace("'", "").replace("\"", "") + "');";
             else
-                syntax = "INSERT INTO shops(id, location, owner, assistants, buy_price, sell_price, stock, shop_item, trade_item, limits, " +
-                        "shop_item_amount, "
-                        + " balance, command_only_mode, commands, change_time_stamp, description, base_material, extra_data) VALUES( '" + valuesString + "')"
-                        + " ON DUPLICATE KEY UPDATE id = '" + getShopId().toString() + "', location = '" + getBaseLocation().toString() + "', owner" +
-                        " = '" + (getOwnerUniqueId() != null
+                syntax = "INSERT INTO shops(id, location, owner, assistants, buy_price, sell_price, stock, shop_item, trade_item, buy_limit, sell_limit, shop_item_amount, "
+                        + "buy_counter, sell_counter, balance, command_only_mode, commands, change_time_stamp, description, base_material, extra_data) VALUES( '"
+                        + getShopId().toString() + "', '" + getBaseLocation().toString() + "'," + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "")
+                        + "', '" + assistants + "', " + getBuyPrice(false) + ", " + getSellPrice(false) + ", " + getStock() + ", '"
+                        + (shopItem != null ? shopItem : "") + "', '" + (tradeItem != null ? tradeItem : "") + "', " + getBuyLimit() + ", " + getSellLimit() + ", "
+                        + getShopItemAmount() + ", " + getBuyCounter() + ", " + getSellCounter() + ", " + getStoredBalance() + ", '" + (isCommandOnlyMode() ? 1 : 0) + "', "
+                        + "'" + commandString + "', '" + getChangeTimeStamp() + "', " + "'" + getDescription().replace("'", "").replace("\"", "")
+                        + "', '" + getStoredBaseBlockMaterial() + "', '" + extraDataLine.replace("'", "").replace("\"", "") + "') ON DUPLICATE "
+                        + "KEY UPDATE id = '" + getShopId().toString() + "', location = '" + getBaseLocation().toString() + "', owner = '" + (getOwnerUniqueId() != null
                         ? getOwnerUniqueId().toString() : "") + "', buy_price = '" + getBuyPrice(false) + "', " + "sell_price = '" + getSellPrice(false)
                         + "', stock = '" + getStock() + "', shop_item = '" + (shopItem != null ? shopItem : "") + "', trade_item = '" + (tradeItem != null ? tradeItem : "")
-                        + "', limits = '" + limits + "', shop_item_amount = '" + getShopItemAmount() + "', balance = '" + getStoredBalance() + "', " +
-                        "command_only_mode = '"
+                        + "', buy_limit = '" + getBuyLimit() + "', sell_limit = '" + getSellLimit() + "', shop_item_amount = '" + getShopItemAmount() + "', buy_counter = '"
+                        + getBuyCounter() + "', sell_counter = '" + getSellCounter() + "', balance = '" + getStoredBalance() + "', command_only_mode = '"
                         + (isCommandOnlyMode() ? 1 : 0) + "', commands = '" + commandString + "'," + " change_time_stamp = '" + getChangeTimeStamp() + "', description = '"
                         + (getDescription() == null ? "" : getDescription().replace("'", "").replace("\"", "")) + "', base_material = '"
                         + getStoredBaseBlockMaterial() + "', extra_data = '" + extraDataLine + "';";
@@ -339,8 +358,7 @@ public class DShop implements Shop {
             statement.close();
         } catch (Exception e) {
             e.printStackTrace();
-            INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() +
-                    ").");
+            INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() + ").");
         }
     }
 
@@ -447,11 +465,11 @@ public class DShop implements Shop {
                             }
                             case EAST: {
                                 safeLocation.setYaw(90);
-                                break;
+                                 break;
                             }
                             case SOUTH: {
                                 safeLocation.setYaw(-180);
-                                break;
+                                 break;
                             }
                             default: {
                                 safeLocation.setYaw(0);
@@ -617,7 +635,7 @@ public class DShop implements Shop {
      * Updates the shop buy or sell time stamp (Used for the dynamic price changing system).
      * (Note: Only use BUY or SELL as the economy call type. Defaults to BUY if invalid or improper.)
      */
-    public void updateTransactionTimeStamp(@NotNull EconomyCallType economyCallType) {
+    public void updateTransactionTimeStamp(EconomyCallType economyCallType) {
         if (economyCallType == EconomyCallType.SELL) setLastSellTimeStamp(System.currentTimeMillis());
         else setLastBuyTimeStamp(System.currentTimeMillis());
     }
@@ -639,7 +657,7 @@ public class DShop implements Shop {
      * @param economyCallType The type to check readiness for (Note: ONLY use BUY or SELL, by default BUY will be used).
      * @return Whether it is ready.
      */
-    public boolean isReadyForDynamicReset(int resetDuration, @NotNull EconomyCallType economyCallType) {
+    public boolean isReadyForDynamicReset(int resetDuration, EconomyCallType economyCallType) {
         return ((economyCallType == EconomyCallType.BUY && TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - getLastBuyTimeStamp()) >= resetDuration)
                 || (economyCallType == EconomyCallType.SELL && TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - getLastSellTimeStamp()) >= resetDuration));
     }
@@ -647,52 +665,26 @@ public class DShop implements Shop {
     /**
      * Deletes the shop's data, deletes the base-block, drops the stock, destroys the display packet, and unregisters the object.
      *
-     * @param player If provided, some additional effects will be displayed.
-     * @param async  Whether the file deletion is async or not.
+     * @param async Whether the file deletion is async or not.
      */
-    public void purge(@Nullable Player player, boolean async) {
+    public void purge(boolean async) {
         unRegister();
+        for (Player p : INSTANCE.getServer().getOnlinePlayers()) {
+            kill(p);
 
-        final String invName = (player != null ? INSTANCE.getMenuListener().getInventoryName(player.getOpenInventory()
-                .getTopInventory(), player.getOpenInventory()) : null);
-        if (invName != null && !invName.isEmpty())
-
-            for (Player p : INSTANCE.getServer().getOnlinePlayers()) {
-                kill(p);
-
-                if (invName != null && p.getOpenInventory().getType() != InventoryType.CRAFTING
-                        && INSTANCE.matchesAnyMenu(invName)) p.closeInventory();
-            }
-
-
+            if (p.getOpenInventory().getType() != InventoryType.CRAFTING && (p.getOpenInventory().getTitle().equals(INSTANCE.getManager()
+                    .color(INSTANCE.getMenusConfig().getString("shop-visit-menu.title")))
+                    || p.getOpenInventory().getTitle().equals(INSTANCE.getManager()
+                    .color(INSTANCE.getMenusConfig().getString("base-block-menu.title")))
+                    || p.getOpenInventory().getTitle().equals(INSTANCE.getManager()
+                    .color(INSTANCE.getMenusConfig().getString("shop-edit-menu.title")))
+                    || p.getOpenInventory().getTitle().equals(INSTANCE.getManager()
+                    .color(INSTANCE.getMenusConfig().getString("shop-transaction-menu.title"))))) p.closeInventory();
+        }
         getBaseLocation().asBukkitLocation().getBlock().setType(Material.AIR);
         dropStock();
         returnBalance();
         delete(async);
-
-        if (player != null) {
-            if (INSTANCE.getConfig().getBoolean("creation-item-drop")) {
-                if (player.getInventory().firstEmpty() == -1)
-                    player.getWorld().dropItemNaturally(player.getLocation(), INSTANCE.getManager().buildShopCreationItem(player, 1));
-                else player.getInventory().addItem(INSTANCE.getManager().buildShopCreationItem(player, 1));
-            }
-
-            Location location = getBaseLocation().asBukkitLocation();
-            String soundString = INSTANCE.getConfig().getString("immersion-section.shop-delete-sound");
-            if (soundString != null && !soundString.equalsIgnoreCase(""))
-                player.playSound(location, Sound.valueOf(soundString), 1, 1);
-
-            String particleString = INSTANCE.getConfig().getString("immersion-section.shop-delete-particle");
-            if (particleString != null && !particleString.equalsIgnoreCase(""))
-                INSTANCE.getPacketManager().getParticleHandler().displayParticle(player, particleString.toUpperCase()
-                        .replace(" ", "_").replace("-", "_"), location.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 8);
-
-            String message = INSTANCE.getLangConfig().getString("shop-deleted");
-            if (message != null && !message.equalsIgnoreCase(""))
-                INSTANCE.getManager().sendMessage(player, message);
-
-            INSTANCE.runEventCommands("shop-delete", player);
-        }
     }
 
     /**
@@ -704,8 +696,7 @@ public class DShop implements Shop {
      */
     public double getDynamicPriceValue(double originalPrice, boolean isBuy) {
         final String prefix = (isBuy ? "buy" : "sell");
-        return (!canDynamicPriceChange() ? 0 : ((((isBuy ? getDynamicBuyCounter() : getDynamicSellCounter()) / INSTANCE.getConfig().getDouble(
-                "dynamic-" + prefix + "-increment"))
+        return (!canDynamicPriceChange() ? 0 : ((((isBuy ? getDynamicBuyCounter() : getDynamicSellCounter()) / INSTANCE.getConfig().getDouble("dynamic-" + prefix + "-increment"))
                 * INSTANCE.getConfig().getDouble("dynamic-" + prefix + "-percentage")) * originalPrice));
     }
 
@@ -715,84 +706,42 @@ public class DShop implements Shop {
      * @param player The player to check access for.
      * @return Whether the player can or can NOT edit the shop.
      */
-    public boolean canEdit(@NotNull Player player) {
+    public boolean canEdit(Player player) {
         return (player.hasPermission("displayshops.edit") || (getOwnerUniqueId() != null && getOwnerUniqueId().toString().equals(player.getUniqueId().toString()))
                 || (!getAssistants().isEmpty() && getAssistants().contains(player.getUniqueId())));
-    }
-
-    /**
-     * Checks to see if the editor is actually editing the shop, if not the current editor data is cleared.
-     *
-     * @param player Player to check against.
-     */
-    public void checkCurrentEditor(@Nullable Player player) {
-        if (getCurrentEditor() != null) {
-
-            if (player != null && player.getUniqueId().toString().equals(getCurrentEditor().toString())) return;
-
-            OfflinePlayer offlinePlayer = DisplayShops.getPluginInstance().getServer().getOfflinePlayer(getCurrentEditor());
-
-            if (offlinePlayer == null || (offlinePlayer != null && !offlinePlayer.isOnline())
-                    || (offlinePlayer != null && offlinePlayer.isOnline() && offlinePlayer.getPlayer() == null)) {
-
-                setCurrentEditor(null);
-                return;
-            }
-
-            final Player op = offlinePlayer.getPlayer();
-            if (op == null || op.getOpenInventory().getTopInventory().getType() != InventoryType.ANVIL
-                    && DisplayShops.getPluginInstance().matchesAnyMenu(DisplayShops.getPluginInstance().getMenuListener()
-                    .getInventoryName(op.getOpenInventory().getTopInventory(), op.getOpenInventory()))) {
-
-                setCurrentEditor(null);
-                final DataPack dataPack = DisplayShops.getPluginInstance().getManager().getDataPack(op);
-                dataPack.resetEditData();
-
-            }
-        }
     }
 
     /**
      * Resets the shop entirely. The time stamp is also updated.
      */
     public void reset() {
-        setStock(0);
-        setStoredBalance(0);
-        setShopItemAmount(1);
-        setDynamicBuyCounter(0);
-        setDynamicSellCounter(0);
-        setGlobalBuyLimit(-1);
-        setGlobalSellLimit(-1);
-        setGlobalBuyCounter(0);
-        setGlobalSellCounter(0);
+        setIntegerValues(new int[]{0, 0, 0, 0, 0, 1, 0, 0});
         setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
         setSellPrice(INSTANCE.getConfig().getDouble("default-sell-price"));
         setCommandOnlyMode(false);
         setDynamicPriceChange(false);
+        getCommands().clear();
+        getAssistants().clear();
         setDescription("");
-
-        if (getCommands() != null) getCommands().clear();
-        else setCommands(new ArrayList<>());
-
-        if (getAssistants() != null) getAssistants().clear();
-        else setAssistants(new ArrayList<>());
-
-        setOwnerUniqueId(null);
-        setShopItem(null);
-        setTradeItem(null);
-
         updateTimeStamp();
-
-        if (INSTANCE.getInSightTask() != null) INSTANCE.getInSightTask().refreshShop(this);
+        INSTANCE.getInSightTask().refreshShop(this);
     }
 
     // integer list getters & setters.
+    private int[] getIntegerValues() {
+        return integerValues;
+    }
+
+    private void setIntegerValues(int[] integerValues) {
+        this.integerValues = integerValues;
+    }
+
     public int getStock() {
-        return stock;
+        return getIntegerValues()[0];
     }
 
     public void setStock(int stock) {
-        this.stock = stock;
+        getIntegerValues()[0] = stock;
     }
 
     /**
@@ -813,12 +762,44 @@ public class DShop implements Shop {
         this.storedBalance = new BigDecimal(amount);
     }
 
+    public int getBuyLimit() {
+        return getIntegerValues()[1];
+    }
+
+    public void setBuyLimit(int buyLimit) {
+        getIntegerValues()[1] = buyLimit;
+    }
+
+    public int getBuyCounter() {
+        return getIntegerValues()[2];
+    }
+
+    public void setBuyCounter(int buyCounter) {
+        getIntegerValues()[2] = buyCounter;
+    }
+
+    public int getSellLimit() {
+        return getIntegerValues()[3];
+    }
+
+    public void setSellLimit(int sellLimit) {
+        getIntegerValues()[3] = sellLimit;
+    }
+
+    public int getSellCounter() {
+        return getIntegerValues()[4];
+    }
+
+    public void setSellCounter(int sellCounter) {
+        getIntegerValues()[4] = sellCounter;
+    }
+
     public int getShopItemAmount() {
-        return shopItemAmount;
+        return getIntegerValues()[5];
     }
 
     public void setShopItemAmount(int shopItemAmount) {
-        this.shopItemAmount = shopItemAmount;
+        getIntegerValues()[5] = shopItemAmount;
     }
 
     // dynamic price changing getters & setters.
@@ -831,19 +812,19 @@ public class DShop implements Shop {
     }
 
     public int getDynamicBuyCounter() {
-        return dynamicBuyPriceCounter;
+        return getIntegerValues()[6];
     }
 
-    public void setDynamicBuyCounter(int dynamicBuyPriceCounter) {
-        this.dynamicBuyPriceCounter = dynamicBuyPriceCounter;
+    public void setDynamicBuyCounter(int shopItemAmount) {
+        getIntegerValues()[6] = shopItemAmount;
     }
 
     public int getDynamicSellCounter() {
-        return dynamicSellPriceCounter;
+        return getIntegerValues()[7];
     }
 
-    public void setDynamicSellCounter(int dynamicSellPriceCounter) {
-        this.dynamicSellPriceCounter = dynamicSellPriceCounter;
+    public void setDynamicSellCounter(int shopItemAmount) {
+        getIntegerValues()[7] = shopItemAmount;
     }
 
     // general getters & setters.
@@ -918,7 +899,7 @@ public class DShop implements Shop {
         return commands;
     }
 
-    public void setCommands(@NotNull List<String> commands) {
+    public void setCommands(List<String> commands) {
         this.commands = commands;
     }
 
@@ -995,29 +976,4 @@ public class DShop implements Shop {
     public void setCurrentEditor(UUID currentEditor) {
         this.currentEditor = currentEditor;
     }
-
-    public int getPlayerBuyLimit() {return playerBuyLimit;}
-
-    public void setPlayerBuyLimit(int playerBuyLimit) {this.playerBuyLimit = playerBuyLimit;}
-
-    public int getPlayerSellLimit() {return playerSellLimit;}
-
-    public void setPlayerSellLimit(int playerSellLimit) {this.playerSellLimit = playerSellLimit;}
-
-    public int getGlobalBuyLimit() {return globalBuyLimit;}
-
-    public void setGlobalBuyLimit(int globalBuyLimit) {this.globalBuyLimit = globalBuyLimit;}
-
-    public int getGlobalSellLimit() {return globalSellLimit;}
-
-    public void setGlobalSellLimit(int globalSellLimit) {this.globalSellLimit = globalSellLimit;}
-
-    public int getGlobalBuyCounter() {return globalBuyCounter;}
-
-    public void setGlobalBuyCounter(int globalBuyCounter) {this.globalBuyCounter = globalBuyCounter;}
-
-    public int getGlobalSellCounter() {return globalSellCounter;}
-
-    public void setGlobalSellCounter(int globalSellCounter) {this.globalSellCounter = globalSellCounter;}
-
 }
