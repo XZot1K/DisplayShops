@@ -26,7 +26,11 @@ public class PacketManager implements xzot1k.plugins.ds.api.PacketManager {
     private void setup() {
         // TODO add reflection backup
 
-        if (INSTANCE.getServerVersion() == 1_19.2) {
+        if (INSTANCE.getServerVersion() == 1_19.3) {
+            this.particleHandler = new xzot1k.plugins.ds.core.packets.v1_19_R3.PPacket();
+            this.actionBarHandler = new xzot1k.plugins.ds.core.packets.v1_19_R3.ABPacket();
+            this.serializeUtil = new xzot1k.plugins.ds.core.packets.v1_19_R3.SUtil(INSTANCE);
+        } else if (INSTANCE.getServerVersion() == 1_19.2) {
             this.particleHandler = new xzot1k.plugins.ds.core.packets.v1_19_R2.PPacket();
             this.actionBarHandler = new xzot1k.plugins.ds.core.packets.v1_19_R2.ABPacket();
             this.serializeUtil = new xzot1k.plugins.ds.core.packets.v1_19_R2.SUtil(INSTANCE);
@@ -101,26 +105,42 @@ public class PacketManager implements xzot1k.plugins.ds.api.PacketManager {
         }
     }
 
-    public ParticleHandler getParticleHandler() {return particleHandler;}
+    public ParticleHandler getParticleHandler() {
+        return particleHandler;
+    }
 
-    public ActionBarHandler getActionBarHandler() {return actionBarHandler;}
+    public ActionBarHandler getActionBarHandler() {
+        return actionBarHandler;
+    }
 
-    public SerializeUtil getSerializeUtil() {return serializeUtil;}
-
-    @Override
-    public String toString(@NotNull ItemStack itemStack) {return getSerializeUtil().toString(itemStack);}
-
-    @Override
-    public ItemStack toItem(@NotNull String itemString) {return getSerializeUtil().toItem(itemString);}
-
-    @Override
-    public String toJSON(@NotNull ItemStack itemStack) {return getSerializeUtil().toJSON(itemStack);}
+    public SerializeUtil getSerializeUtil() {
+        return serializeUtil;
+    }
 
     @Override
-    public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {return getSerializeUtil().getNBT(itemStack, nbtTag);}
+    public String toString(@NotNull ItemStack itemStack) {
+        return getSerializeUtil().toString(itemStack);
+    }
 
     @Override
-    public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {return getSerializeUtil().updateNBT(itemStack, nbtTag, value);}
+    public ItemStack toItem(@NotNull String itemString) {
+        return getSerializeUtil().toItem(itemString);
+    }
+
+    @Override
+    public String toJSON(@NotNull ItemStack itemStack) {
+        return getSerializeUtil().toJSON(itemStack);
+    }
+
+    @Override
+    public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
+        return getSerializeUtil().getNBT(itemStack, nbtTag);
+    }
+
+    @Override
+    public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {
+        return getSerializeUtil().updateNBT(itemStack, nbtTag, value);
+    }
 
     @Override
     public void displayParticle(@NotNull Player player, @NotNull String particleName, @NotNull Location location,
