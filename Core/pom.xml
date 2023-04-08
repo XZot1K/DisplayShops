@@ -22,7 +22,7 @@
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>DisplayShops_${project.version}-build_${core.build}</finalName>
+        <finalName>DisplayShops_${project.version}<!--build_${core.build}--></finalName>
 
         <resources>
             <resource>

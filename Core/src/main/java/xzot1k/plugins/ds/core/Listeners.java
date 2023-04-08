@@ -1512,6 +1512,8 @@ public class Listeners implements Listener {
                         || mat.contains(e.getCurrentItem().getType().name()))
                     clearNSetVisit(e.getClickedInventory(), player, dataPack, false, false);
             }
+        } else if (e.getSlot() == getPluginInstance().getMenusConfig().getInt("shop-visit-menu.refresh-page-item.slot")) {
+            clearNSetVisit(e.getClickedInventory(), player, dataPack, true, false);
         }
     }
 
@@ -1527,7 +1529,7 @@ public class Listeners implements Listener {
         return null;
     }
 
-    private void clearNSetVisit(Inventory clickedInventory, Player player, DataPack dataPack, boolean keepPage, boolean isNext) {
+    public void clearNSetVisit(Inventory clickedInventory, Player player, DataPack dataPack, boolean keepPage, boolean isNext) {
         if (clickedInventory == null) return;
 
         final int filterSlot = getPluginInstance().getMenusConfig().getInt("shop-visit-menu.filter-item.slot"),

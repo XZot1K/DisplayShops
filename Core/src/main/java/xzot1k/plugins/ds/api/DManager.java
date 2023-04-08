@@ -397,6 +397,9 @@ public class DManager implements Manager {
                 getPluginInstance().getServer().getPluginManager().callEvent(stageEvent);
             }
 
+            dataPack.setVisitPageMap(null);
+            dataPack.setCurrentVisitPage(1);
+
             player.openInventory(getPluginInstance().getManager().buildVisitMenu(player,
                     (isAll || ChatColor.stripColor(fixedEntry).equalsIgnoreCase(getPluginInstance()
                             .getConfig().getString("chat-interaction-cancel"))) ? null : fixedEntry));
@@ -2403,17 +2406,49 @@ public class DManager implements Manager {
         return inventory;
     }
 
+    private boolean checkShopAgainstFilters(@NotNull Shop shop, @Nullable OfflinePlayer offlinePlayer, @Nullable String currentFilterType, @Nullable String filter) {
+
+        if (shop.getBaseLocation() == null || !getPluginInstance().getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops")
+                && shop.isAdminShop() || shop.getShopItem() == null || shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount())
+            return false;
+
+        if (currentFilterType != null && !currentFilterType.isEmpty()) {
+
+            final String buyType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.buy-type"),
+                    sellType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.sell-type");
+
+            if ((currentFilterType.equals(buyType) && shop.getBuyPrice(false) < 0)
+                    || (currentFilterType.equals(sellType) && shop.getSellPrice(false) < 0)) return false;
+        }
+
+        if (filter != null) {
+            if (offlinePlayer != null) {
+                if (shop.getOwnerUniqueId() == null || !shop.getOwnerUniqueId().toString().equals(offlinePlayer.getUniqueId().toString()))
+                    return false;
+
+                OfflinePlayer op = getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId());
+                return op == null || !op.hasPlayedBefore() || op.getName() == null || op.getName().equalsIgnoreCase(offlinePlayer.getName());
+            } else return shop.getShopItem().getItemMeta() == null
+                    || ChatColor.stripColor(shop.getShopItem().getItemMeta().getDisplayName().toLowerCase()).contains(filter.toLowerCase())
+                    || shop.getShopItem().getType().name().toLowerCase().replace("_", " ").contains(filter.toLowerCase())
+                    || shop.getDescription().toLowerCase().contains(filter.toLowerCase())
+                    || (shop.getBuyPrice(false) + " " + shop.getSellPrice(false)).contains(filter);
+        }
+
+        return true;
+    }
+
     @SuppressWarnings("deprecation")
     public void loadVisitPage(@Nullable Player player, @NotNull DataPack dataPack, @NotNull Inventory inventory, @Nullable String currentFilterType, @Nullable String filter) {
         final boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null),
-                forceUse = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use"),
-                showAdminShop = getPluginInstance().getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops");
+                forceUse = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
 
-        OfflinePlayer offlinePlayer = null;
+        OfflinePlayer offlinePlayer;
         if (filter != null && !filter.isEmpty()) {
             OfflinePlayer op = getPluginInstance().getServer().getOfflinePlayer(filter);
             if (op != null && op.hasPlayedBefore()) offlinePlayer = op;
-        }
+            else offlinePlayer = null;
+        } else offlinePlayer = null;
 
         final int filterSlot = getPluginInstance().getMenusConfig().getInt("shop-visit-menu.filter-item.slot"),
                 typeSlot = getPluginInstance().getMenusConfig().getInt("shop-visit-menu.type-item.slot");
@@ -2444,133 +2479,140 @@ public class DManager implements Manager {
                 .setModelData(getPluginInstance().getMenusConfig().getInt("shop-visit-menu.type-item.model-data")).get();
         inventory.setItem(typeSlot, typeItem);
 
-        final int page = dataPack.getCurrentVisitPage(), pageSize = (inventory.getSize() - 9),
-                startIndex = (pageSize * (page - 1));
+        boolean generatedMap = false;
+        HashMap<Integer, List<Pair<Shop, ItemStack>>> storedMap = dataPack.getVisitPageMap();
+        if (storedMap == null || storedMap.isEmpty()) {
 
-        int counter = 0;
-        List<Shop> shopList = new ArrayList<>(getShopMap().values());
+            HashMap<Integer, List<Pair<Shop, ItemStack>>> pageMap = new HashMap<>();
+            dataPack.setVisitPageMap(pageMap);
 
-        if (startIndex >= getShopMap().size()) return;
+            HashMap<Integer, Integer> counterMap = new HashMap<>();
+            int page = 1;
+            counterMap.put(page, 0);
 
-        final String buyType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.buy-type"),
-                sellType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.sell-type");
+            pageMap.put(page, Collections.synchronizedList(new ArrayList<>()));
 
-        for (int i = (startIndex - 1); ++i < shopList.size(); ) {
-            if (counter >= pageSize) break;
+            List<Shop> shopList = new ArrayList<>(getShopMap().values());
+            for (int i = -1; ++i < shopList.size(); ) {
 
-            final Shop shop = shopList.get(i);
+                final Shop shop = shopList.get(i);
+                if (!checkShopAgainstFilters(shop, offlinePlayer, currentFilterType, filter)) continue;
 
-            if (shop == null || shop.getBaseLocation() == null || (!showAdminShop && shop.isAdminShop()) || shop.getShopItem() == null
-                    || shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount())
-                continue;
+                counterMap.put(page, (counterMap.get(page) + 1)); // increase page counter
 
-            if (currentFilterType != null && !currentFilterType.isEmpty()) {
-                if ((currentFilterType.equals(buyType) && shop.getBuyPrice(false) < 0)
-                        || (currentFilterType.equals(sellType) && shop.getSellPrice(false) < 0)) continue;
-            }
+                final int currentPage = page;
+                getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
+                    ItemStack itemStack = new ItemStack(shop.getShopItem().getType(), 1, shop.getShopItem().getDurability());
+                    itemStack = getPluginInstance().getPacketManager().updateNBT(itemStack, "shop-id", shop.getShopId().toString());
+                    ItemMeta itemMeta = itemStack.getItemMeta();
+                    if (itemMeta != null) {
+                        itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
+                        final String itemName = (shop.getShopItem() != null ? getPluginInstance().getManager().getItemName(shop.getShopItem()) : ""),
+                                tradeItemName = (!useVault ? ((!forceUse && shop.getTradeItem() != null) ? getPluginInstance().getManager().getItemName(shop.getTradeItem())
+                                        : getPluginInstance().getManager().getItemName(getPluginInstance().getManager().buildShopCurrencyItem(1))) : "");
 
-            if (filter != null) {
+                        itemMeta.setDisplayName(color(getPluginInstance().papiText(player,
+                                Objects.requireNonNull(getPluginInstance().getMenusConfig().getString("shop-visit-menu.shop-name"))
+                                        .replace("{item}", itemName).replace("{trade}", tradeItemName))));
+                        itemMeta.setLore(new ArrayList<String>() {{
+                            final double visitCost = getPluginInstance().getConfig().getDouble("visit-charge");
+                            final String adminType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-admin"),
+                                    playerType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-normal");
 
-                if (offlinePlayer != null) {
-                    if (shop.getOwnerUniqueId() == null || !shop.getOwnerUniqueId().toString().equals(offlinePlayer.getUniqueId().toString()))
-                        continue;
+                            OfflinePlayer offlinePlayer = (shop.getOwnerUniqueId() == null ? null : getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()));
 
-                    OfflinePlayer op = getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId());
-                    if (op != null && op.hasPlayedBefore() && op.getName() != null && !op.getName().equalsIgnoreCase(offlinePlayer.getName())) continue;
-                } else if (shop.getShopItem().getItemMeta() != null
-                        && !ChatColor.stripColor(shop.getShopItem().getItemMeta().getDisplayName().toLowerCase()).contains(filter.toLowerCase())
-                        && !shop.getShopItem().getType().name().toLowerCase().replace("_", " ").contains(filter.toLowerCase())
-                        && !shop.getDescription().toLowerCase().contains(filter.toLowerCase()) && !(shop.getBuyPrice(false) + " " + shop.getSellPrice(false)).contains(filter))
-                    continue;
-            }
+                            List<String> loreList = getPluginInstance().getMenusConfig().getStringList("shop-visit-menu.shop-lore");
+                            for (int i = -1; ++i < loreList.size(); ) {
+                                final String line = loreList.get(i);
+                                if ((line.contains("{owner}") && shop.getOwnerUniqueId() == null) || (line.contains("{buy}") && shop.getBuyPrice(false) <= 0)
+                                        || (line.contains("{sell}") && shop.getSellPrice(false) <= 0))
+                                    continue;
 
-            counter++;
+                                if (line.toLowerCase().contains("{enchants}")) {
+                                    if (shop.getShopItem() == null) continue;
 
-            final int slot = (counter - 1);
-            getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
-                ItemStack itemStack = new ItemStack(shop.getShopItem().getType(), 1, shop.getShopItem().getDurability());
-                itemStack = getPluginInstance().getPacketManager().updateNBT(itemStack, "shop-id", shop.getShopId().toString());
-                ItemMeta itemMeta = itemStack.getItemMeta();
-                if (itemMeta != null) {
-                    itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
-                    final String itemName = (shop.getShopItem() != null ? getPluginInstance().getManager().getItemName(shop.getShopItem()) : ""),
-                            tradeItemName = (!useVault ? ((!forceUse && shop.getTradeItem() != null) ? getPluginInstance().getManager().getItemName(shop.getTradeItem())
-                                    : getPluginInstance().getManager().getItemName(getPluginInstance().getManager().buildShopCurrencyItem(1))) : "");
-
-                    itemMeta.setDisplayName(color(getPluginInstance().papiText(player,
-                            Objects.requireNonNull(getPluginInstance().getMenusConfig().getString("shop-visit-menu.shop-name"))
-                                    .replace("{item}", itemName).replace("{trade}", tradeItemName))));
-                    itemMeta.setLore(new ArrayList<String>() {{
-                        final double visitCost = getPluginInstance().getConfig().getDouble("visit-charge");
-                        final String adminType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-admin"),
-                                playerType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-normal");
-
-                        OfflinePlayer offlinePlayer = (shop.getOwnerUniqueId() == null ? null : getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()));
-
-                        List<String> loreList = getPluginInstance().getMenusConfig().getStringList("shop-visit-menu.shop-lore");
-                        for (int i = -1; ++i < loreList.size(); ) {
-                            final String line = loreList.get(i);
-                            if ((line.contains("{owner}") && shop.getOwnerUniqueId() == null) || (line.contains("{buy}") && shop.getBuyPrice(false) <= 0)
-                                    || (line.contains("{sell}") && shop.getSellPrice(false) <= 0))
-                                continue;
-
-                            if (line.toLowerCase().contains("{enchants}")) {
-                                if (shop.getShopItem() == null) continue;
-
-                                if (shop.getShopItem().getType() == Material.ENCHANTED_BOOK) {
-                                    EnchantmentStorageMeta bookMeta = (EnchantmentStorageMeta) shop.getShopItem().getItemMeta();
-                                    if (bookMeta != null)
-                                        for (Map.Entry<Enchantment, Integer> entry : bookMeta.getStoredEnchants().entrySet())
+                                    if (shop.getShopItem().getType() == Material.ENCHANTED_BOOK) {
+                                        EnchantmentStorageMeta bookMeta = (EnchantmentStorageMeta) shop.getShopItem().getItemMeta();
+                                        if (bookMeta != null)
+                                            for (Map.Entry<Enchantment, Integer> entry : bookMeta.getStoredEnchants().entrySet())
+                                                add(color(getPluginInstance().papiText(player, line
+                                                        .replace("{enchants}", (getTranslatedName(entry.getKey()) + " " + getRomanNumeral(entry.getValue()))))));
+                                    } else if (!shop.getShopItem().getEnchantments().isEmpty()) {
+                                        for (Map.Entry<Enchantment, Integer> entry : shop.getShopItem().getEnchantments().entrySet())
                                             add(color(getPluginInstance().papiText(player, line
                                                     .replace("{enchants}", (getTranslatedName(entry.getKey()) + " " + getRomanNumeral(entry.getValue()))))));
-                                } else if (!shop.getShopItem().getEnchantments().isEmpty()) {
-                                    for (Map.Entry<Enchantment, Integer> entry : shop.getShopItem().getEnchantments().entrySet())
-                                        add(color(getPluginInstance().papiText(player, line
-                                                .replace("{enchants}", (getTranslatedName(entry.getKey()) + " " + getRomanNumeral(entry.getValue()))))));
-                                }
-
-                                if (shop.getShopItem().getType().name().contains("POTION")) {
-                                    PotionMeta potionMeta = (PotionMeta) shop.getShopItem().getItemMeta();
-                                    if (potionMeta != null) {
-                                        final String translatedName = getTranslatedName(potionMeta.getBasePotionData().getType());
-                                        if (!translatedName.equalsIgnoreCase("Uncraftable"))
-                                            add(color(getPluginInstance().papiText(player, line.replace("{enchants}", (translatedName)))));
-                                        for (PotionEffect potionEffect : potionMeta.getCustomEffects())
-                                            add(color(getPluginInstance().papiText(player, line
-                                                    .replace("{enchants}", (WordUtils.capitalize(potionEffect.getType().getName().toLowerCase()
-                                                            .replace("_", " ")) + " " + getRomanNumeral(potionEffect.getAmplifier()
-                                                            + 1) + " " + (potionEffect.getDuration() / 20) + "s")))));
                                     }
+
+                                    if (shop.getShopItem().getType().name().contains("POTION")) {
+                                        PotionMeta potionMeta = (PotionMeta) shop.getShopItem().getItemMeta();
+                                        if (potionMeta != null) {
+                                            final String translatedName = getTranslatedName(potionMeta.getBasePotionData().getType());
+                                            if (!translatedName.equalsIgnoreCase("Uncraftable"))
+                                                add(color(getPluginInstance().papiText(player, line.replace("{enchants}", (translatedName)))));
+                                            for (PotionEffect potionEffect : potionMeta.getCustomEffects())
+                                                add(color(getPluginInstance().papiText(player, line
+                                                        .replace("{enchants}", (WordUtils.capitalize(potionEffect.getType().getName().toLowerCase()
+                                                                .replace("_", " ")) + " " + getRomanNumeral(potionEffect.getAmplifier()
+                                                                + 1) + " " + (potionEffect.getDuration() / 20) + "s")))));
+                                        }
+                                        continue;
+                                    }
+
                                     continue;
                                 }
 
-                                continue;
+                                add(color(getPluginInstance().papiText(player, line
+                                        .replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null)
+                                                ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
+                                        .replace("{balance}", (shop.getStoredBalance() < 0 ? "∞" : formatNumber(shop.getStoredBalance(), true)))
+                                        .replace("{stock}", (shop.getStock() < 0 ? "∞" : formatNumber(shop.getStock(), false)))
+                                        .replace("{description}", ((shop.getDescription() != null && !shop.getDescription().isEmpty()) ? shop.getDescription() : "---"))
+                                        .replace("{world}", shop.getBaseLocation().getWorldName())
+                                        .replace("{x}", formatNumber((int) shop.getBaseLocation().getX(), false))
+                                        .replace("{y}", formatNumber((int) shop.getBaseLocation().getY(), false))
+                                        .replace("{z}", formatNumber((int) shop.getBaseLocation().getZ(), false))
+                                        .replace("{buy}", formatNumber(shop.getBuyPrice(shop.canDynamicPriceChange()), true))
+                                        .replace("{sell}", formatNumber(shop.getSellPrice(shop.canDynamicPriceChange()), true))
+                                        .replace("{cost}", formatNumber(visitCost, true))
+                                        .replace("{type}", (Objects.requireNonNull(shop.isAdminShop() ? adminType : playerType)))
+                                        .replace("{amount}", formatNumber(shop.getShopItemAmount(), false))
+                                        .replace("{item}", itemName)
+                                        .replace("{trade}", tradeItemName))));
                             }
+                        }});
+                        itemStack.setItemMeta(itemMeta);
+                    }
 
-                            add(color(getPluginInstance().papiText(player, line
-                                    .replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null)
-                                            ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
-                                    .replace("{balance}", (shop.getStoredBalance() < 0 ? "∞" : formatNumber(shop.getStoredBalance(), true)))
-                                    .replace("{stock}", (shop.getStock() < 0 ? "∞" : formatNumber(shop.getStock(), false)))
-                                    .replace("{description}", ((shop.getDescription() != null && !shop.getDescription().isEmpty()) ? shop.getDescription() : "---"))
-                                    .replace("{world}", shop.getBaseLocation().getWorldName())
-                                    .replace("{x}", formatNumber((int) shop.getBaseLocation().getX(), false))
-                                    .replace("{y}", formatNumber((int) shop.getBaseLocation().getY(), false))
-                                    .replace("{z}", formatNumber((int) shop.getBaseLocation().getZ(), false))
-                                    .replace("{buy}", formatNumber(shop.getBuyPrice(shop.canDynamicPriceChange()), true))
-                                    .replace("{sell}", formatNumber(shop.getSellPrice(shop.canDynamicPriceChange()), true))
-                                    .replace("{cost}", formatNumber(visitCost, true))
-                                    .replace("{type}", (Objects.requireNonNull(shop.isAdminShop() ? adminType : playerType)))
-                                    .replace("{amount}", formatNumber(shop.getShopItemAmount(), false))
-                                    .replace("{item}", itemName)
-                                    .replace("{trade}", tradeItemName))));
-                        }
-                    }});
-                    itemStack.setItemMeta(itemMeta);
+                    pageMap.get(currentPage).add(new Pair<>(shop, itemStack));
+                    inventory.addItem(itemStack);
+                });
+
+                final int pageCounter = counterMap.get(page);
+                if (pageCounter > (inventory.getSize() - 9)) {
+                    page++;
+                    pageMap.put(page, new ArrayList<>());
+                    counterMap.put(page, 0);
                 }
+            }
 
-                inventory.setItem(slot, itemStack);
-            });
+            storedMap = pageMap;
+            generatedMap = true;
+        }
+
+        int counter = 0;
+
+        final int currentPage = dataPack.getCurrentVisitPage();
+        if (!generatedMap) {
+            List<Pair<Shop, ItemStack>> pageContents = storedMap.getOrDefault(currentPage, Collections.emptyList());
+            for (int i = -1; ++i < pageContents.size(); ) {
+
+                Pair<Shop, ItemStack> pair = pageContents.get(i);
+
+                if (!checkShopAgainstFilters(pair.getKey(), offlinePlayer, currentFilterType, filter)) continue;
+
+                counter++;
+                inventory.addItem(pair.getValue());
+            }
         }
 
         if (player != null && filter != null && !filter.isEmpty()) {
@@ -2581,8 +2623,20 @@ public class DManager implements Manager {
                         .replace("{filter}", filter));
         }
 
-        final boolean hasNextPage = (counter >= pageSize && counter < shopMap.size()),
-                hasPrevPage = (startIndex >= pageSize);
+        final boolean hasNextPage = storedMap.containsKey(currentPage + 1), hasPrevPage = storedMap.containsKey(currentPage - 1);
+
+        int rSlot = getPluginInstance().getMenusConfig().getInt("shop-visit-menu.refresh-page-item.slot");
+        if (rSlot > -1 && rSlot < inventory.getSize()) {
+            ItemStack nextPage = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-visit-menu.refresh-page-item.material"),
+                    getPluginInstance().getMenusConfig().getInt("shop-visit-menu.refresh-page-item.durability"),
+                    getPluginInstance().getMenusConfig().getInt("shop-visit-menu.refresh-page-item.amount"))
+                    .setDisplayName(player, getPluginInstance().getMenusConfig().getString("shop-visit-menu.refresh-page-item.display-name"))
+                    .setLore(player, getPluginInstance().getMenusConfig().getStringList("shop-visit-menu.refresh-page-item.lore"))
+                    .setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-visit-menu.refresh-page-item.enchantments"))
+                    .setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-visit-menu.refresh-page-item.flags"))
+                    .setModelData(getPluginInstance().getMenusConfig().getInt("shop-visit-menu.refresh-page-item.model-data")).get();
+            inventory.setItem(rSlot, nextPage);
+        }
 
         int nSlot = getPluginInstance().getMenusConfig().getInt("shop-visit-menu.next-page-item.slot");
         if (nSlot > -1 && nSlot < inventory.getSize() && hasNextPage) {

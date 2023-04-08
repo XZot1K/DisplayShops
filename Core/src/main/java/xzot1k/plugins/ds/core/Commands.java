@@ -52,6 +52,25 @@ public class Commands implements CommandExecutor {
                 return true;
             }
 
+            if (args[0].equalsIgnoreCase("visit")) {
+
+                if (args.length > 2) {
+
+                    StringBuilder sb = new StringBuilder();
+
+                    for (int i = 0; ++i < args.length; ) {
+                        if (sb.length() > 0) sb.append(" ");
+                        sb.append(args[i]);
+                    }
+
+                    runVisit(commandSender, null, sb.toString());
+                    return true;
+                } else if (args.length == 2) {
+                    runVisit(commandSender, null, args[1]);
+                    return true;
+                }
+            }
+
 
             switch (args.length) {
                 case 1:
@@ -186,9 +205,6 @@ public class Commands implements CommandExecutor {
                         return true;
                     } else if (args[0].equalsIgnoreCase("give")) {
                         runGive(commandSender, args);
-                        return true;
-                    } else if (args[1].equalsIgnoreCase("filter")) {
-                        runVisit(commandSender, null, args[2]);
                         return true;
                     } else if (args[0].equalsIgnoreCase("cost")) {
                         runCost(commandSender, args[1], args[2]);
@@ -471,7 +487,7 @@ public class Commands implements CommandExecutor {
                 EconomyCallType.EDIT_ACTION, getPluginInstance().getMenusConfig().getDouble("shop-edit-menu.stock-manage-item.price"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
 
-        int difference = (maxStock - shop.getStock()), amountToRemove = (difference > 0 && difference >= amount ? (int) amount : Math.max(difference, 0));
+        int difference = (maxStock - shop.getStock()), amountToRemove = (difference > 0 && difference >= amount ? amount : Math.max(difference, 0));
         if (amountToRemove == 0 || shop.getStock() >= maxStock) {
             message = getPluginInstance().getLangConfig().getString("stock-deposit-fail");
             if (message != null && !message.equalsIgnoreCase(""))
