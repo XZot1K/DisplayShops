@@ -234,14 +234,14 @@ public interface DataPack {
      *
      * @return The map itself.
      */
-    HashMap<Integer, List<ItemStack>> getVisitPageMap();
+    HashMap<Integer, List<Pair<Shop, ItemStack>>> getVisitPageMap();
 
     /**
      * Sets the visit page map for the player.
      *
      * @param visitPageMap The map to set it as.
      */
-    void setVisitPageMap(@Nullable HashMap<Integer, List<ItemStack>> visitPageMap);
+    void setVisitPageMap(@Nullable HashMap<Integer, List<Pair<Shop, ItemStack>>> visitPageMap);
 
     /**
      * Gets the current page the player is on from the visit page map.
