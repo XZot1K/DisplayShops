@@ -19,7 +19,7 @@ import java.util.*;
 public class DDataPack implements DataPack {
     private DisplayShops pluginInstance;
     private HashMap<Integer, List<ItemStack>> baseBlockPageMap;
-    private HashMap<Integer, List<Pair<Shop, ItemStack>>> visitPageMap;
+    private List<Pair<Shop, ItemStack>> visitContents;
     private LinkedHashMap<String, Boolean> baseBlockUnlocks;
     private int currentBaseBlockPage;
     private final HashMap<String, Long> cooldownMap;
@@ -216,9 +216,10 @@ public class DDataPack implements DataPack {
         if (getSelectedShop() != null) getSelectedShop().setCurrentEditor(null);
 
         setSelectedShop(null);
-
-        setVisitPageMap(null);
         setBaseBlockPageMap(null);
+
+        if (getVisitContents() != null) getVisitContents().clear();
+
         setCurrentVisitPage(1);
         setCurrentBaseBlockPage(1);
     }
@@ -321,13 +322,8 @@ public class DDataPack implements DataPack {
     }
 
     @Override
-    public HashMap<Integer, List<Pair<Shop, ItemStack>>> getVisitPageMap() {
-        return this.visitPageMap;
-    }
-
-    @Override
-    public void setVisitPageMap(HashMap<Integer, List<Pair<Shop, ItemStack>>> visitPageMap) {
-        this.visitPageMap = visitPageMap;
+    public List<Pair<Shop, ItemStack>> getVisitContents() {
+        return this.visitContents;
     }
 
     @Override

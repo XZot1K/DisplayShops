@@ -33,6 +33,7 @@ import xzot1k.plugins.ds.core.hooks.SkyBlockListener;
 import xzot1k.plugins.ds.core.hooks.WorldGuardHandler;
 import xzot1k.plugins.ds.core.tasks.CleanupTask;
 import xzot1k.plugins.ds.core.tasks.ManagementTask;
+import xzot1k.plugins.ds.core.tasks.ShopVisitItemTask;
 import xzot1k.plugins.ds.core.tasks.VisualTask;
 
 import java.io.*;
@@ -74,6 +75,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private VisualTask inSightTask;
     private ManagementTask managementTask;
     private CleanupTask cleanupTask;
+    private ShopVisitItemTask shopVisitItemTask;
 
     // Data handlers
     private Connection databaseConnection;
@@ -691,6 +693,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setInSightTask(new VisualTask(this));
         getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
+
+        setShopVisitItemTask(new ShopVisitItemTask(this));
+        getShopVisitItemTask().runTaskTimerAsynchronously(this, 0, 60);
     }
 
     private void updateConfigs() {
@@ -1228,6 +1233,14 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     public void setCleanupTask(CleanupTask cleanupTask) {
         this.cleanupTask = cleanupTask;
+    }
+
+    public ShopVisitItemTask getShopVisitItemTask() {
+        return shopVisitItemTask;
+    }
+
+    public void setShopVisitItemTask(ShopVisitItemTask shopVisitItemTask) {
+        this.shopVisitItemTask = shopVisitItemTask;
     }
 
     public HashMap<UUID, HashMap<UUID, DisplayPacket>> getDisplayPacketMap() {
