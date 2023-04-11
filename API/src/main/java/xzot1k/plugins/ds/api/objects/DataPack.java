@@ -230,18 +230,11 @@ public interface DataPack {
     void setCurrentBaseBlockPage(int currentBaseBlockPage);
 
     /**
-     * Gets the visit page map for the player if it exists.
+     * Gets the visit contents for the player if it exists.
      *
-     * @return The map itself.
+     * @return The content list itself.
      */
-    HashMap<Integer, List<Pair<Shop, ItemStack>>> getVisitPageMap();
-
-    /**
-     * Sets the visit page map for the player.
-     *
-     * @param visitPageMap The map to set it as.
-     */
-    void setVisitPageMap(@Nullable HashMap<Integer, List<Pair<Shop, ItemStack>>> visitPageMap);
+    List<Pair<Shop, ItemStack>> getVisitContents();
 
     /**
      * Gets the current page the player is on from the visit page map.
