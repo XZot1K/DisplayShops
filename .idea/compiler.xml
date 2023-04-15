@@ -28,11 +28,15 @@
         <module name="Core" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="API" target="1.8" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="API" options="-proc:none" />
       <module name="Core" options="" />
+      <module name="DisplayShopsAPI" options="-proc:none" />
     </option>
   </component>
 </project>

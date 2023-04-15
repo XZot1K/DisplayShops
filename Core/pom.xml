@@ -94,6 +94,15 @@
     </build>
 
     <dependencies>
+
+        <!-- API -->
+        <dependency>
+            <groupId>com.github.XZot1K</groupId>
+            <artifactId>DisplayShopsAPI</artifactId>
+            <version>${api.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
         <!-- NMS -->
         <dependency>
             <groupId>xzot1k.plugins.ds</groupId>
@@ -210,13 +219,6 @@
             <scope>compile</scope>
         </dependency>
         <!-- NMS END -->
-
-        <dependency>
-            <groupId>xzot1k.plugins.ds</groupId>
-            <artifactId>API</artifactId>
-            <version>${api.version}</version>
-            <scope>compile</scope>
-        </dependency>
 
         <dependency>
             <groupId>org.spigotmc</groupId>

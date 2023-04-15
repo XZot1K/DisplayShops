@@ -148,7 +148,8 @@ public class DShop implements Shop {
                 displayPacket = new xzot1k.plugins.ds.core.packets.v1_19_R1.DPacket(INSTANCE, player, this, showHolograms);
             else if (INSTANCE.getServerVersion() == 1_18.2)
                 displayPacket = new xzot1k.plugins.ds.core.packets.v1_18_R2.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_18.1) displayPacket = new xzot1k.plugins.ds.core.packets.v1_18_R1.DPacket(INSTANCE, player, this, showHolograms);
+            else if (INSTANCE.getServerVersion() == 1_18.1)
+                displayPacket = new xzot1k.plugins.ds.core.packets.v1_18_R1.DPacket(INSTANCE, player, this, showHolograms);
             else if (INSTANCE.getServerVersion() == 1_17.1)
                 displayPacket = new xzot1k.plugins.ds.core.packets.v1_17_R1.DPacket(INSTANCE, player, this, showHolograms);
             else if (INSTANCE.getServerVersion() == 1_16.3)

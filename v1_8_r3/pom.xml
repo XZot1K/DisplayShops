@@ -18,13 +18,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>xzot1k.plugins.ds</groupId>
-            <artifactId>API</artifactId>
-            <version>${api.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>
             <version>1.8.8-R0.1-SNAPSHOT</version>
