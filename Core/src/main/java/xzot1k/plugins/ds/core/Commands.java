@@ -52,7 +52,24 @@ public class Commands implements CommandExecutor {
                 return true;
             }
 
-            if (args[0].equalsIgnoreCase("visit")) {
+            if (label.toLowerCase().startsWith("sw")) {
+
+                if (args.length > 1) {
+
+                    StringBuilder sb = new StringBuilder();
+
+                    for (int i = -1; ++i < args.length; ) {
+                        if (sb.length() > 0) sb.append(" ");
+                        sb.append(args[i]);
+                    }
+
+                    runVisit(commandSender, null, sb.toString());
+
+                } else if (args.length == 1) runVisit(commandSender, null, args[0]);
+                else runVisit(commandSender, null, null);
+
+                return true;
+            } else if (args[0].equalsIgnoreCase("visit")) {
 
                 if (args.length > 2) {
 

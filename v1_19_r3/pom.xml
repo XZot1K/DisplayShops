@@ -3,6 +3,7 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>xzot1k.plugins.ds</groupId>
         <artifactId>DisplayShops</artifactId>
@@ -18,13 +19,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>xzot1k.plugins.ds</groupId>
-            <artifactId>API</artifactId>
-            <version>${api.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>

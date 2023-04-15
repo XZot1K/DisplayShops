@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="DisplayShopsAPI" pattern="file[API]:src/main/java//*" />
+</component>

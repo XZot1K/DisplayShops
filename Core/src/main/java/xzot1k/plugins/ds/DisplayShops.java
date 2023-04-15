@@ -585,7 +585,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param itemStack The item to check the id for.
      * @return The id associated to the item in the blocked-items.yml (returns -1 if invalid).
      */
-    public long getBlockedItemId(ItemStack itemStack) {
+    public long getBlockedItemId(@NotNull ItemStack itemStack) {
         File file = new File(getPluginInstance().getDataFolder(), "blocked-items.yml");
         FileConfiguration yaml = YamlConfiguration.loadConfiguration(file);
 
@@ -635,7 +635,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param level   Level of the message.
      * @param message The message to log.
      */
-    public void log(Level level, String message) {
+    public void log(@NotNull Level level, @NotNull String message) {
         getServer().getLogger().log(level, "[" + getDescription().getName() + "] " + message);
     }
 
@@ -651,7 +651,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      *
      * @param text The text to store on the next available line in the file.
      */
-    public void writeToLog(String text) {
+    public void writeToLog(@NotNull String text) {
         if (getLoggingFile() == null) setLoggingFile(new File(getDataFolder(), "log.txt"));
 
         long fileSize = (getLoggingFile().length() / 1048576),

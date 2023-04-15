@@ -32,31 +32,14 @@ public class ShopVisitItemTask extends BukkitRunnable {
         final boolean showAdminShops = INSTANCE.getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops"),
                 useVault = (INSTANCE.getConfig().getBoolean("use-vault") && INSTANCE.getVaultEconomy() != null),
                 forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
-        List<Integer> removalIndexes = new ArrayList<>();
 
-        List<Pair<Shop, ItemStack>> shopList = INSTANCE.getManager().getShopVisitItemList();
-        for (int i = -1; ++i < shopList.size(); ) {
-
-            final Pair<Shop, ItemStack> pair = shopList.get(i);
-            final Shop shop = pair.getKey();
-
-            if (shop.getBaseLocation() == null || (!showAdminShops && shop.isAdminShop())
-                    || shop.getShopItem() == null || pair.getValue() == null)
-                if (!removalIndexes.contains(i)) removalIndexes.add(i);
-        }
-
-        // remove the pairs that need to be dropped from the visit list
-        for (int i = -1; ++i < removalIndexes.size(); ) {
-            final int index = removalIndexes.get(i);
-            shopList.remove(index);
-        }
+        List<Pair<Shop, ItemStack>> newList = new ArrayList<>();
 
         Set<Map.Entry<UUID, Shop>> shops = INSTANCE.getManager().getShopMap().entrySet();
         for (Map.Entry<UUID, Shop> entry : shops) {
             final Shop shop = entry.getValue();
 
-            if (shop.getBaseLocation() == null || (!showAdminShops && shop.isAdminShop())
-                    || shop.getShopItem() == null || isAlreadyInList(shopList, shop)) continue;
+            if (shop.getBaseLocation() == null || (!showAdminShops && shop.isAdminShop()) || shop.getShopItem() == null) continue;
 
             ItemStack itemStack = new ItemStack(shop.getShopItem().getType(), 1, shop.getShopItem().getDurability());
             itemStack = INSTANCE.getPacketManager().updateNBT(itemStack, "shop-id", shop.getShopId().toString());
@@ -138,14 +121,19 @@ public class ShopVisitItemTask extends BukkitRunnable {
                 itemStack.setItemMeta(itemMeta);
             }
 
-            shopList.add(new Pair<>(shop, itemStack));
+            newList.add(new Pair<>(shop, itemStack));
         }
 
-        shopList.sort((o1, o2) -> (o1.getValue().getType().name().compareToIgnoreCase(o2.getValue().getType().name())));
+        newList.sort((o1, o2) -> (o1.getValue().getType().name().compareToIgnoreCase(o2.getValue().getType().name())));
+        INSTANCE.getManager().setShopVisitItemList(newList);
     }
 
-    private boolean isAlreadyInList(List<Pair<Shop, ItemStack>> list, Shop shop) {
-        return list.parallelStream().anyMatch(pair -> pair.getKey().getShopId().toString().equals(shop.getShopId().toString()));
-    }
+    /*private boolean isAlreadyInList(List<Pair<Shop, ItemStack>> list, Shop shop) {
+        for(int i = -1; ++i < list.size(); ) {
+            final Pair<Shop, ItemStack> pair = list.get(i);
+            if(pair.getKey().getShopId().toString().equals(shop.getShopId().toString())) return true;
+        }
+        return false;
+    }*/
 
 }

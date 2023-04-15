@@ -56,7 +56,7 @@ public class DManager implements Manager {
 
     private HashMap<UUID, Shop> shopMap;
     private List<MarketRegion> marketRegions;
-    private final List<Pair<Shop, ItemStack>> shopVisitItemList;
+    private List<Pair<Shop, ItemStack>> shopVisitItemList;
     private final Pattern hexPattern;
     private HashMap<UUID, DataPack> dataPackMap;
 
@@ -65,7 +65,7 @@ public class DManager implements Manager {
         setShopMap(new HashMap<>());
         setDataPackMap(new HashMap<>());
         setMarketRegions(new ArrayList<>());
-        shopVisitItemList = new ArrayList<>();
+        setShopVisitItemList(new ArrayList<>());
         hexPattern = Pattern.compile("#[a-fA-F\\d]{6}");
     }
 
@@ -1066,7 +1066,7 @@ public class DManager implements Manager {
         if (totalEnchantments > 0) for (Map.Entry<Enchantment, Integer> enchantEntry : enchantEntries) {
             if (currentCount >= cutCount) break;
             enchantLine.append(color(getTranslatedName(enchantEntry.getKey()) + " " + getRomanNumeral(enchantEntry.getValue())));
-            if (currentCount < totalEnchantments) enchantLine.append(", ");
+            if (currentCount < totalEnchantments && ((currentCount + 1) < totalEnchantments)) enchantLine.append(", ");
             currentCount++;
         }
 
@@ -2952,6 +2952,10 @@ public class DManager implements Manager {
 
     public List<Pair<Shop, ItemStack>> getShopVisitItemList() {
         return shopVisitItemList;
+    }
+
+    public void setShopVisitItemList(List<Pair<Shop, ItemStack>> shopVisitItemList) {
+        this.shopVisitItemList = shopVisitItemList;
     }
 
 }

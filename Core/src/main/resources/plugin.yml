@@ -13,7 +13,7 @@ commands:
   displayshops:
     default: op
     description: The main command for the DisplayShops plugin.
-    aliases: [ ds ]
+    aliases: [ ds, sw, swfilter ]
 
 permissions:
   displayshops.*:
