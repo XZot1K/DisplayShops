@@ -1581,6 +1581,12 @@ public class Commands implements CommandExecutor {
         if (getPluginInstance().getCleanupTask() != null) getPluginInstance().getCleanupTask().cancel();
         getPluginInstance().reloadConfigs();
 
+        if (getPluginInstance().getConfig().getBoolean("use-vault")) {
+            getPluginInstance().setupVaultEconomy();
+            if (getPluginInstance().getVaultEconomy() == null)
+                getPluginInstance().log(Level.WARNING, "Vault is either missing or has no economy counterpart. Now using integrated economy solution.");
+        } else getPluginInstance().setVaultEconomy(null);
+
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
         getPluginInstance().getListeners().setPistonCheck(getPluginInstance().getConfig().getBoolean("piston-protection.check"));
 

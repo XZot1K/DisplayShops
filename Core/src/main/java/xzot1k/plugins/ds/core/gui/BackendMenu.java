@@ -1,6 +1,7 @@
 package xzot1k.plugins.ds.core.gui;
 
 import net.md_5.bungee.api.ChatColor;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -54,6 +55,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
             load(file);
 
+            fixup();
+
             final String title = getString("title");
             setTitle(DisplayShops.getPluginInstance().getManager().color((title != null && !title.isEmpty()) ? title : ""));
             setSize(getInt("size"));
@@ -62,6 +65,104 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             e.printStackTrace();
             DisplayShops.getPluginInstance().getServer().getLogger().warning(e.getMessage());
         }
+    }
+
+    private void fixup() {
+
+        final DisplayShops instance = DisplayShops.getPluginInstance();
+
+        ConfigurationSection cs = getConfiguration().getConfigurationSection("");
+        if (cs != null) for (Map.Entry<String, Object> entry : cs.getValues(false).entrySet()) {
+
+            final String key = entry.getKey().toLowerCase();
+
+            if (key.endsWith("material")) {
+
+                final String mat = String.valueOf(entry.getValue());
+                if (!mat.isEmpty() && !isValidMaterial(mat)) {
+
+                    if (mat.toUpperCase().startsWith("HEAD")) continue; // skip custom heads
+
+                    if (instance.getServerVersion() < 1_13) {
+                        // wool
+                        if (mat.equalsIgnoreCase("LIME_WOOL")) getConfiguration().set(entry.getKey(), "WOOL:5");
+                        else if (mat.equalsIgnoreCase("RED_WOOL")) getConfiguration().set(entry.getKey(), "WOOL:14");
+                        else if (mat.equalsIgnoreCase("ORANGE_WOOL")) getConfiguration().set(entry.getKey(), "WOOL:1");
+                        else if (mat.toUpperCase().contains("_WOOL")) getConfiguration().set(entry.getKey(), "WOOL");
+                            // dye
+                        else if (mat.equalsIgnoreCase("LIME_DYE")) getConfiguration().set(entry.getKey(), "INK_SACK:10");
+                        else if (mat.equalsIgnoreCase("RED_DYE")) getConfiguration().set(entry.getKey(), "INK_SACK:1");
+                        else if (mat.equalsIgnoreCase("ORANGE_DYE")) getConfiguration().set(entry.getKey(), "INK_SACK:14");
+                        else if (mat.toUpperCase().contains("_DYE")) getConfiguration().set(entry.getKey(), "INK_SACK");
+                            // minecart
+                        else if (mat.equalsIgnoreCase("CHEST_MINECART")) getConfiguration().set(entry.getKey(), "STORAGE_MINECART");
+                            // sign
+                        else if (mat.toUpperCase().contains("_SIGN")) getConfiguration().set(entry.getKey(), "SIGN");
+                            // end portal frame
+                        else if (mat.equalsIgnoreCase("END_PORTAL_FRAME")) getConfiguration().set(entry.getKey(), "ENDER_PORTAL_FRAME");
+                            // player head
+                        else if (mat.equalsIgnoreCase("PLAYER_HEAD")) getConfiguration().set(entry.getKey(), "SKULL_ITEM");
+                            // stained-glass
+                        else if (mat.equalsIgnoreCase("BLACK_STAINED_GLASS_PANE")) getConfiguration().set(entry.getKey(), "STAINED_GLASS_PANE:15");
+                        else if (mat.toUpperCase().contains("STAINED_GLASS_PANE")) getConfiguration().set(entry.getKey(), "STAINED_GLASS_PANE:15");
+
+                    } else if (instance.getServerVersion() >= 1_13) {
+
+                        // wool
+                        if (mat.equalsIgnoreCase("WOOL:5")) getConfiguration().set(entry.getKey(), "LIME_WOOL");
+                        else if (mat.equalsIgnoreCase("WOOL:14")) getConfiguration().set(entry.getKey(), "RED_WOOL");
+                        else if (mat.equalsIgnoreCase("WOOL:1")) getConfiguration().set(entry.getKey(), "ORANGE_WOOL");
+                        else if (mat.toUpperCase().contains("WOOL")) getConfiguration().set(entry.getKey(), "WHITE_WOOL");
+                            // dye
+                        else if (mat.equalsIgnoreCase("INK_SACK:10")) getConfiguration().set(entry.getKey(), "LIME_DYE");
+                        else if (mat.equalsIgnoreCase("INK_SACK:1")) getConfiguration().set(entry.getKey(), "RED_DYE");
+                        else if (mat.equalsIgnoreCase("INK_SACK:14")) getConfiguration().set(entry.getKey(), "ORANGE_DYE");
+                        else if (mat.toUpperCase().contains("INK_SACK")) getConfiguration().set(entry.getKey(), "_DYE");
+                            // minecart
+                        else if (mat.equalsIgnoreCase("STORAGE_MINECART")) getConfiguration().set(entry.getKey(), "CHEST_MINECART");
+                            // sign
+                        else if (instance.getServerVersion() >= 1_14 && mat.equalsIgnoreCase("SIGN")) getConfiguration().set(entry.getKey(), "OAK_SIGN");
+                            // end portal frame
+                        else if (mat.equalsIgnoreCase("ENDER_PORTAL_FRAME")) getConfiguration().set(entry.getKey(), "END_PORTAL_FRAME");
+                            // player head
+                        else if (mat.equalsIgnoreCase("SKULL_ITEM")) getConfiguration().set(entry.getKey(), "PLAYER_HEAD");
+                            // stained-glass
+                        else if (mat.equalsIgnoreCase("STAINED_GLASS_PANE:15")) getConfiguration().set(entry.getKey(), "BLACK_STAINED_GLASS_PANE");
+                        else if (mat.toUpperCase().contains("STAINED_GLASS_PANE")) getConfiguration().set(entry.getKey(), "BLACK_STAINED_GLASS_PANE");
+                    }
+                }
+
+            }
+
+        }
+
+        try {
+            getConfiguration().save(getFile());
+            reload();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean isValidMaterial(@Nullable String material) {
+        if (material == null || material.isEmpty()) return false;
+        Material mat = Material.matchMaterial(material);
+        return (mat != null);
+    }
+
+    private String predictCorrectValue(@NotNull Class<? extends Enum<?>> enumeration, @NotNull String value) {
+        String currentWinner = ((enumeration.getEnumConstants().length > 0) ? enumeration.getEnumConstants()[0].name() : "");
+        int currentDistance = 0;
+
+        for (Enum<?> operation : enumeration.getEnumConstants()) {
+            final int newDistance = StringUtils.getLevenshteinDistance(operation.name(), value);
+            if (newDistance > currentDistance) {
+                currentWinner = operation.name();
+                currentDistance = newDistance;
+            }
+        }
+
+        return currentWinner;
     }
 
     private String stitchSearchText(@Nullable String... searchText) {

@@ -19,6 +19,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.api.DManager;
 import xzot1k.plugins.ds.api.PacketManager;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
@@ -106,7 +107,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         setServerVersion(Double.parseDouble(getServer().getClass().getPackage().getName()
                 .replace(".", ",").split(",")[3]
                 .replace("_R", ".").replaceAll("[rvV_]*", "")));
-        updateConfigs();
+
+        fixConfig();
 
         menuMap = new HashMap<>();
         shopMemory = new HashMap<>();
@@ -262,7 +264,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             }
         }
 
-        if (!fixedTables) getManager().loadShops(false, false);
+        getManager().loadShops(false, false);
         getManager().loadMarketRegions(false);
         for (Player player : getServer().getOnlinePlayers()) getManager().loadDataPack(player);
 
@@ -354,7 +356,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                 try {
                     statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/auto-backup.db").getPath()
                             .replace("'", "").replace("\"", "") + "';");
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
 
                 statement.executeUpdate("PRAGMA integrity_check;");
                 String shopParameters = "(id TEXT PRIMARY KEY NOT NULL, location TEXT NOT NULL, owner TEXT, assistants TEXT, buy_price REAL,"
@@ -366,7 +369,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                                 "TEXT)",
                         recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency REAL, item_amount INTEGER, item TEXT)";
 
-                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters);
+                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, host);
 
             } else {
                 try {
@@ -385,17 +388,15 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
                 final String shopParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, location LONGTEXT NOT NULL, owner LONGTEXT, assistants " +
                         "LONGTEXT, buy_price DOUBLE, sell_price DOUBLE, stock INT, shop_item LONGTEXT, trade_item LONGTEXT, limits LONGTEXT, " +
-                        "shop_item_amount INT, balance " +
-                        "DOUBLE, command_only_mode BOOLEAN, commands LONGTEXT, change_time_stamp LONGTEXT, description LONGTEXT, base_material " +
-                        "LONGTEXT, extra_data LONGTEXT)",
+                        "shop_item_amount INT, balance DOUBLE, command_only_mode BOOLEAN, commands LONGTEXT, change_time_stamp LONGTEXT, " +
+                        "description LONGTEXT, base_material LONGTEXT, extra_data LONGTEXT)",
                         markRegionParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, point_one LONGTEXT, point_two LONGTEXT, renter LONGTEXT, " +
-                                "rent_time_stamp LONGTEXT,"
-                                + " extended_duration INT, extra_data LONGTEXT)",
+                                "rent_time_stamp LONGTEXT, extended_duration INT, extra_data LONGTEXT)",
                         playerDataParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, bbm_unlocks LONGTEXT, cooldowns LONGTEXT, " +
                                 "transaction_limits LONGTEXT, notify LONGTEXT)",
                         recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency DOUBLE, item_amount INT, item LONGTEXT)";
 
-                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters);
+                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, host);
 
                 exportMySQLDatabase();
             }
@@ -408,8 +409,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     private boolean handleDatabaseFixing(@NotNull Statement statement, @NotNull String shopParameters, @NotNull String markRegionParameters,
-                                         @NotNull String playerDataParameters,
-                                         @NotNull String recoveryParameters) throws SQLException {
+                                         @NotNull String playerDataParameters, @NotNull String recoveryParameters, @Nullable String host) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
         if (!tableExists("shops")) {
             getServer().getLogger().warning("There was an issue creating the \"shops\" table. This could be related to user permissions via SQL.");
@@ -418,8 +418,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         statement.execute("CREATE TABLE IF NOT EXISTS market_regions " + markRegionParameters + ";");
         if (!tableExists("market_regions")) {
-            getServer().getLogger().warning("There was an issue creating the \"market_regions\" table. This could be related to user permissions " +
-                    "via SQL.");
+            getServer().getLogger().warning("There was an issue creating the \"market_regions\" table."
+                    + " This could be related to user permissions via SQL.");
             return false;
         }
 
@@ -457,34 +457,101 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         if (!hasColumn(resultSet, "base_material") || hasColumn(resultSet, "base_location")
                 || !hasColumn(resultSet, "limits")) {
+
             resultSet.close();
-            try {
+
+            log(Level.WARNING, "Database Structure Mismatch. Fixing Tables...");
+
+          /*  try {
                 statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/table-fix-backup.db").getPath()
                         .replace("'", "").replace("\"", "") + "';");
             } catch (SQLException e) {
                 log(Level.WARNING, "Unable to backup the 'table-fix-backup.db' file.");
-            }
+            }*/
 
             for (String tableName : new String[]{"shops", "market_regions", "player_data"}) {
                 statement.execute("CREATE TABLE IF NOT EXISTS temp_" + tableName + " "
                         + (tableName.equals("shops") ? shopParameters : (tableName.equals("market_regions")
                         ? markRegionParameters : playerDataParameters)) + ";");
-                statement.execute("INSERT INTO temp_" + tableName + " SELECT * FROM " + tableName + ";");
+
+                if (tableName.equals("shops")) insertRow(("temp_" + tableName), host);
+                else statement.execute("INSERT INTO temp_" + tableName + " SELECT * FROM " + tableName + ";");
+
                 statement.execute("DROP TABLE IF EXISTS " + tableName + ";");
                 statement.execute("ALTER TABLE temp_" + tableName + " RENAME TO " + tableName + ";");
             }
 
-            getManager().loadShops(false, false);
-            statement.execute("DROP TABLE IF EXISTS shops;");
+            //getManager().loadShops(false, false);
+            //statement.execute("DROP TABLE IF EXISTS shops;");
 
-            statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
-            for (Shop shop : getManager().getShopMap().values()) shop.save(false);
+            // statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
+            // for (Shop shop : getManager().getShopMap().values()) shop.save(false);
             return true;
-        }
 
-        resultSet.close();
+        } else resultSet.close();
+
         statement.close();
         return false;
+    }
+
+    private void insertRow(@NotNull String tableName, @Nullable String host) {
+
+        long current = 0, count = 0, countPercentage = 0;
+        try (PreparedStatement statement = getDatabaseConnection().prepareStatement("SELECT Count(*) FROM shops;");
+             ResultSet rs = statement.executeQuery()) {
+
+            count = (rs.next() ? rs.getInt(1) : 0);
+            countPercentage = ((long) (count * 0.15));
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        try {
+
+            Statement statement = getDatabaseConnection().createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM shops;");
+
+            while (resultSet.next()) {
+
+                final String id = resultSet.getString("id"), location = resultSet.getString("location"), owner = resultSet.getString("owner"),
+                        assistants = resultSet.getString("assistants"), shopItem = resultSet.getString("shop_item"),
+                        tradeItem = resultSet.getString("trade_item"), commands = resultSet.getString("commands"),
+                        changeTimeStamp = resultSet.getString("change_time_stamp"), description = resultSet.getString("description"),
+                        baseMaterial = resultSet.getString("base_material"), extraData = resultSet.getString("extra_data"),
+                        limits = (resultSet.getInt("buy_limit") + ";" + resultSet.getInt("buy_counter") + ";" +
+                                resultSet.getInt("sell_limit") + ";" + resultSet.getInt("sell_counter") + ";0;0");
+
+                final double buyPrice = resultSet.getDouble("buy_price"), sellPrice = resultSet.getDouble("sell_price"),
+                        balance = resultSet.getDouble("balance");
+
+                final int stock = resultSet.getInt("stock"), shopItemAmount = resultSet.getInt("shop_item_amount"),
+                        commandOnly = resultSet.getInt("command_only_mode");
+
+                final String syntax = "INSERT " + ((host == null || host.isEmpty()) ? "OR REPLACE" : "") + " INTO " + tableName + "(id, location, owner, assistants,"
+                        + " buy_price, sell_price, stock, shop_item, trade_item, limits, shop_item_amount, balance, command_only_mode, commands, change_time_stamp,"
+                        + " description, base_material, extra_data) VALUES('" + id + "', '" + location + "', '" + owner + "', '" + assistants + "', " + buyPrice
+                        + ", " + sellPrice + ", " + stock + ", '" + shopItem + "', '" + tradeItem + "', '" + limits + "', " + shopItemAmount + ", " + balance
+                        + ", '" + commandOnly + "', '" + commands + "', '" + changeTimeStamp + "', '" + description + "', '" + baseMaterial + "', '" + extraData + "');";
+
+                PreparedStatement ps = getDatabaseConnection().prepareStatement(syntax);
+                ps.executeUpdate();
+                ps.close();
+
+                current++;
+
+                if ((countPercentage <= 0 || current % countPercentage == 0 || current == count))
+                    log(Level.INFO, "Populating the " + tableName + " table " + current + "/" + count
+                            + " (" + Math.min(100, (int) (((double) current / (double) count) * 100)) + "%)...");
+            }
+
+            resultSet.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public boolean hasColumn(ResultSet rs, String columnName) throws SQLException {
@@ -533,7 +600,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                     statement.executeUpdate();
                     statement.close();
 
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -643,7 +711,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
     }
 
-    private void setupVaultEconomy() {
+    public void setupVaultEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null)
             return;
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
@@ -667,175 +735,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setInSightTask(new VisualTask(this));
         getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
-    }
-
-    private void updateConfigs() {
-        long startTime = System.currentTimeMillis();
-        int totalUpdates = 0;
-
-        String[] configNames = {"config", "lang"};
-        for (int i = -1; ++i < configNames.length; ) {
-            String name = configNames[i];
-
-            InputStream inputStream = getClass().getResourceAsStream("/" + name + ".yml");
-            if (inputStream == null) continue;
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-
-            FileConfiguration yaml = YamlConfiguration.loadConfiguration(reader);
-            int updateCount = updateKeys(yaml, name.equalsIgnoreCase("config") ? getConfig() : getLangConfig());
-
-            if (name.equals("config")) {
-                String createSound = getConfig().getString("immersion-section.shop-creation-sound");
-                if (Math.floor(getServerVersion()) <= 1_8) {
-
-                    if (createSound != null && createSound.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) {
-                        getConfig().set("immersion-section.shop-creation-sound", "ITEM_PICKUP");
-                        updateCount++;
-                    }
-
-                    String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
-                    if (deleteSound != null && (deleteSound.equalsIgnoreCase("BLOCK_WOOD_BREAK")
-                            || deleteSound.equalsIgnoreCase("BLOCK_WOOD_STEP"))) {
-                        getConfig().set("immersion-section.shop-delete-sound", "STEP_WOOD");
-                        updateCount++;
-                    }
-
-                    String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
-                    if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")
-                            || visitSound.equalsIgnoreCase("ENTITY_ENDERMEN_TELEPORT"))) {
-                        getConfig().set("immersion-section.shop-visit-sound", "ENDERMAN_TELEPORT");
-                        updateCount++;
-                    }
-
-                    String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
-                    if (bbmSound != null && (bbmSound.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")
-                            || bbmSound.equalsIgnoreCase("ENTITY_ARROW_SHOOT"))) {
-                        getConfig().set("immersion-section.shop-bbm-sound", "SHOOT_ARROW");
-                        updateCount++;
-                    }
-
-                } else if (Math.floor(getServerVersion()) <= 1_12) {
-
-                    if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
-                        getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
-                        updateCount++;
-                    }
-
-                    String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
-                    if (deleteSound != null && (deleteSound.equalsIgnoreCase("BLOCK_WOOD_BREAK")
-                            || deleteSound.equalsIgnoreCase("STEP_WOOD"))) {
-                        getConfig().set("immersion-section.shop-delete-sound", "BLOCK_WOOD_STEP");
-                        updateCount++;
-                    }
-
-                    if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
-                        getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
-                        updateCount++;
-                    }
-
-                    String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
-                    if (bbmSound != null && (bbmSound.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")
-                            || bbmSound.equalsIgnoreCase("SHOOT_ARROW"))) {
-                        getConfig().set("immersion-section.shop-bbm-sound", "ENTITY_ARROW_SHOOT");
-                        updateCount++;
-                    }
-
-                    String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
-                    if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")
-                            || visitSound.equalsIgnoreCase("ENDERMAN_TELEPORT"))) {
-                        getConfig().set("immersion-section.shop-visit-sound", "ENTITY_ENDERMEN_TELEPORT");
-                        updateCount++;
-                    }
-
-                } else {
-                    if (createSound != null && createSound.equalsIgnoreCase("ITEM_PICKUP")) {
-                        getConfig().set("immersion-section.shop-creation-sound", "ENTITY_ITEM_PICKUP");
-                        updateCount++;
-                    }
-
-                    String deleteSound = getConfig().getString("immersion-section.shop-delete-sound");
-                    if (deleteSound != null && deleteSound.equalsIgnoreCase("STEP_WOOD")) {
-                        getConfig().set("immersion-section.shop-delete-sound", "BLOCK_WOOD_BREAK");
-                        updateCount++;
-                    }
-
-                    String bbmSound = getConfig().getString("immersion-section.shop-bbm-sound");
-                    if (bbmSound != null && bbmSound.equalsIgnoreCase("SHOOT_ARROW")) {
-                        getConfig().set("immersion-section.shop-bbm-sound", "ENTITY_SNOWBALL_THROW");
-                        updateCount++;
-                    }
-
-                    String visitSound = getConfig().getString("immersion-section.shop-visit-sound");
-                    if (visitSound != null && (visitSound.equalsIgnoreCase("ENTITY_ENDERMEN_TELEPORT")
-                            || visitSound.equalsIgnoreCase("ENDERMAN_TELEPORT"))) {
-                        getConfig().set("immersion-section.shop-visit-sound", "ENTITY_ENDERMAN_TELEPORT");
-                        updateCount++;
-                    }
-                }
-
-                String baseBlockMaterial = getConfig().getString("shop-block-material"), craftingRecipeLineTwo = getConfig().getString("shop" +
-                        "-creation-item.recipe.line-two");
-                if (Math.floor(getServerVersion()) <= 1_12) {
-                    if (baseBlockMaterial != null && baseBlockMaterial.contains("END_PORTAL_FRAME")) {
-                        getConfig().set("shop-block-material", baseBlockMaterial.replace("END_PORTAL_FRAME", "ENDER_PORTAL_FRAME"));
-                        updateCount++;
-                    }
-
-                    if (craftingRecipeLineTwo == null || craftingRecipeLineTwo.equalsIgnoreCase("") || craftingRecipeLineTwo.contains("END_STONE")) {
-                        getConfig().set("shop-creation-item.recipe.line-two", Objects.requireNonNull(craftingRecipeLineTwo).replace("END_STONE",
-                                craftingRecipeLineTwo.replace("END_STONE",
-                                        "ENDER_STONE")));
-                        updateCount++;
-                    }
-                } else {
-                    if (baseBlockMaterial != null && baseBlockMaterial.contains("ENDER_PORTAL_FRAME")) {
-                        getConfig().set("shop-block-material", baseBlockMaterial.replace("ENDER_PORTAL_FRAME", "END_PORTAL_FRAME"));
-                        updateCount++;
-                    }
-
-                    if (craftingRecipeLineTwo == null || craftingRecipeLineTwo.equalsIgnoreCase("") || craftingRecipeLineTwo.contains("ENDER_STONE")) {
-                        getConfig().set("shop-creation-item.recipe.line-two", Objects.requireNonNull(craftingRecipeLineTwo).replace("ENDER_STONE",
-                                craftingRecipeLineTwo.replace("ENDER_STONE",
-                                        "END_STONE")));
-                        updateCount++;
-                    }
-                }
-            }
-
-            try {
-                inputStream.close();
-                reader.close();
-            } catch (IOException e) {
-                log(Level.WARNING, e.getMessage());
-            }
-
-            if (updateCount > 0)
-                switch (name) {
-                    case "config":
-                        saveConfig();
-                        break;
-                    case "lang":
-                        saveLangConfig();
-                        break;
-                    default:
-                        break;
-                }
-
-            if (updateCount > 0) {
-                totalUpdates += updateCount;
-                log(Level.INFO,
-                        updateCount + " things were fixed, updated, or removed in the '" + name + ".yml' configuration file. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
-            }
-        }
-
-        if (totalUpdates > 0) {
-            reloadConfigs();
-            log(Level.INFO,
-                    "A total of " + totalUpdates + " thing(s) were fixed, updated, or removed from all the configuration together. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
-            log(Level.WARNING, "Please go checkout the configuration files as they are no longer the same as their default counterparts.");
-        } else
-            log(Level.INFO, "Everything inside the configuration seems to be up to date. (Took " + (System.currentTimeMillis() - startTime) + "ms)");
     }
 
     private boolean isOutdated() {
@@ -870,6 +769,65 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     // custom configurations
+    public void fixConfig() {
+
+        if (getServerVersion() < 1_13) {
+
+            final String shopBlock = getConfig().getString("shop-block-material");
+            if (shopBlock == null || shopBlock.isEmpty() || shopBlock.toUpperCase().contains("END_PORTAL_FRAME"))
+                getConfig().set("shop-block-material", "ENDER_PORTAL_FRAME:0");
+
+            ConfigurationSection recipeSection = getConfig().getConfigurationSection("recipe");
+            if (recipeSection != null) for (Map.Entry<String, Object> entry : recipeSection.getValues(true).entrySet()) {
+                final String value = String.valueOf(entry.getValue());
+                if (value.toUpperCase().contains("END_STONE")) getConfig().set(entry.getKey(), value.replace("END_STONE", "ENDER_STONE"));
+            }
+
+            if (getServerVersion() < 1_9) {
+                ConfigurationSection immersionSection = getConfig().getConfigurationSection("immersion-section");
+                if (immersionSection != null) for (Map.Entry<String, Object> entry : immersionSection.getValues(true).entrySet()) {
+                    final String value = String.valueOf(entry.getValue());
+                    if (value.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) getConfig().set(entry.getKey(), "ITEM_PICKUP");
+                    else if (value.equalsIgnoreCase("BLOCK_WOOD_BREAK")) getConfig().set(entry.getKey(), "STEP_WOOD");
+                    else if (value.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")) getConfig().set(entry.getKey(), "ENDERMAN_TELEPORT");
+                    else if (value.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")) getConfig().set(entry.getKey(), "SHOOT_ARROW");
+                }
+            } else if (getServerVersion() >= 1_9) {
+                ConfigurationSection immersionSection = getConfig().getConfigurationSection("immersion-section");
+                if (immersionSection != null) for (Map.Entry<String, Object> entry : immersionSection.getValues(true).entrySet()) {
+                    final String value = String.valueOf(entry.getValue());
+                    if (value.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")) getConfig().set(entry.getKey(), "ENDERMEN_TELEPORT");
+                }
+            }
+
+            saveConfig();
+            reloadConfig();
+            return;
+        }
+
+        final String shopBlock = getConfig().getString("shop-block-material");
+        if (shopBlock == null || shopBlock.isEmpty() || shopBlock.toUpperCase().contains("ENDER_PORTAL_FRAME"))
+            getConfig().set("shop-block-material", "END_PORTAL_FRAME:0");
+
+        ConfigurationSection recipeSection = getConfig().getConfigurationSection("recipe");
+        if (recipeSection != null) for (Map.Entry<String, Object> entry : recipeSection.getValues(true).entrySet()) {
+            final String value = String.valueOf(entry.getValue());
+            if (value.toUpperCase().contains("ENDER_STONE")) getConfig().set(entry.getKey(), value.replace("ENDER_STONE", "END_STONE"));
+        }
+
+        ConfigurationSection immersionSection = getConfig().getConfigurationSection("immersion-section");
+        if (immersionSection != null) for (Map.Entry<String, Object> entry : immersionSection.getValues(true).entrySet()) {
+            final String value = String.valueOf(entry.getValue());
+            if (value.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) getConfig().set(entry.getKey(), "ITEM_PICKUP");
+            else if (value.equalsIgnoreCase("BLOCK_WOOD_BREAK")) getConfig().set(entry.getKey(), "STEP_WOOD");
+            else if (value.equalsIgnoreCase("ENDERMAN_TELEPORT")
+                    || value.toUpperCase().contains("ENDERMEN_TELEPORT")) getConfig().set(entry.getKey(), "ENTITY_ENDERMAN_TELEPORT");
+            else if (value.equalsIgnoreCase("SHOOT_ARROW")) getConfig().set(entry.getKey(), "ENTITY_SNOWBALL_THROW");
+        }
+
+        saveConfig();
+        reloadConfig();
+    }
 
     private void saveDefaultMenuConfigs() {
         try {
@@ -1168,7 +1126,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return vaultEconomy;
     }
 
-    private void setVaultEconomy(Economy vaultEconomy) {
+    public void setVaultEconomy(Economy vaultEconomy) {
         this.vaultEconomy = vaultEconomy;
     }
 
