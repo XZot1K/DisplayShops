@@ -69,7 +69,7 @@ public class Commands implements CommandExecutor {
                 else runVisit(commandSender, null, null);
 
                 return true;
-            } else if (args[0].equalsIgnoreCase("visit")) {
+            } else if (args.length > 0 && args[0].equalsIgnoreCase("visit")) {
 
                 if (args.length > 2) {
 
