@@ -100,8 +100,8 @@ public class ShopVisitItemTask extends BukkitRunnable {
                             continue;
                         }
 
-                        add(INSTANCE.getManager().color(line.replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null)
-                                        ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
+                        add(INSTANCE.getManager().color(line.replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null
+                                        && offlinePlayer.getName() != null) ? offlinePlayer.getName() : ""))
                                 .replace("{balance}", (shop.getStoredBalance() < 0 ? "∞" : INSTANCE.getManager().formatNumber(shop.getStoredBalance(), true)))
                                 .replace("{stock}", (shop.getStock() < 0 ? "∞" : INSTANCE.getManager().formatNumber(shop.getStock(), false)))
                                 .replace("{description}", ((shop.getDescription() != null && !shop.getDescription().isEmpty()) ? shop.getDescription() : "---"))

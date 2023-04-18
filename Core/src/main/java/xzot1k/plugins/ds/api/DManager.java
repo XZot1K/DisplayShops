@@ -2438,8 +2438,8 @@ public class DManager implements Manager {
 
     @SuppressWarnings("deprecation")
     public void loadVisitPage(@Nullable Player player, @NotNull DataPack dataPack, @NotNull Inventory inventory, @Nullable String currentFilterType, @Nullable String filter) {
-        final boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null),
-                forceUse = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
+        // final boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null),
+        //         forceUse = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
 
         OfflinePlayer offlinePlayer;
         if (filter != null && !filter.isEmpty()) {
@@ -2479,18 +2479,25 @@ public class DManager implements Manager {
 
         final int pageSize = (getPluginInstance().getMenusConfig().getInt("shop-visit-menu.size") - 9),
                 currentPage = dataPack.getCurrentVisitPage(),
-                startingIndex = (Math.max(0, (currentPage - 1)) * (pageSize - 1));
+                startingIndex = (Math.max(0, (currentPage - 1)) * pageSize);
 
-        List<Pair<Shop, ItemStack>> visitShopContents = getPluginInstance().getManager().getShopVisitItemList();
+        List<Pair<Shop, ItemStack>> visitShopContents = new ArrayList<Pair<Shop, ItemStack>>() {{
+
+            List<Pair<Shop, ItemStack>> items = getPluginInstance().getManager().getShopVisitItemList();
+            for (int i = -1; ++i < items.size(); ) {
+                final Pair<Shop, ItemStack> pair = items.get(i);
+                final Shop shop = pair.getKey();
+
+                if (!checkShopAgainstFilters(shop, offlinePlayer, currentFilterType, filter)) continue;
+                add(pair);
+            }
+
+        }};
+
         int counter = 0;
 
         for (int i = (startingIndex - 1); ++i < visitShopContents.size(); ) {
-
             final Pair<Shop, ItemStack> pair = visitShopContents.get(i);
-            final Shop shop = pair.getKey();
-
-            if (!checkShopAgainstFilters(shop, offlinePlayer, currentFilterType, filter)) continue;
-
             inventory.setItem(counter, pair.getValue());
 
             counter++;
