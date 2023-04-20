@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -31,7 +32,7 @@ public class DShop implements Shop {
     private final DisplayShops INSTANCE;
 
     private UUID shopId, ownerUniqueId, currentEditor;
-    private ItemStack shopItem, tradeItem;
+    private ItemStack shopItem, tradeItem, visitItemIcon;
     private int[] integerValues;
     private long changeTimeStamp, lastBuyTimeStamp, lastSellTimeStamp;
     private String description, storedBaseBlockMaterial;
@@ -67,6 +68,9 @@ public class DShop implements Shop {
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
         setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
         setStoredBalance(0);
+        setShopItem(null);
+        setTradeItem(null);
+        setVisitItemIcon(null);
         setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
         setSellPrice(INSTANCE.getConfig().getDouble("default-sell-price"));
         setCommandOnlyMode(false);
@@ -85,6 +89,8 @@ public class DShop implements Shop {
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
         setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
         setShopItem(shopItem);
+        setTradeItem(null);
+        setVisitItemIcon(null);
         setShopItemAmount(shopItemAmount);
         setStoredBalance(0);
         setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
@@ -105,6 +111,8 @@ public class DShop implements Shop {
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
         setIntegerValues(new int[]{0, 0, 0, 0, 0, shopItemAmount, 0, 0});
         setShopItem(shopItem);
+        setTradeItem(null);
+        setVisitItemIcon(null);
         setShopItemAmount(shopItemAmount);
         setStoredBalance(0);
         setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
@@ -205,7 +213,9 @@ public class DShop implements Shop {
                         + " packets were unable to be found. This spigot/bukkit version is NOT supported.");
 
             INSTANCE.updateDisplayPacket(this, player, displayPacket);
-        } catch (DisplayFailException e) {INSTANCE.log(Level.WARNING, e.getMessage());}
+        } catch (DisplayFailException e) {
+            INSTANCE.log(Level.WARNING, e.getMessage());
+        }
     }
 
     /**
@@ -467,11 +477,11 @@ public class DShop implements Shop {
                             }
                             case EAST: {
                                 safeLocation.setYaw(90);
-                                 break;
+                                break;
                             }
                             case SOUTH: {
                                 safeLocation.setYaw(-180);
-                                 break;
+                                break;
                             }
                             default: {
                                 safeLocation.setYaw(0);
@@ -631,6 +641,11 @@ public class DShop implements Shop {
      */
     public void updateTimeStamp() {
         setChangeTimeStamp(System.currentTimeMillis());
+
+        if (DisplayShops.getPluginInstance().getShopVisitItemTask() != null) {
+            final Queue<UUID> rebuildQueue = DisplayShops.getPluginInstance().getShopVisitItemTask().getRebuildQueue();
+            if (rebuildQueue != null && !rebuildQueue.contains(getShopId())) rebuildQueue.add(getShopId());
+        }
     }
 
     /**
@@ -831,9 +846,13 @@ public class DShop implements Shop {
 
     // general getters & setters.
 
-    public ItemStack getShopItem() {return shopItem;}
+    public ItemStack getShopItem() {
+        return shopItem;
+    }
 
-    public void setShopItem(ItemStack shopItem) {this.shopItem = shopItem;}
+    public void setShopItem(ItemStack shopItem) {
+        this.shopItem = shopItem;
+    }
 
     /**
      * Gets the shop's unit buy price.
@@ -978,4 +997,21 @@ public class DShop implements Shop {
     public void setCurrentEditor(UUID currentEditor) {
         this.currentEditor = currentEditor;
     }
+
+    /**
+     * @return Gets the visit item icon for the visit shop menu.
+     */
+    public ItemStack getVisitItemIcon() {
+        return visitItemIcon;
+    }
+
+    /**
+     * Sets the visit item icon for the visit shop menu.
+     *
+     * @param visitItemIcon The new icon item.
+     */
+    public void setVisitItemIcon(ItemStack visitItemIcon) {
+        this.visitItemIcon = visitItemIcon;
+    }
+
 }

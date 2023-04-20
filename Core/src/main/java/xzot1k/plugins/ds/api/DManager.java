@@ -56,7 +56,6 @@ public class DManager implements Manager {
 
     private HashMap<UUID, Shop> shopMap;
     private List<MarketRegion> marketRegions;
-    private List<Pair<Shop, ItemStack>> shopVisitItemList;
     private final Pattern hexPattern;
     private HashMap<UUID, DataPack> dataPackMap;
 
@@ -65,7 +64,6 @@ public class DManager implements Manager {
         setShopMap(new HashMap<>());
         setDataPackMap(new HashMap<>());
         setMarketRegions(new ArrayList<>());
-        setShopVisitItemList(new ArrayList<>());
         hexPattern = Pattern.compile("#[a-fA-F\\d]{6}");
     }
 
@@ -2406,8 +2404,8 @@ public class DManager implements Manager {
 
     private boolean checkShopAgainstFilters(@NotNull Shop shop, @Nullable OfflinePlayer offlinePlayer, @Nullable String currentFilterType, @Nullable String filter) {
 
-        if (shop.getBaseLocation() == null || !getPluginInstance().getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops")
-                && shop.isAdminShop() || shop.getShopItem() == null || shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount())
+        if (shop.getBaseLocation() == null || (!getPluginInstance().getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops") && shop.isAdminShop())
+                || shop.getShopItem() == null || shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount())
             return false;
 
         if (currentFilterType != null && !currentFilterType.isEmpty()) {
@@ -2481,24 +2479,24 @@ public class DManager implements Manager {
                 currentPage = dataPack.getCurrentVisitPage(),
                 startingIndex = (Math.max(0, (currentPage - 1)) * pageSize);
 
-        List<Pair<Shop, ItemStack>> visitShopContents = new ArrayList<Pair<Shop, ItemStack>>() {{
+        List<Shop> visitShops = new ArrayList<Shop>() {{
+            Set<Map.Entry<UUID, Shop>> shops = getShopMap().entrySet();
+            for (Map.Entry<UUID, Shop> entry : shops) {
 
-            List<Pair<Shop, ItemStack>> items = getPluginInstance().getManager().getShopVisitItemList();
-            for (int i = -1; ++i < items.size(); ) {
-                final Pair<Shop, ItemStack> pair = items.get(i);
-                final Shop shop = pair.getKey();
+                if (entry.getValue().getVisitItemIcon() == null
+                        || !checkShopAgainstFilters(entry.getValue(), offlinePlayer, currentFilterType, filter)) continue;
 
-                if (!checkShopAgainstFilters(shop, offlinePlayer, currentFilterType, filter)) continue;
-                add(pair);
+                add(entry.getValue());
             }
-
         }};
+
+        visitShops.sort((o1, o2) -> (o1.getVisitItemIcon().getType().name().compareToIgnoreCase(o2.getVisitItemIcon().getType().name())));
 
         int counter = 0;
 
-        for (int i = (startingIndex - 1); ++i < visitShopContents.size(); ) {
-            final Pair<Shop, ItemStack> pair = visitShopContents.get(i);
-            inventory.setItem(counter, pair.getValue());
+        for (int i = (startingIndex - 1); ++i < visitShops.size(); ) {
+            final Shop shop = visitShops.get(i);
+            inventory.setItem(counter, shop.getVisitItemIcon());
 
             counter++;
             if (counter >= pageSize) break;
@@ -2512,7 +2510,7 @@ public class DManager implements Manager {
                         .replace("{filter}", filter));
         }
 
-        final boolean hasNextPage = ((((currentPage + 1) - 1) * pageSize) <= visitShopContents.size()),
+        final boolean hasNextPage = ((((currentPage + 1) - 1) * pageSize) <= visitShops.size()),
                 hasPrevPage = ((((currentPage - 1) - 1) * pageSize) >= 0);
 
         int rSlot = getPluginInstance().getMenusConfig().getInt("shop-visit-menu.refresh-page-item.slot");
@@ -2955,14 +2953,6 @@ public class DManager implements Manager {
 
     private void setDataPackMap(HashMap<UUID, DataPack> dataPackMap) {
         this.dataPackMap = dataPackMap;
-    }
-
-    public List<Pair<Shop, ItemStack>> getShopVisitItemList() {
-        return shopVisitItemList;
-    }
-
-    public void setShopVisitItemList(List<Pair<Shop, ItemStack>> shopVisitItemList) {
-        this.shopVisitItemList = shopVisitItemList;
     }
 
 }

@@ -290,6 +290,8 @@ public class Listeners implements Listener {
                                 .replace("{amount}", getPluginInstance().getManager().formatNumber(shopItemClone.getAmount(), false)));
                 }
 
+                shop.updateTimeStamp();
+
                 getPluginInstance().runEventCommands("shop-withdraw", e.getPlayer());
                 dataPack.resetEditData();
                 getPluginInstance().getInSightTask().refreshShop(shop);
@@ -415,6 +417,8 @@ public class Listeners implements Listener {
                             else e.getPlayer().setItemInHand(null);
                         } else itemInHand.setAmount(remainderInHand);
                     }
+
+                    shop.updateTimeStamp();
 
                     getPluginInstance().runEventCommands("shop-deposit", e.getPlayer());
                     dataPack.resetEditData();
@@ -1055,6 +1059,8 @@ public class Listeners implements Listener {
                         dp.updateCurrentTransactionLimitCounter(shop, false, 0);
                     }
 
+                    shop.updateTimeStamp();
+
                     dataPack.resetEditData();
                     player.closeInventory();
                     message = getPluginInstance().getLangConfig().getString("limit-reset");
@@ -1168,6 +1174,8 @@ public class Listeners implements Listener {
                     shop.dropStock();
                     shop.setShopItem(null);
 
+                    shop.updateTimeStamp();
+
                     getPluginInstance().getInSightTask().refreshShop(shop);
                     dataPack.resetEditData();
                     player.closeInventory();
@@ -1204,6 +1212,8 @@ public class Listeners implements Listener {
                     shop.setLastBuyTimeStamp(System.currentTimeMillis());
                     shop.setLastSellTimeStamp(System.currentTimeMillis());
                     shop.setDynamicPriceChange(!shop.canDynamicPriceChange());
+
+                    shop.updateTimeStamp();
 
                     dataPack.resetEditData();
                     player.closeInventory();
@@ -1282,6 +1292,8 @@ public class Listeners implements Listener {
                     }
 
                     shop.setDescription("");
+                    shop.updateTimeStamp();
+
                     dataPack.resetEditData();
                     player.closeInventory();
                     message = getPluginInstance().getLangConfig().getString("shop-description-empty");
@@ -1303,7 +1315,7 @@ public class Listeners implements Listener {
                 }
 
                 if (e.getClick().isShiftClick()) {
-                    if (shop.getAssistants().size() <= 0) {
+                    if (shop.getAssistants().size() == 0) {
                         dataPack.resetEditData();
                         player.closeInventory();
                         message = getPluginInstance().getLangConfig().getString("assistants-empty");
@@ -1347,7 +1359,7 @@ public class Listeners implements Listener {
                     if (message != null && !message.equalsIgnoreCase(""))
                         getPluginInstance().getManager().sendMessage(player, message.replace("{cancel}", cancelKey));
                 } else if (e.getClick().isRightClick()) {
-                    if (shop.getAssistants().size() <= 0) {
+                    if (shop.getAssistants().size() == 0) {
                         dataPack.resetEditData();
                         player.closeInventory();
                         message = getPluginInstance().getLangConfig().getString("assistants-empty");
@@ -2179,6 +2191,7 @@ public class Listeners implements Listener {
         if (message != null && !message.equalsIgnoreCase(""))
             getPluginInstance().getManager().sendMessage(player, message);
 
+        shop.updateTimeStamp();
 
         getPluginInstance().getInSightTask().refreshShop(shop);
         getPluginInstance().runEventCommands("shop-item-set", player);
