@@ -182,7 +182,9 @@ public class DShop implements Shop {
                         + " packets were unable to be found. This spigot/bukkit version is NOT supported.");
 
             INSTANCE.updateDisplayPacket(this, player, displayPacket);
-        } catch (DisplayFailException e) {INSTANCE.log(Level.WARNING, e.getMessage());}
+        } catch (DisplayFailException e) {
+            INSTANCE.log(Level.WARNING, e.getMessage());
+        }
     }
 
     /**
@@ -305,10 +307,8 @@ public class DShop implements Shop {
             }
 
             final String host = INSTANCE.getConfig().getString("mysql.host"), commandString = commands.toString().replace("'", "\\'").replace("\"",
-                    "\\\""),
-                    extraDataLine =
-                            (canDynamicPriceChange() + ";" + getLastBuyTimeStamp() + ":" + getDynamicBuyCounter() + ";" + getLastSellTimeStamp() +
-                                    ":" + getDynamicSellCounter()), syntax,
+                    "\\\""), extraDataLine = (canDynamicPriceChange() + ";" + getLastBuyTimeStamp() + ":" + getDynamicBuyCounter() + ";" + getLastSellTimeStamp()
+                    + ":" + getDynamicSellCounter()), syntax,
 
                     valuesString = (getShopId().toString() + "', '" + getBaseLocation().toString() + "',"
                             + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', '" + assistants + "', " + getBuyPrice(false)

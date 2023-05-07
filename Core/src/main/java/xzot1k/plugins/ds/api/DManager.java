@@ -1004,9 +1004,11 @@ public class DManager implements Manager {
                     shop.register();
                     loadedShops++;
 
-                    if (world != null) if (isAsync) {
-                        getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> fixAboveBlock(shop));
-                    } else fixAboveBlock(shop);
+                    if (getPluginInstance().getConfig().getBoolean("fix-above-blocks")) {
+                        if (world != null) if (isAsync) {
+                            getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> fixAboveBlock(shop));
+                        } else fixAboveBlock(shop);
+                    }
 
                     current++;
                     if ((shopCountPercentage <= 0 || current % shopCountPercentage == 0 || current == shopCount))

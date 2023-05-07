@@ -1104,7 +1104,6 @@ public class MenuListener implements Listener {
 
         if (e.getClickedInventory() == null || e.getClickedInventory().getType() == InventoryType.PLAYER || e.getCurrentItem() == null) return;
         final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-        if (!inventoryCheck(player, dataPack)) return;
 
         final String buttonName = menu.getButtonName(e.getSlot());
         if (buttonName != null && !buttonName.isEmpty()) {
