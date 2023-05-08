@@ -12,6 +12,11 @@
       <option name="url" value="https://jitpack.io" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="iridiumdevelopment" />
+      <option name="name" value="iridiumdevelopment" />
+      <option name="url" value="https://nexus.iridiumdevelopment.net/repository/maven-releases/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="savagelabs" />
       <option name="name" value="savagelabs" />
       <option name="url" value="https://nexus.savagelabs.net" />

@@ -549,6 +549,13 @@ public class MenuListener implements Listener {
             case "buy-all": {
                 playClickSound(player);
 
+                if (shop.getBuyPrice(true) < 0) {
+                    player.closeInventory();
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-buy-invalid"));
+                    player.updateInventory();
+                    return;
+                }
+
                 int availableUnits = (shop.getStock() < 0 ? -1 : Math.max(0, (shop.getStock() / shop.getShopItemAmount())));
                 if (shop.getGlobalBuyLimit() > 0) {
                     long remainingLimit = dataPack.getCurrentTransactionCounter(shop, true, true);
@@ -664,6 +671,13 @@ public class MenuListener implements Listener {
 
             case "sell-all": {
                 playClickSound(player);
+
+                if (shop.getSellPrice(true) < 0) {
+                    player.closeInventory();
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-sell-invalid"));
+                    player.updateInventory();
+                    return;
+                }
 
                 final int itemAmount = INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem()),
                         maxSellAll = INSTANCE.getConfig().getInt("maximum-sell-all");
@@ -1719,7 +1733,7 @@ public class MenuListener implements Listener {
                         return;
                     }
 
-                    if (!player.hasPermission("delete")) {
+                    if (!player.hasPermission("displayshops.delete")) {
                         dataPack.resetEditData();
                         player.closeInventory();
                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("no-permission"));
