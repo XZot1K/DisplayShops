@@ -213,6 +213,27 @@ public class Listeners implements Listener {
         if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
             if (handItem.getType() == Material.LAVA_BUCKET) getPluginInstance().getInSightTask().refreshShop(shop);
 
+            if (e.getClickedBlock() != null) {
+                final String blockType = e.getClickedBlock().getType().name();
+
+                if (getPluginInstance().getServerVersion() > 1_13) {
+                    if (e.getClickedBlock() instanceof org.bukkit.block.Container) {
+                        getPluginInstance().getServer().getScheduler().runTaskLater(getPluginInstance(), () -> {
+                            e.getPlayer().closeInventory();
+                            e.getPlayer().getOpenInventory().close();
+                        }, 1);
+                    }
+                } else if (blockType.contains("CHEST") || blockType.contains("DISPENSER")
+                        || blockType.contains("DROPPER") || blockType.contains("HOPPER")
+                        || blockType.contains("FURNACE") || blockType.contains("BREWING_STAND")
+                        || blockType.contains("JUKEBOX") || blockType.contains("BEACON")) {
+                    getPluginInstance().getServer().getScheduler().runTaskLater(getPluginInstance(), () -> {
+                        e.getPlayer().closeInventory();
+                        e.getPlayer().getOpenInventory().close();
+                    }, 1);
+                }
+            }
+
             final boolean canEdit = shop.canEdit(e.getPlayer());
             if (e.getPlayer().isSneaking() && canEdit) {
                 if (getPluginInstance().getConfig().getBoolean("block-creative") && e.getPlayer().getGameMode() == GameMode.CREATIVE) {

@@ -60,6 +60,15 @@ public class CustomItem {
         constructorHelper(materialName, durability, amount);
     }
 
+    public CustomItem(ItemStack itemStack, Shop shop, int unitItemMaxStack, int unitCount) {
+        this.pluginInstance = DisplayShops.getPluginInstance();
+        this.isNew = (Math.floor(getPluginInstance().getServerVersion()) > 1_12);
+        this.papiHere = (getPluginInstance().getPapiHelper() != null);
+        this.itemStack = itemStack;
+        this.shop = shop;
+        this.unitCount = unitCount;
+        this.unitItemMaxStack = unitItemMaxStack;
+    }
 
     private void constructorHelper(String materialName, int durability, int amount) {
         this.isNew = (Math.floor(getPluginInstance().getServerVersion()) > 1_12);
@@ -134,8 +143,7 @@ public class CustomItem {
     public CustomItem setDisplayName(Player player, String displayName) {
         ItemMeta itemMeta = get().getItemMeta();
         if (itemMeta != null && displayName != null && !displayName.isEmpty()) {
-            displayName = (papiHere && player != null)
-                    ? getPluginInstance().getPapiHelper().replace(player, displayName) : displayName;
+            displayName = (papiHere && player != null) ? getPluginInstance().getPapiHelper().replace(player, displayName) : displayName;
             itemMeta.setDisplayName(getPluginInstance().getManager().color(displayName));
             get().setItemMeta(itemMeta);
         }
@@ -155,9 +163,9 @@ public class CustomItem {
                 .replace("{assistant-count}", String.valueOf((shop != null ? shop.getAssistants().size() : 0)))
                 .replace("{currency-symbol}", (currencySymbol != null ? currencySymbol : ""))
                 .replace("{base-buy-price}", getPluginInstance().getManager()
-                        .formatNumber((shop != null ? shop.getBuyPrice(false) : 0), true))
+                        .formatNumber((shop != null ? (shop.getBuyPrice(false) * unitCount) : 0), true))
                 .replace("{base-sell-price}", getPluginInstance().getManager()
-                        .formatNumber((shop != null ? shop.getSellPrice(false) : 0), true))
+                        .formatNumber((shop != null ? (shop.getSellPrice(false) * unitCount) : 0), true))
                 .replace("{buy-price}", getPluginInstance().getManager().formatNumber(calculatedBuyPrice, true))
                 .replace("{sell-price}", getPluginInstance().getManager().formatNumber(calculatedSellPrice, true))
                 .replace("{stock}", ((shop != null) ? getPluginInstance().getManager().formatNumber(shop.getStock(), false) : "0"))
@@ -215,17 +223,16 @@ public class CustomItem {
                             add(getPluginInstance().getManager().color(line.replace("{no-vault}", "")
                                     .replace("{assistant-count}", String.valueOf((shop != null ? shop.getAssistants().size() : 0)))
                                     .replace("{base-buy-price}", getPluginInstance().getManager()
-                                            .formatNumber((shop != null ? shop.getBuyPrice(false) : 0), true))
+                                            .formatNumber((shop != null ? (shop.getBuyPrice(false) * unitCount) : 0), true))
                                     .replace("{base-sell-price}", getPluginInstance().getManager()
-                                            .formatNumber((shop != null ? shop.getSellPrice(false) : 0), true))
+                                            .formatNumber((shop != null ? (shop.getSellPrice(false) * unitCount) : 0), true))
                                     .replace("{buy-price}", getPluginInstance().getManager().formatNumber(calculatedBuyPrice, true))
                                     .replace("{sell-price}", getPluginInstance().getManager().formatNumber(calculatedSellPrice, true))
                                     .replace("{stock}", getPluginInstance().getManager().formatNumber(shop.getStock(), false))
                                     .replace("{global-buy-limit}", getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false))
                                     .replace("{global-buy-counter}", getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false))
                                     .replace("{global-sell-limit}", getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false))
-                                    .replace("{global-sell-counter}", getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(),
-                                            false))
+                                    .replace("{global-sell-counter}", getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false))
                                     .replace("{player-buy-limit}", getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false))
                                     .replace("{player-sell-limit}", getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false))
                                     .replace("{unit-increment}", String.valueOf(Math.max(unitIncrement, 1)))
@@ -247,6 +254,19 @@ public class CustomItem {
 
     public CustomItem setLore(Player player, List<String> lines) {
         setLore(player, Arrays.copyOf(lines.toArray(), lines.size(), String[].class));
+        return this;
+    }
+
+    public CustomItem refreshPlaceholders(@NotNull Player player, @NotNull String menuName, String buttonAction) {
+        final Menu menu = getPluginInstance().getMenu(menuName);
+        if (menu == null) return this;
+
+        final String name = menu.getConfiguration().getString("buttons." + buttonAction + ".name");
+        if (name != null && !name.isEmpty()) setDisplayName(player, shop, name);
+
+        final List<String> lore = menu.getConfiguration().getStringList("buttons." + buttonAction + ".lore");
+        if (!lore.isEmpty()) setLore(player, lore);
+
         return this;
     }
 

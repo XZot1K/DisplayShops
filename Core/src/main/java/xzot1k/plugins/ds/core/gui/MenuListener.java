@@ -433,7 +433,7 @@ public class MenuListener implements Listener {
 
     private void operateTransactionMenu(InventoryClickEvent e, Inventory inventory, Menu menu, Player player) {
         final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-        if (!inventoryCheck(player, dataPack)) return;
+        if (!inventoryCheck(player, dataPack) || e.getClickedInventory() == null) return;
 
         final Shop shop = dataPack.getSelectedShop();
         if (shop != null) shop.checkCurrentEditor(player);
@@ -498,6 +498,7 @@ public class MenuListener implements Listener {
         if (buttonName == null || buttonName.isEmpty()) return;
 
         final int unitItemSlot = menu.getConfiguration().getInt("buttons.unit.slot");
+
         switch (buttonName) {
 
             case "buy": {
@@ -516,7 +517,7 @@ public class MenuListener implements Listener {
                 else dataPack.updateCooldown("transaction-cd");
 
                 int unitCount = 1;
-                final ItemStack unitCountItem = inventory.getItem(menu.getConfiguration().getInt("buttons.unit.slot"));
+                final ItemStack unitCountItem = inventory.getItem(unitItemSlot);
                 if (unitCountItem != null) unitCount = unitCountItem.getAmount();
 
                 if ((shop.isAdminShop() && (shop.getStock() >= 0 && shop.getStock() < (shop.getShopItemAmount() * unitCount)))
@@ -597,9 +598,10 @@ public class MenuListener implements Listener {
 
                 final double buyPrice = shop.getBuyPrice(true);
                 final int maxBuyAll = INSTANCE.getConfig().getInt("maximum-buy-all");
+
                 int affordableUnits = (player.hasPermission("displayshops.bypass") ? maxBuyAll
                         : Math.min(maxBuyAll, (int) (investorBalance / (buyPrice + (buyPrice * tax)))));
-                availableUnits = ((availableUnits < 0 && shop.isAdminShop()) ? affordableUnits : availableUnits);
+                availableUnits = ((availableUnits < 0 && shop.isAdminShop()) ? affordableUnits : Math.min(maxBuyAll, availableUnits));
 
                 if (availableUnits <= 0) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("no-affordable-units"));
@@ -750,6 +752,8 @@ public class MenuListener implements Listener {
 
                 unitCountItem.setAmount(Math.min(unitCountItem.getMaxStackSize(), (unitCountItem.getAmount() + 1)));
 
+                updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
+
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-increased"));
                 break;
             }
@@ -771,6 +775,8 @@ public class MenuListener implements Listener {
                 final int newStack = (unitCountItem.getAmount() + ((int) (unitCountItem.getType().getMaxStackSize() * 0.25)));
                 unitCountItem.setAmount(Math.min(newStack, unitCountItem.getType().getMaxStackSize()));
 
+                updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
+
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-increased"));
                 break;
             }
@@ -790,6 +796,8 @@ public class MenuListener implements Listener {
                 }
 
                 unitCountItem.setAmount(Math.max(1, (unitCountItem.getAmount() - 1)));
+
+                updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
 
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-decreased"));
                 break;
@@ -812,6 +820,8 @@ public class MenuListener implements Listener {
                 final int newStack = (unitCountItem.getAmount() - ((int) (unitCountItem.getType().getMaxStackSize() * 0.25)));
                 unitCountItem.setAmount(Math.max(1, newStack));
 
+                updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
+
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-decreased"));
                 break;
             }
@@ -821,6 +831,7 @@ public class MenuListener implements Listener {
             }
         }
     }
+
 
     private void operateAppearanceMenu(@NotNull InventoryClickEvent e, @NotNull Inventory inventory, @NotNull Menu menu, @NotNull Player player) {
 
@@ -1656,6 +1667,7 @@ public class MenuListener implements Listener {
                 }
 
                 playClickSound(player);
+                INSTANCE.getInSightTask().refreshShop(shop);
 
                 if (menuToOpen != null) player.openInventory(menuToOpen.build(player));
                 break;
@@ -1872,7 +1884,30 @@ public class MenuListener implements Listener {
         return 4;
     }
 
+    private void updateTransactionButtons(@NotNull Player player, @NotNull Inventory clickedInventory, @NotNull Shop shop, @NotNull Menu menu, int unitCount) {
+
+        final int buySlot = menu.getConfiguration().getInt("buttons.buy.slot"),
+                sellSlot = menu.getConfiguration().getInt("buttons.sell.slot");
+        // buyAllSlot = menu.getConfiguration().getInt("buttons.buy-all.slot"),
+        // sellAllSlot = menu.getConfiguration().getInt("buttons.sell-all.slot");
+
+        ItemStack buyItemStack = clickedInventory.getItem(buySlot);
+        if (buyItemStack != null) {
+            final CustomItem buyItem = new CustomItem(buyItemStack, shop, (shop.getShopItem() != null ? shop.getShopItem().getMaxStackSize() : 1), unitCount)
+                    .refreshPlaceholders(player, "transaction", "buy");
+            clickedInventory.setItem(buySlot, buyItem.get());
+        }
+
+        ItemStack sellItemStack = clickedInventory.getItem(sellSlot);
+        if (sellItemStack != null) {
+            final CustomItem sellItem = new CustomItem(sellItemStack, shop, (shop.getShopItem() != null ? shop.getShopItem().getMaxStackSize() : 1), unitCount)
+                    .refreshPlaceholders(player, "transaction", "sell");
+            clickedInventory.setItem(sellSlot, sellItem.get());
+        }
+    }
+
     private void runEconomyCall(Player player, Shop shop, EconomyCallType economyCallType, int unitCount) {
+
         OfflinePlayer owner = null;
         if (shop.getOwnerUniqueId() != null)
             owner = INSTANCE.getServer().getOfflinePlayer(shop.getOwnerUniqueId());
@@ -1937,70 +1972,42 @@ public class MenuListener implements Listener {
             final boolean forceUseCurrency = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
             final ItemStack forceCurrencyItem = INSTANCE.getManager().buildShopCurrencyItem(1);
             final String defaultName = INSTANCE.getManager().getItemName(forceCurrencyItem);
-            tradeItemName = forceUseCurrency ? forceCurrencyItem != null ? defaultName : ""
-                    : shop.getTradeItem() != null ? INSTANCE.getManager().getItemName(shop.getTradeItem()) : defaultName;
+            tradeItemName = forceUseCurrency ? defaultName : shop.getTradeItem() != null
+                    ? INSTANCE.getManager().getItemName(shop.getTradeItem()) : defaultName;
         }
 
+        final String ecoType = economyCallType.name().toLowerCase(),
+                message = INSTANCE.getLangConfig().getString("shop-" + ecoType);
 
-        if (economyCallType == EconomyCallType.BUY) {
-            String message = !canBypassEconomy ? INSTANCE.getLangConfig().getString("shop-buy")
-                    : INSTANCE.getLangConfig().getString("shop-buy-bypass");
-            if (message != null && !message.equalsIgnoreCase("")) {
-                String ownerName = shop.getOwnerUniqueId() == null ? "" : (owner == null ? "" : owner.getName());
-                INSTANCE.getManager().sendMessage(player,
-                        message.replace("{item}", INSTANCE.getManager().getItemName(shop.getShopItem()))
-                                .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
-                                .replace("{trade-item}", tradeItemName).replace("{owner}", ownerName == null ? "" : ownerName)
-                                .replace("{price}", INSTANCE.getManager().formatNumber(economyCallEvent.getTaxedPrice(), true)));
-            }
+        if (message != null && !message.equalsIgnoreCase("")) {
+            String ownerName = shop.getOwnerUniqueId() == null ? "" : (owner == null ? "" : owner.getName());
+            INSTANCE.getManager().sendMessage(player, message.replace("{item}", (shop.getShopItem().hasItemMeta() && shop.getShopItem().getItemMeta() != null
+                            && shop.getShopItem().getItemMeta().hasDisplayName()) ? shop.getShopItem().getItemMeta().getDisplayName()
+                            : WordUtils.capitalize(shop.getShopItem().getType().name().toLowerCase().replace("_", " ")))
+                    .replace("{trade-item}", tradeItemName)
+                    .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
+                    .replace("{owner}", ownerName == null ? "" : ownerName)
+                    .replace("{price}", INSTANCE.getManager().formatNumber(economyCallEvent.getPrice(), true)));
+        }
 
-            if (owner != null && owner.isOnline()) {
+        if (owner != null && owner.isOnline()) {
+            final DataPack ownerDP = INSTANCE.getManager().getDataPack(owner.getPlayer());
+            if (ownerDP.isTransactionNotify()) {
                 final Player ownerPlayer = owner.getPlayer();
                 if (ownerPlayer != null) {
-                    final DataPack ownerDP = INSTANCE.getManager().getDataPack(ownerPlayer);
-                    if (ownerDP.isTransactionNotify()) {
-                        INSTANCE.getManager().sendMessage(ownerPlayer, INSTANCE.getLangConfig().getString("shop-buy-owner"),
-                                ("{item}:" + INSTANCE.getManager().getItemName(shop.getShopItem())),
-                                ("{amount}:" + INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false)),
-                                ("{trade-item}:" + tradeItemName), ("{buyer}:" + player.getName()),
-                                ("{price}:" + INSTANCE.getManager().formatNumber(economyCallEvent.getPrice(), true)));
-                    }
+                    INSTANCE.getManager().sendMessage(ownerPlayer, Objects.requireNonNull(INSTANCE.getLangConfig().getString("shop-" + ecoType + "-owner"))
+                            .replace("{item}", (shop.getShopItem().hasItemMeta() && shop.getShopItem().getItemMeta() != null
+                                    && shop.getShopItem().getItemMeta().hasDisplayName()) ? shop.getShopItem().getItemMeta().getDisplayName() :
+                                    WordUtils.capitalize(shop.getShopItem().getType().name().toLowerCase()
+                                            .replace("_", " "))).replace("{trade-item}", tradeItemName)
+                            .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
+                            .replace("{buyer}", player.getName())
+                            .replace("{price}", INSTANCE.getManager().formatNumber(economyCallEvent.getPrice(), true)));
                 }
             }
-            INSTANCE.runEventCommands("shop-buy", player);
-        } else {
-            String message = INSTANCE.getLangConfig().getString("shop-sell");
-            if (message != null && !message.equalsIgnoreCase("")) {
-                String ownerName = shop.getOwnerUniqueId() == null ? "" : (owner == null ? "" : owner.getName());
-                INSTANCE.getManager().sendMessage(player, message.replace("{item}", (shop.getShopItem().hasItemMeta()
-                                && shop.getShopItem().getItemMeta() != null && shop.getShopItem().getItemMeta().hasDisplayName())
-                                ? shop.getShopItem().getItemMeta().getDisplayName() :
-                                WordUtils.capitalize(shop.getShopItem().getType().name().toLowerCase()
-                                        .replace("_", " "))).replace("{trade-item}", tradeItemName)
-                        .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
-                        .replace("{owner}", ownerName == null ? "" : ownerName)
-                        .replace("{price}", INSTANCE.getManager().formatNumber(economyCallEvent.getPrice(), true)));
-            }
-
-            if (owner != null && owner.isOnline()) {
-                final DataPack ownerDP = INSTANCE.getManager().getDataPack(owner.getPlayer());
-                if (ownerDP.isTransactionNotify()) {
-                    final Player ownerPlayer = owner.getPlayer();
-                    if (ownerPlayer != null) {
-                        INSTANCE.getManager().sendMessage(ownerPlayer, Objects.requireNonNull(INSTANCE.getLangConfig().getString("shop-sell-owner"))
-                                .replace("{item}",
-                                        (shop.getShopItem().hasItemMeta() && shop.getShopItem().getItemMeta() != null && shop.getShopItem().getItemMeta().hasDisplayName())
-                                                ? shop.getShopItem().getItemMeta().getDisplayName() :
-                                                WordUtils.capitalize(shop.getShopItem().getType().name().toLowerCase()
-                                                        .replace("_", " "))).replace("{trade-item}", tradeItemName)
-                                .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
-                                .replace("{buyer}", player.getName())
-                                .replace("{price}", INSTANCE.getManager().formatNumber(economyCallEvent.getPrice(), true)));
-                    }
-                }
-            }
-            INSTANCE.runEventCommands("shop-sell", player);
         }
+
+        INSTANCE.runEventCommands("shop-" + ecoType, player);
     }
 
 

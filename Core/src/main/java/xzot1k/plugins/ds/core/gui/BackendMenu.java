@@ -379,7 +379,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     durability = (mainSection.contains(buttonAction + ".durability") ? mainSection.getInt(buttonAction + ".durability") : 1);
 
             final CustomItem item = (shop != null ? new CustomItem(materialName, amount, durability, shop,
-                    (shop.getShopItem() != null ? shop.getShopItem().getMaxStackSize() : 1), shop.getShopItemAmount())
+                    (shop.getShopItem() != null ? shop.getShopItem().getMaxStackSize() : 1), 1)
                     : new CustomItem(materialName, amount, durability));
 
             final String name = mainSection.getString(buttonAction + ".name");
