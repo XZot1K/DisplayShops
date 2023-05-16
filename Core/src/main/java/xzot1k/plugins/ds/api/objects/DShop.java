@@ -34,8 +34,7 @@ public class DShop implements Shop {
     private UUID shopId, ownerUniqueId, currentEditor;
     private ItemStack shopItem, tradeItem;
     private int stock, shopItemAmount, globalBuyCounter, globalSellCounter, playerBuyLimit,
-            playerSellLimit, globalBuyLimit, globalSellLimit, dynamicBuyPriceCounter,
-            dynamicSellPriceCounter;
+            playerSellLimit, globalBuyLimit, globalSellLimit, dynamicBuyPriceCounter, dynamicSellPriceCounter;
     private long changeTimeStamp, lastBuyTimeStamp, lastSellTimeStamp;
     private String description, storedBaseBlockMaterial;
     private BigDecimal buyPrice, sellPrice, storedBalance;
@@ -50,6 +49,7 @@ public class DShop implements Shop {
         reset();
 
         setShopId(shopId);
+        setShopItemAmount(shopItemAmount);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(baseLocation);
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
@@ -61,6 +61,7 @@ public class DShop implements Shop {
         reset();
 
         setShopId(shopId);
+        setShopItemAmount(shopItemAmount);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(new LClone(baseLocation));
         setStoredBaseBlockMaterial(storedBaseBlockMaterial);
@@ -194,9 +195,9 @@ public class DShop implements Shop {
      * @param distance The distance between the player and the shop.
      * @return Whether the player is in range or not.
      */
-    public boolean isInRange(Player player, double distance) {
-        return player != null && getBaseLocation() != null && getBaseLocation().getWorldName().equalsIgnoreCase(player.getWorld().getName())
-                && getBaseLocation().distance(player.getLocation(), true) < distance;
+    public boolean isInRange(@NotNull Player player, double distance) {
+        return (getBaseLocation() != null && getBaseLocation().getWorldName().equalsIgnoreCase(player.getWorld().getName())
+                && getBaseLocation().distance(player.getLocation(), true) < distance);
     }
 
     /**
@@ -341,8 +342,7 @@ public class DShop implements Shop {
             statement.close();
         } catch (Exception e) {
             e.printStackTrace();
-            INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() +
-                    ").");
+            INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() + ").");
         }
     }
 
@@ -352,7 +352,7 @@ public class DShop implements Shop {
      * @param player the player used inside the commands.
      * @param amount The amount for the {amount} placeholder.
      */
-    public void runCommands(Player player, int amount) {
+    public void runCommands(@NotNull Player player, int amount) {
         if (getCommands().size() > 0)
             for (int i = -1; ++i < getCommands().size(); ) {
                 String commandLine = getCommands().get(i), command = commandLine.replaceAll("(?i):PLAYER", "")
@@ -372,7 +372,7 @@ public class DShop implements Shop {
      * @param player The player to teleport.
      * @param charge Whether the player should be charged.
      */
-    public void visit(Player player, boolean charge) {
+    public void visit(@NotNull Player player, boolean charge) {
         if (getBaseLocation() == null) {
             String message = INSTANCE.getLangConfig().getString("shop-unsafe-location");
             if (message != null && !message.equalsIgnoreCase(""))
@@ -718,8 +718,9 @@ public class DShop implements Shop {
      * @return Whether the player can or can NOT edit the shop.
      */
     public boolean canEdit(@NotNull Player player) {
-        return (player.hasPermission("displayshops.edit") || (getOwnerUniqueId() != null && getOwnerUniqueId().toString().equals(player.getUniqueId().toString()))
-                || (!getAssistants().isEmpty() && getAssistants().contains(player.getUniqueId())));
+        return (player.hasPermission("displayshops.edit")
+                && ((getOwnerUniqueId() != null && getOwnerUniqueId().toString().equals(player.getUniqueId().toString()))
+                || getAssistants().contains(player.getUniqueId())));
     }
 
     /**
@@ -911,7 +912,7 @@ public class DShop implements Shop {
         return shopId;
     }
 
-    public void setShopId(UUID shopId) {
+    public void setShopId(@NotNull UUID shopId) {
         this.shopId = shopId;
     }
 
@@ -959,7 +960,7 @@ public class DShop implements Shop {
         return storedBaseBlockMaterial;
     }
 
-    public void setStoredBaseBlockMaterial(String storedBaseBlockMaterial) {
+    public void setStoredBaseBlockMaterial(@NotNull String storedBaseBlockMaterial) {
         this.storedBaseBlockMaterial = (!storedBaseBlockMaterial.contains(":") ? (storedBaseBlockMaterial + ":0") : storedBaseBlockMaterial);
     }
 

@@ -656,16 +656,17 @@ public class DManager implements Manager {
      */
     public String formatNumber(double value, boolean isDecimal) {
         String formatted;
-        int decimalPlaces = getPluginInstance().getConfig().getInt("minimum-fraction-digits");
+        final int decimalPlaces = getPluginInstance().getConfig().getInt("minimum-fraction-digits");
         final boolean useUKFormatting = getPluginInstance().getConfig().getBoolean("use-uk-format");
-        if (decimalPlaces > 0 && isDecimal) formatted = String.format("%,." + decimalPlaces + "f", value);
+        if (decimalPlaces > 0 && isDecimal) formatted = String.format(("%,." + decimalPlaces + "f"), value);
         else formatted = String.format("%,.0f", value);
 
         formatted = formatted.replace("\\s", "").replace("_", "");
-        return getPluginInstance().getConfig().getBoolean("short-number-format") ? format((long) Double.parseDouble(formatted.replace(",", "")),
-                useUKFormatting) : (useUKFormatting ?
-                formatted.replace(
-                        ".", "_COMMA_").replace(",", "_PERIOD_").replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted);
+
+        return (getPluginInstance().getConfig().getBoolean("short-number-format")
+                ? format((long) Double.parseDouble(formatted.replace(",", "")), useUKFormatting)
+                : (useUKFormatting ? formatted.replace(".", "_COMMA_").replace(",", "_PERIOD_")
+                .replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted));
     }
 
     private String format(long value, boolean useUKFormatting) {

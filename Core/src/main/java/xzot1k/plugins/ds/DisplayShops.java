@@ -769,10 +769,60 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     // custom configurations
+    public FileConfiguration getConfigFromJar(@NotNull String configPath) {
+        try (InputStream inputStream = getResource(configPath)) {
+            if (inputStream == null) return null;
+
+            try (InputStreamReader reader = new InputStreamReader(inputStream)) {
+                return YamlConfiguration.loadConfiguration(reader);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public void syncConfiguration(@NotNull String configPath) {
+        int addedCounter = 0, removedCounter = 0;
+
+        final File file = new File(getDataFolder(), configPath);
+        if (!file.exists()) return;
+
+        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
+
+        FileConfiguration jarConfig = getConfigFromJar(configPath);
+        for (String key : jarConfig.getKeys(true)) {
+            if (!config.contains(key)) {
+                config.set(key, jarConfig.get(key));
+                System.out.println("Added \"" + key + "\".");
+                addedCounter++;
+            }
+        }
+
+        for (String key : config.getKeys(true)) {
+            if (!jarConfig.contains(key)) {
+                config.set(key, null);
+                System.out.println("Removed \"" + key + "\".");
+                removedCounter++;
+            }
+        }
+
+        try {
+            config.save(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if (addedCounter > 0 || removedCounter > 0)
+            log(Level.INFO, (addedCounter + " additions and " + removedCounter + " removals were made to the \"" + configPath + "\" file."));
+    }
+
     public void fixConfig() {
 
         if (getServerVersion() < 1_13) {
-
             final String shopBlock = getConfig().getString("shop-block-material");
             if (shopBlock == null || shopBlock.isEmpty() || shopBlock.toUpperCase().contains("END_PORTAL_FRAME"))
                 getConfig().set("shop-block-material", "ENDER_PORTAL_FRAME:0");
@@ -780,23 +830,23 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             ConfigurationSection recipeSection = getConfig().getConfigurationSection("recipe");
             if (recipeSection != null) for (Map.Entry<String, Object> entry : recipeSection.getValues(true).entrySet()) {
                 final String value = String.valueOf(entry.getValue());
-                if (value.toUpperCase().contains("END_STONE")) getConfig().set(entry.getKey(), value.replace("END_STONE", "ENDER_STONE"));
+                if (value.toUpperCase().contains("END_STONE")) recipeSection.set(entry.getKey(), value.replace("END_STONE", "ENDER_STONE"));
             }
 
             if (getServerVersion() < 1_9) {
                 ConfigurationSection immersionSection = getConfig().getConfigurationSection("immersion-section");
                 if (immersionSection != null) for (Map.Entry<String, Object> entry : immersionSection.getValues(true).entrySet()) {
                     final String value = String.valueOf(entry.getValue());
-                    if (value.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) getConfig().set(entry.getKey(), "ITEM_PICKUP");
-                    else if (value.equalsIgnoreCase("BLOCK_WOOD_BREAK")) getConfig().set(entry.getKey(), "STEP_WOOD");
-                    else if (value.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")) getConfig().set(entry.getKey(), "ENDERMAN_TELEPORT");
-                    else if (value.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")) getConfig().set(entry.getKey(), "SHOOT_ARROW");
+                    if (value.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) immersionSection.set(entry.getKey(), "ITEM_PICKUP");
+                    else if (value.equalsIgnoreCase("BLOCK_WOOD_BREAK")) immersionSection.set(entry.getKey(), "STEP_WOOD");
+                    else if (value.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")) immersionSection.set(entry.getKey(), "ENDERMAN_TELEPORT");
+                    else if (value.equalsIgnoreCase("ENTITY_SNOWBALL_THROW")) immersionSection.set(entry.getKey(), "SHOOT_ARROW");
                 }
             } else if (getServerVersion() >= 1_9) {
                 ConfigurationSection immersionSection = getConfig().getConfigurationSection("immersion-section");
                 if (immersionSection != null) for (Map.Entry<String, Object> entry : immersionSection.getValues(true).entrySet()) {
                     final String value = String.valueOf(entry.getValue());
-                    if (value.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")) getConfig().set(entry.getKey(), "ENDERMEN_TELEPORT");
+                    if (value.equalsIgnoreCase("ENTITY_ENDERMAN_TELEPORT")) immersionSection.set(entry.getKey(), "ENDERMEN_TELEPORT");
                 }
             }
 
@@ -812,17 +862,17 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         ConfigurationSection recipeSection = getConfig().getConfigurationSection("recipe");
         if (recipeSection != null) for (Map.Entry<String, Object> entry : recipeSection.getValues(true).entrySet()) {
             final String value = String.valueOf(entry.getValue());
-            if (value.toUpperCase().contains("ENDER_STONE")) getConfig().set(entry.getKey(), value.replace("ENDER_STONE", "END_STONE"));
+            if (value.toUpperCase().contains("ENDER_STONE")) recipeSection.set(entry.getKey(), value.replace("ENDER_STONE", "END_STONE"));
         }
 
         ConfigurationSection immersionSection = getConfig().getConfigurationSection("immersion-section");
         if (immersionSection != null) for (Map.Entry<String, Object> entry : immersionSection.getValues(true).entrySet()) {
             final String value = String.valueOf(entry.getValue());
-            if (value.equalsIgnoreCase("ENTITY_ITEM_PICKUP")) getConfig().set(entry.getKey(), "ITEM_PICKUP");
-            else if (value.equalsIgnoreCase("BLOCK_WOOD_BREAK")) getConfig().set(entry.getKey(), "STEP_WOOD");
+            if (value.equalsIgnoreCase("ITEM_PICKUP")) immersionSection.set(entry.getKey(), "ENTITY_ITEM_PICKUP");
+            else if (value.equalsIgnoreCase("STEP_WOOD")) immersionSection.set(entry.getKey(), "BLOCK_WOOD_BREAK");
             else if (value.equalsIgnoreCase("ENDERMAN_TELEPORT")
-                    || value.toUpperCase().contains("ENDERMEN_TELEPORT")) getConfig().set(entry.getKey(), "ENTITY_ENDERMAN_TELEPORT");
-            else if (value.equalsIgnoreCase("SHOOT_ARROW")) getConfig().set(entry.getKey(), "ENTITY_SNOWBALL_THROW");
+                    || value.toUpperCase().contains("ENDERMEN_TELEPORT")) immersionSection.set(entry.getKey(), "ENTITY_ENDERMAN_TELEPORT");
+            else if (value.equalsIgnoreCase("SHOOT_ARROW")) immersionSection.set(entry.getKey(), "ENTITY_SNOWBALL_THROW");
         }
 
         saveConfig();
@@ -912,14 +962,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         } catch (IOException e) {
             log(Level.WARNING, e.getMessage());
         }
-
-        langConfig.setDefaults(defConfig);
-
-        try {
-            defConfigStream.close();
-        } catch (IOException e) {
-            log(Level.WARNING, e.getMessage());
-        }
     }
 
     /**
@@ -936,9 +978,14 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * Saves the default configuration files (Doesn't replace existing).
      */
     public void saveDefaultConfigs() {
+        final File configFile = new File(getDataFolder(), "config.yml");
+        if (configFile.exists()) syncConfiguration("config.yml");
+
         saveDefaultConfig();
         if (langFile == null) langFile = new File(getDataFolder(), "lang.yml");
-        if (!langFile.exists()) saveResource("lang.yml", false);
+        if (!langFile.exists()) {
+            saveResource("lang.yml", false);
+        } else syncConfiguration("lang.yml");
 
         reloadConfigs();
     }
@@ -959,7 +1006,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      *
      * @param shop The shop to refresh the display of.
      */
-    public void refreshShop(Shop shop) {
+    public void refreshShop(@NotNull Shop shop) {
         getInSightTask().refreshShop(shop);
     }
 
@@ -970,7 +1017,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param player The player to check for.
      * @return the display packet instance for the shop.
      */
-    public DisplayPacket getDisplayPacket(Shop shop, Player player) {
+    public DisplayPacket getDisplayPacket(@NotNull Shop shop, @NotNull Player player) {
         if (!getDisplayPacketMap().isEmpty() && getDisplayPacketMap().containsKey(player.getUniqueId())) {
             HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().get(player.getUniqueId());
             if (packetMap != null && packetMap.containsKey(shop.getShopId())) return packetMap.get(shop.getShopId());
@@ -1011,7 +1058,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      *
      * @param player The player to kill the packet for.
      */
-    public void killCurrentShopPacket(Player player) {
+    public void killCurrentShopPacket(@NotNull Player player) {
         if (getShopMemory().isEmpty() || !getShopMemory().containsKey(player.getUniqueId())) return;
 
         final UUID shopId = getShopMemory().get(player.getUniqueId());
@@ -1029,7 +1076,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param shop   The shop to look for.
      * @param player The player to look for.
      */
-    public void removeDisplayPacket(Shop shop, Player player) {
+    public void removeDisplayPacket(@NotNull Shop shop, @NotNull Player player) {
         if (!getDisplayPacketMap().isEmpty() && getDisplayPacketMap().containsKey(player.getUniqueId())) {
             HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().get(player.getUniqueId());
             if (packetMap != null) packetMap.remove(shop.getShopId());
@@ -1059,7 +1106,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param player        The player to set it for.
      * @param displayPacket The packet to set for the shop.
      */
-    public void updateDisplayPacket(Shop shop, Player player, DisplayPacket displayPacket) {
+    public void updateDisplayPacket(@NotNull Shop shop, @NotNull Player player, @NotNull DisplayPacket displayPacket) {
         if (!getDisplayPacketMap().isEmpty() && getDisplayPacketMap().containsKey(player.getUniqueId())) {
             HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().get(player.getUniqueId());
             if (packetMap != null) {
@@ -1082,8 +1129,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param player        The player to send the display packets to.
      * @param showHolograms Whether holograms above the glass and item are visible/created.
      */
-    public synchronized void sendDisplayPacket(Shop shop, Player player, boolean showHolograms) {
-        if (shop == null || shop.getBaseLocation() == null || player == null || !player.isOnline()) return;
+    public synchronized void sendDisplayPacket(@NotNull Shop shop, @NotNull Player player, boolean showHolograms) {
+        if (shop.getBaseLocation() == null || !player.isOnline()) return;
+
         shop.kill(player);
 
         final boolean isTooFar = (!player.getWorld().getName().equalsIgnoreCase(shop.getBaseLocation().getWorldName())

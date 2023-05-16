@@ -71,8 +71,56 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
         final DisplayShops instance = DisplayShops.getPluginInstance();
 
-        ConfigurationSection cs = getConfiguration().getConfigurationSection("");
-        if (cs != null) for (Map.Entry<String, Object> entry : cs.getValues(false).entrySet()) {
+        // This fixes the edit.yml for the new values added
+        if (getMenuName().equals("edit")) {
+            ConfigurationSection buttonSection = getConfiguration().getConfigurationSection("buttons");
+            if (buttonSection != null) {
+
+                // This will rename the unit-amount item to shop-item-amount
+                if (buttonSection.contains("unit-amount")) {
+                    ConfigurationSection oldSection = buttonSection.getConfigurationSection("unit-amount");
+                    if (oldSection != null) {
+                        ConfigurationSection newSection = buttonSection.createSection("shop-item-amount");
+                        for (String key : oldSection.getKeys(false)) {
+                            final Object value = oldSection.get(key);
+                            newSection.set(key, value);
+                        }
+
+                        buttonSection.set("unit-amount", null);
+                        save();
+                    }
+                }
+
+                // This will add the trade-item-amount, if missing
+                if (!buttonSection.contains("trade-item-amount")) {
+                    ConfigurationSection newSection = buttonSection.createSection("trade-item-amount");
+                    final FileConfiguration jarConfigCopy = instance.getConfigFromJar("menus/edit.yml");
+                    if (jarConfigCopy != null) {
+                        ConfigurationSection tradeAmountSection = jarConfigCopy.getConfigurationSection("buttons.trade-item-amount");
+                        if (tradeAmountSection != null) {
+                            for (String key : tradeAmountSection.getKeys(false)) {
+                                final Object value = tradeAmountSection.get(key);
+                                newSection.set(key, value);
+                            }
+                        }
+
+                        save();
+                    }
+                }
+
+            }
+        } else if (getMenuName().equals("amount-selector")) { // ensure {currency-symbol} is used in amount-selector
+            ConfigurationSection amountButtonSection = getConfiguration().getConfigurationSection("buttons.amount");
+            if (amountButtonSection != null) {
+                final String name = amountButtonSection.getString("name");
+                if (name != null && !name.contains("{currency-symbol}"))
+                    amountButtonSection.set("name", ("&a{currency-symbol}" + name));
+                save();
+            }
+        }
+
+
+        for (Map.Entry<String, Object> entry : getValues(true).entrySet()) {
 
             final String key = entry.getKey().toLowerCase();
 
@@ -131,9 +179,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         else if (mat.toUpperCase().contains("STAINED_GLASS_PANE")) getConfiguration().set(entry.getKey(), "BLACK_STAINED_GLASS_PANE");
                     }
                 }
-
             }
-
         }
 
         try {
@@ -209,9 +255,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
      */
     public Inventory build(@NotNull Player player, @Nullable String... searchText) {
 
-        final Inventory inventory = ((getSize() <= 5)
-                ? DisplayShops.getPluginInstance().getServer().createInventory(null, InventoryType.HOPPER, getTitle())
-                : DisplayShops.getPluginInstance().getServer().createInventory(null, getSize(), getTitle()));
+        final DisplayShops instance = DisplayShops.getPluginInstance();
+
+        final Inventory inventory = ((getSize() <= 5) ? instance.getServer().createInventory(null, InventoryType.HOPPER, getTitle())
+                : instance.getServer().createInventory(null, getSize(), getTitle()));
 
         ArrayList<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
 
@@ -219,7 +266,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
         if (getMenuName().contains("amount-selector")) {
 
-            final DataPack dataPack = DisplayShops.getPluginInstance().getManager().getDataPack(player);
+            final DataPack dataPack = instance.getManager().getDataPack(player);
             final Shop shop = dataPack.getSelectedShop();
             double finalAmount = 0;
 
@@ -242,7 +289,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         finalAmount = shop.getStock();
                     } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE) {
                         finalAmount = shop.getStoredBalance();
-                    }*/ else if (dataPack.getInteractionType() == InteractionType.AMOUNT_UNIT_COUNT) {
+                    }*/ else if (dataPack.getInteractionType() == InteractionType.SHOP_ITEM_AMOUNT) {
                         finalAmount = shop.getShopItemAmount();
                     } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_PLAYER_BUY_LIMIT) {
                         finalAmount = shop.getPlayerBuyLimit();
@@ -257,19 +304,15 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                 String name = getString("buttons.amount.name");
                 if (name != null) {
-                    final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE")
-                            || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE);
-
-                    // TODO the currency symbol is not colored
-                    if (isDecimal) name = (DisplayShops.getPluginInstance().getConfig().getString("currency-symbol") + name);
-
-                    itemMeta.setDisplayName(DisplayShops.getPluginInstance().getManager().color(name
-                            .replace("{amount}", DisplayShops.getPluginInstance().getManager().formatNumber(finalAmount, isDecimal))));
+                    final String currencySymbol = instance.getConfig().getString("currency-symbol");
+                    final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE") || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE);
+                    itemMeta.setDisplayName(instance.getManager().color(name
+                            .replace("{currency-symbol}", (isDecimal ? (currencySymbol != null ? currencySymbol : "") : ""))
+                            .replace("{amount}", instance.getManager().formatNumber(finalAmount, isDecimal))));
                 }
 
                 amountItem.setItemMeta(itemMeta);
-                inventory.setItem(amountSlot, DisplayShops.getPluginInstance().getPacketManager()
-                        .getSerializeUtil().updateNBT(amountItem, "ds-amount", String.valueOf(finalAmount)));
+                inventory.setItem(amountSlot, instance.getPacketManager().getSerializeUtil().updateNBT(amountItem, "ds-amount", String.valueOf(finalAmount)));
             }
 
         }
@@ -277,34 +320,44 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         // fill empty slots. If defined, fill defined slots
         fillEmptySlots(inventory, emptySlots);
 
-        final DataPack dataPack = DisplayShops.getPluginInstance().getManager().getDataPack(player);
+        final DataPack dataPack = instance.getManager().getDataPack(player);
 
         if (getMenuName().contains("edit")) {
-
             final int saleSlot = getInt("sale-item-slot"), tradeSlot = getInt("trade-item-slot");
 
-            if (saleSlot >= 0 && saleSlot < inventory.getSize()) inventory.setItem(saleSlot, dataPack.getSelectedShop().getShopItem());
-            if (tradeSlot >= 0 && tradeSlot < inventory.getSize()) inventory.setItem(tradeSlot, dataPack.getSelectedShop().getTradeItem());
+            if (saleSlot >= 0 && saleSlot < inventory.getSize()) {
+                if (dataPack.getSelectedShop().getShopItem() != null) {
+                    final ItemStack clonedItem = dataPack.getSelectedShop().getShopItem().clone();
+                    clonedItem.setAmount(dataPack.getSelectedShop().getShopItemAmount());
+                    inventory.setItem(saleSlot, clonedItem);
+                } else inventory.setItem(saleSlot, null);
+            }
+
+            if (tradeSlot >= 0 && tradeSlot < inventory.getSize()) {
+                if (dataPack.getSelectedShop().getTradeItem() != null) {
+                    inventory.setItem(tradeSlot, dataPack.getSelectedShop().getTradeItem().clone());
+                } else inventory.setItem(tradeSlot, null);
+            }
 
         } else if (getMenuName().contains("transaction")) {
 
-            // TODO add "click to see trade item lore" to the sale item (preview item)
             ItemStack previewItem = dataPack.getSelectedShop().getShopItem().clone();
-            if (!(DisplayShops.getPluginInstance().getConfig().getBoolean("use-vault")
-                    && DisplayShops.getPluginInstance().getVaultEconomy() != null)) {
+            if (!(instance.getConfig().getBoolean("use-vault") && instance.getVaultEconomy() != null)) {
                 ItemMeta itemMeta = previewItem.getItemMeta();
                 if (itemMeta != null) {
                     List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()),
                             previewLore = getStringList("trade-item-lore");
-                    for (int i = -1; ++i < previewLore.size(); )
-                        lore.add(DisplayShops.getPluginInstance().getManager().color(previewLore.get(i)));
+                    for (int i = -1; ++i < previewLore.size(); ) lore.add(instance.getManager().color(previewLore.get(i)));
                     itemMeta.setLore(lore);
                     previewItem.setItemMeta(itemMeta);
                 }
             }
 
             final int previewSlot = getInt("preview-slot");
-            if (previewSlot >= 0 && previewSlot < inventory.getSize()) inventory.setItem(previewSlot, previewItem);
+            if (previewSlot >= 0 && previewSlot < inventory.getSize()) {
+                previewItem.setAmount(Math.min(dataPack.getSelectedShop().getShopItemAmount(), previewItem.getMaxStackSize()));
+                inventory.setItem(previewSlot, previewItem);
+            }
 
         } else if (getMenuName().contains("visit") || getMenuName().contains("appearance")) {
 

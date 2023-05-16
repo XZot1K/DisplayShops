@@ -199,7 +199,9 @@ public class MenuListener implements Listener {
 
             if (dataPack.getInteractionType() == null) return;
 
-            selectedItem = selectedItem.clone();
+            boolean forceSingleStack = INSTANCE.getConfig().getBoolean("force-single-stack");
+            ItemStack selectedItemClone = selectedItem.clone();
+            if (forceSingleStack) selectedItemClone.setAmount(1);
 
             if (INSTANCE.getListeners().isBlockedItem(selectedItem) || INSTANCE.getBlockedItemId(selectedItem) >= 0) {
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("set-item-blocked"));
@@ -207,11 +209,6 @@ public class MenuListener implements Listener {
             }
 
             if (dataPack.getInteractionType() == InteractionType.SELECT_SALE_ITEM) {
-
-                if (selectedItem.getAmount() > 1 && INSTANCE.getConfig().getBoolean("force-single-stack")) {
-                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("single-item-required"));
-                    return;
-                }
 
                 if (shop.getStock() > 0) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-empty-required"));
@@ -225,7 +222,7 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
 
-                shop.setShopItem(selectedItem);
+                shop.setShopItem(selectedItemClone);
                 shop.setShopItemAmount(shop.getShopItem().getAmount());
                 e.getView().getTopInventory().setItem(saleItemSlot, shop.getShopItem().clone());
 
@@ -241,9 +238,14 @@ public class MenuListener implements Listener {
                 if (sellPrice < minSellPrice) shop.setSellPrice(minSellPrice);
                 else if (sellPrice > maxSellPrice) shop.setSellPrice(maxSellPrice);
 
-                if (shop.getStock() >= 0) shop.setStock(selectedItem.getAmount());
+                if (shop.getStock() >= 0) shop.setStock(shop.getShopItem().getAmount());
 
-                inventory.setItem(e.getSlot(), null);
+                // remove one from stack, if forceSingleStack is true
+                if (forceSingleStack && selectedItem.getAmount() > 1) {
+                    selectedItem.setAmount(selectedItem.getAmount() - 1);
+                    inventory.setItem(e.getSlot(), selectedItem);
+                } else inventory.setItem(e.getSlot(), null);
+
                 player.updateInventory();
 
                 String description = "";
@@ -270,7 +272,7 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
 
-                shop.setTradeItem(selectedItem);
+                shop.setTradeItem(selectedItemClone);
                 e.getView().getTopInventory().setItem(tradeItemSlot, shop.getTradeItem().clone());
 
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-set"));
@@ -408,7 +410,7 @@ public class MenuListener implements Listener {
             case "buy-price":
             case "sell-price":
             case "balance":
-            case "unit-count":
+            case "shop-item-amount":
             case "player-buy-limit":
             case "player-sell-limit":
             case "global-buy-limit":
@@ -487,6 +489,7 @@ public class MenuListener implements Listener {
                     }
                 }
 
+                previewItem.setAmount(Math.min(dataPack.getSelectedShop().getShopItemAmount(), previewItem.getMaxStackSize()));
                 inventory.setItem(previewSlot, previewItem);
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-preview-item"));
             }
@@ -1256,7 +1259,7 @@ public class MenuListener implements Listener {
                         break;
                     }
 
-                    case AMOUNT_UNIT_COUNT: {
+                    case SHOP_ITEM_AMOUNT: {
                         maxAmount = INSTANCE.getConfig().getDouble("max-item-stack-size");
                         break;
                     }
@@ -1388,7 +1391,7 @@ public class MenuListener implements Listener {
                         break;
                     }
 
-                    case AMOUNT_UNIT_COUNT: {
+                    case SHOP_ITEM_AMOUNT: {
                         if (amount > INSTANCE.getConfig().getInt("max-item-stack-size") || amount < 1) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-stack-size"));
                             break;
@@ -1412,8 +1415,6 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_BALANCE: {
-
-
                         final boolean isRemoval = (amount < 0),
                                 useVault = (INSTANCE.getVaultEconomy() != null && INSTANCE.getConfig().getBoolean("use-vault"));
 
@@ -1669,6 +1670,10 @@ public class MenuListener implements Listener {
                 playClickSound(player);
                 INSTANCE.getInSightTask().refreshShop(shop);
 
+                // refresh the edit status to prevent any issues
+                player.closeInventory();
+                dataPack.setSelectedShop(shop);
+
                 if (menuToOpen != null) player.openInventory(menuToOpen.build(player));
                 break;
             }
@@ -1923,7 +1928,7 @@ public class MenuListener implements Listener {
             return;
         }
 
-        boolean canBypassEconomy = player.hasPermission("displayshops.bypass");
+        // boolean canBypassEconomy = player.hasPermission("displayshops.bypass");
         EconomyCallEvent economyCallEvent = INSTANCE.getManager().initiateShopEconomyTransaction(player, owner, shop, economyCallType,
                 (economyCallType == EconomyCallType.BUY ? (shop.getBuyPrice(true) * unitCount) : (shop.getSellPrice(true) * unitCount)));
         if (economyCallEvent == null || economyCallEvent.isCancelled() || !economyCallEvent.willSucceed()) {

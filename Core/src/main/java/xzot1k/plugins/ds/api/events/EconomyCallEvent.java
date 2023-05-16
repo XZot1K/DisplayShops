@@ -10,6 +10,8 @@ import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.objects.Shop;
@@ -25,7 +27,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     private Shop shop;
     private EconomyCallType economyCallType;
 
-    public EconomyCallEvent(Player investor, OfflinePlayer producer, EconomyCallType economyCallType, Shop shop, double price) {
+    public EconomyCallEvent(Player investor, @Nullable OfflinePlayer producer, EconomyCallType economyCallType, Shop shop, double price) {
         setPluginInstance(DisplayShops.getPluginInstance());
         setShop(shop);
         setInvestor(investor);
@@ -41,8 +43,10 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         AffordCheckEvent affordCheckEvent = new AffordCheckEvent(getPluginInstance(), investor, producer, true, true, getPrice(), getTaxedPrice(), this, shop);
         getPluginInstance().getServer().getPluginManager().callEvent(affordCheckEvent);
         if (!affordCheckEvent.isCancelled()) {
-            final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault"), useOwnerSyncing = getPluginInstance().getConfig().getBoolean("sync-owner-balance");
-            final ItemStack currencyItem = useVault ? null : (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use") ? getPluginInstance().getManager().buildShopCurrencyItem(1)
+            final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault"),
+                    useOwnerSyncing = getPluginInstance().getConfig().getBoolean("sync-owner-balance");
+            final ItemStack currencyItem = useVault ? null
+                    : (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use") ? getPluginInstance().getManager().buildShopCurrencyItem(1)
                     : (shop.getTradeItem() == null ? getPluginInstance().getManager().buildShopCurrencyItem(1) : shop.getTradeItem()));
 
             if (getEconomyCallType() == EconomyCallType.SELL) {
@@ -57,9 +61,11 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             }
 
             if (useVault)
-                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass") || getPluginInstance().getVaultEconomy().has(getInvestor(), getTaxedPrice()));
+                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass")
+                        || getPluginInstance().getVaultEconomy().has(getInvestor(), getTaxedPrice()));
             else
-                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass") || getPluginInstance().getManager().getItemAmount(getInvestor().getInventory(), currencyItem) >= getTaxedPrice());
+                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass")
+                        || getPluginInstance().getManager().getItemAmount(getInvestor().getInventory(), currencyItem) >= getTaxedPrice());
         }
 
         setWillSucceed(canInvestorAfford() && canProducerAfford());
@@ -240,7 +246,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     }
 
     @Override
-    public HandlerList getHandlers() {
+    public @NotNull HandlerList getHandlers() {
         return handlers;
     }
 

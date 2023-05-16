@@ -16,7 +16,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>7</core.build>
+        <core.build>8</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -97,7 +97,7 @@
 
         <!-- API -->
         <dependency>
-            <groupId>com.github.XZot1K</groupId>
+            <groupId>xzot1k.plugins.ds</groupId>
             <artifactId>DisplayShopsAPI</artifactId>
             <version>${api.version}</version>
             <scope>compile</scope>

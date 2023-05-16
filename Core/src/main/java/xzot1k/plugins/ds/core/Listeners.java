@@ -36,6 +36,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.metadata.MetadataValue;
+import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.Direction;
 import xzot1k.plugins.ds.api.enums.EditType;
@@ -847,24 +848,22 @@ public class Listeners implements Listener {
         return false;
     }
 
-    private void setShopItem(Player player, ItemStack handItem, Shop shop) {
+    private void setShopItem(@NotNull Player player, @NotNull ItemStack handItem, @NotNull Shop shop) {
         ShopItemSetEvent shopItemSetEvent = new ShopItemSetEvent(player, shop, ItemType.SHOP, handItem);
         getPluginInstance().getServer().getPluginManager().callEvent(shopItemSetEvent);
         if (shopItemSetEvent.isCancelled()) return;
 
-        if (handItem == null || handItem.getType() == Material.AIR) {
+        if (handItem.getType() == Material.AIR) {
             String message = getPluginInstance().getLangConfig().getString("set-item-invalid");
             if (message != null && !message.equalsIgnoreCase(""))
                 getPluginInstance().getManager().sendMessage(player, message);
             return;
         }
 
-        if (handItem.getAmount() > 1 && getPluginInstance().getConfig().getBoolean("force-single-stack")) {
-            final String message = getPluginInstance().getLangConfig().getString("single-item-required");
-            if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(player, message);
-            return;
-        }
+        ItemStack handItemClone = handItem.clone();
+
+        boolean forceSingleStack = getPluginInstance().getConfig().getBoolean("force-single-stack");
+        if (forceSingleStack) handItemClone.setAmount(1);
 
         if (isBlockedItem(handItem)) {
             String message = getPluginInstance().getLangConfig().getString("set-item-blocked");
@@ -880,7 +879,7 @@ public class Listeners implements Listener {
             return;
         }
 
-        shop.setShopItem(handItem.clone());
+        shop.setShopItem(handItemClone);
         shop.setShopItemAmount(shop.getShopItem().getAmount());
 
         final double minBuyPrice = getPluginInstance().getManager().getMaterialMinPrice(handItem, true),
@@ -895,9 +894,18 @@ public class Listeners implements Listener {
         if (sellPrice < minSellPrice) shop.setSellPrice(minSellPrice);
         else if (sellPrice > maxSellPrice) shop.setSellPrice(maxSellPrice);
 
-        if (shop.getStock() >= 0) shop.setStock(handItem.getAmount());
-        if (Math.floor(getPluginInstance().getServerVersion()) >= 1_9) player.getInventory().setItemInMainHand(null);
-        else player.setItemInHand(null);
+        if (shop.getStock() >= 0) shop.setStock(shop.getShopItem().getAmount());
+
+        if (forceSingleStack && handItem.getAmount() > 1) {
+            handItem.setAmount(handItem.getAmount() - 1);
+            if (Math.floor(getPluginInstance().getServerVersion()) >= 1_9) player.getInventory().setItemInMainHand(handItem);
+            else player.setItemInHand(handItem);
+        } else {
+            if (Math.floor(getPluginInstance().getServerVersion()) >= 1_9) player.getInventory().setItemInMainHand(null);
+            else player.setItemInHand(null);
+        }
+
+        player.updateInventory();
 
         String description = "";
 

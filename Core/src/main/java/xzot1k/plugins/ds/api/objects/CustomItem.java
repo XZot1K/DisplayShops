@@ -153,9 +153,8 @@ public class CustomItem {
     public CustomItem setDisplayName(@Nullable Player player, @Nullable Shop shop, @NotNull String displayName) {
 
         final String currencySymbol = getPluginInstance().getConfig().getString("currency-symbol");
-
-        final double tax = getPluginInstance().getConfig().getDouble("transaction-tax");
-        final double beforeBuyPrice = (shop != null ? (shop.getBuyPrice(true) * unitCount) : 0),
+        final double tax = getPluginInstance().getConfig().getDouble("transaction-tax"),
+                beforeBuyPrice = (shop != null ? (shop.getBuyPrice(true) * unitCount) : 0),
                 calculatedSellPrice = (shop != null ? (shop.getSellPrice(true) * unitCount) : 0),
                 calculatedBuyPrice = (beforeBuyPrice + (beforeBuyPrice * tax));
 
@@ -170,11 +169,14 @@ public class CustomItem {
                 .replace("{sell-price}", getPluginInstance().getManager().formatNumber(calculatedSellPrice, true))
                 .replace("{stock}", ((shop != null) ? getPluginInstance().getManager().formatNumber(shop.getStock(), false) : "0"))
                 .replace("{balance}", (shop != null ? getPluginInstance().getManager().formatNumber(shop.getStoredBalance(), true) : "0"))
+                .replace("{shop-item-amount}", ((shop != null && shop.getShopItem() != null) ? getPluginInstance().getManager()
+                        .formatNumber(shop.getShopItemAmount(), false) : "0"))
                 .replace("{unit-count}", ((shop != null && shop.getShopItem() != null)
-                        ? getPluginInstance().getManager().formatNumber(unitCount, false) : "0"));
+                        ? getPluginInstance().getManager().formatNumber(unitCount, false) : "0"))
+                .replace("{item-count}", ((shop != null && shop.getShopItem() != null) ?
+                        getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false) : "0"));
 
         setDisplayName(player, newName);
-
         return this;
     }
 
@@ -238,8 +240,11 @@ public class CustomItem {
                                     .replace("{unit-increment}", String.valueOf(Math.max(unitIncrement, 1)))
                                     .replace("{trade-item}", tradeItemName).replace("{balance}",
                                             getPluginInstance().getManager().formatNumber(shop.getStoredBalance(), true))
-                                    .replace("{unit-count}", shop.getShopItem() != null ? getPluginInstance().getManager().formatNumber(unitCount,
-                                            false) : String.valueOf(0))));
+                                    .replace("{shop-item-amount}", (shop.getShopItem() != null ? getPluginInstance().getManager()
+                                            .formatNumber(shop.getShopItemAmount(), false) : "0"))
+                                    .replace("{unit-count}", (shop.getShopItem() != null ? getPluginInstance().getManager().formatNumber(unitCount, false) : "0"))
+                                    .replace("{item-count}", shop.getShopItem() != null ?
+                                            getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false) : "0")));
                         }
                     }
                 } else for (String line : lines)
