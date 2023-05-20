@@ -127,15 +127,26 @@ public class CustomItem {
             }
 
         } else {
-            Material material = Material.getMaterial(replacedMaterial);
+
+            String itemMat;
+            if (materialName.contains(":")) {
+                final String[] materialArgs = materialName.split(":");
+
+                if (materialArgs.length > 2) itemMat = (materialArgs[0] + ":" + materialArgs[1]);
+                else itemMat = materialArgs[0];
+
+            } else itemMat = materialName;
+
+            Material material = Material.getMaterial(itemMat);
             if (material == null) {
 
                 if (getPluginInstance().isItemAdderInstalled()) {
-                    dev.lone.itemsadder.api.CustomStack customStack = dev.lone.itemsadder.api.CustomStack.getInstance(materialName);
-                    if (customStack != null) itemStack = customStack.getItemStack();
+                    if (dev.lone.itemsadder.api.CustomStack.isInRegistry(itemMat)) {
+                        dev.lone.itemsadder.api.CustomStack customStack = dev.lone.itemsadder.api.CustomStack.getInstance(itemMat);
+                        if (customStack != null) itemStack = customStack.getItemStack();
+                    } else itemStack = new ItemStack(Material.STONE);
                 }
 
-                if (itemStack == null) itemStack = new ItemStack(Material.STONE);
             } else itemStack = new ItemStack(material, Math.min(amount, material.getMaxStackSize()), (short) durability);
         }
     }

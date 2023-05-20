@@ -718,9 +718,11 @@ public class DShop implements Shop {
      * @return Whether the player can or can NOT edit the shop.
      */
     public boolean canEdit(@NotNull Player player) {
-        return (player.hasPermission("displayshops.edit")
-                && ((getOwnerUniqueId() != null && getOwnerUniqueId().toString().equals(player.getUniqueId().toString()))
-                || getAssistants().contains(player.getUniqueId())));
+
+        if (!player.hasPermission("displayshops.edit")) return false;
+
+        return ((getOwnerUniqueId() != null && getOwnerUniqueId().toString().equals(player.getUniqueId().toString()))
+                || (!getAssistants().isEmpty() && getAssistants().contains(player.getUniqueId())));
     }
 
     /**

@@ -46,31 +46,21 @@ import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 public class Listeners implements Listener {
 
     private DisplayShops pluginInstance;
     public ItemStack creationItem;
-
-    public boolean isPistonCheck() {
-        return pistonCheck;
-    }
-
-    public void setPistonCheck(boolean pistonCheck) {
-        this.pistonCheck = pistonCheck;
-    }
-
-    private boolean pistonCheck;
+    public boolean pistonCheck, altPistonCheck;
 
     public Listeners(DisplayShops pluginInstance) {
         setPluginInstance(pluginInstance);
         creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
-        setPistonCheck(getPluginInstance().getConfig().getBoolean("piston-protection.check"));
-    }
-
-    private boolean isCreationItem(BlockPlaceEvent e) {
-        return (e.getItemInHand().isSimilar(creationItem));
+        pistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.check");
+        altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
     }
 
     @EventHandler
@@ -90,47 +80,13 @@ public class Listeners implements Listener {
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onPlaceCheck(BlockPlaceEvent e) {
-        if (!isCreationItem(e)) return;
 
-        if (!e.getPlayer().hasPermission("displayshops.create")) {
-            e.setCancelled(true);
-            String message = getPluginInstance().getLangConfig().getString("no-permission");
-            if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-            return;
-        }
+        // TODO fix ItemsAdder
+        // System.out.println(e.getItemInHand());
+        // System.out.println(creationItem);
 
-        Block blockRelativeOne = e.getBlock().getRelative(BlockFace.UP), blockRelativeTwo = blockRelativeOne.getRelative(BlockFace.UP);
-        if (!blockRelativeOne.getType().name().contains("AIR") || !blockRelativeTwo.getType().name().contains("AIR")) {
-            e.setCancelled(true);
-            String message = getPluginInstance().getLangConfig().getString("relative-unsafe-world");
-            if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-            return;
-        }
-
-        if (getPluginInstance().getManager().isBlockedWorld(e.getBlock().getWorld())) {
-            e.setCancelled(true);
-            String message = getPluginInstance().getLangConfig().getString("blocked-world");
-            if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-            return;
-        }
-
-        if (getPluginInstance().isTownyInstalled()) {
-            final boolean shopPlotOnly = getPluginInstance().getConfig().getBoolean("towny-shop-plots-only");
-            if (shopPlotOnly && (!com.palmergames.bukkit.towny.utils.ShopPlotUtil.isShopPlot(e.getBlock().getLocation())
-                    || !com.palmergames.bukkit.towny.utils.ShopPlotUtil.doesPlayerHaveAbilityToEditShopPlot(e.getPlayer(), e.getBlock().getLocation()))) {
-                e.setCancelled(true);
-                String message = this.getPluginInstance().getLangConfig().getString("towny-no-access");
-                if (message != null && !message.equalsIgnoreCase(""))
-                    getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-                return;
-            }
-        }
-
-        MarketRegion marketRegion = getPluginInstance().getManager().getMarketRegion(e.getBlock().getLocation());
-        shopCreationWorks(e, (marketRegion != null));
+        final boolean cancelEvent = shopCreationWorks(e.getPlayer(), e.getBlock(), e.getItemInHand());
+        if (cancelEvent) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -617,69 +573,46 @@ public class Listeners implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPistonExtend(BlockPistonExtendEvent e) {
-        if (!isPistonCheck()) return;
-
-        final boolean altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
-        for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
-            final Shop shop = entry.getValue();
-            if (shop == null || shop.getBaseLocation() == null) continue;
-
-            if (altPistonCheck) {
-                final boolean yDiff = (e.getBlock().getY() != shop.getBaseLocation().getY()),
-                        xDiff = (e.getBlock().getX() != shop.getBaseLocation().getX()),
-                        zDiff = (e.getBlock().getZ() != shop.getBaseLocation().getZ());
-
-                final double changeInX = (Math.max(e.getBlock().getX(), shop.getBaseLocation().getX()) - Math.min(e.getBlock().getX(), shop.getBaseLocation().getX())),
-                        changeInY = (Math.max(e.getBlock().getY(), shop.getBaseLocation().getY()) - Math.min(e.getBlock().getY(), shop.getBaseLocation().getY())),
-                        changeInZ = (Math.max(e.getBlock().getZ(), shop.getBaseLocation().getZ()) - Math.min(e.getBlock().getZ(), shop.getBaseLocation().getZ()));
-
-                if ((!xDiff && zDiff && changeInZ < 12) || (!zDiff && xDiff && changeInX < 12) || (yDiff && changeInY < 12 && !xDiff && !zDiff)) {
-                    e.setCancelled(true);
-                    break;
-                }
-            } else {
-                if (e.getBlocks().removeIf(block -> shop.getBaseLocation().isSameNormal(block.getLocation()))) {
-                    e.setCancelled(true);
-                    break;
-                }
-            }
-        }
+        if (!pistonCheck) return;
+        if (applyPistonCheck(e.getBlocks())) e.setCancelled(true);
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPistonRetract(BlockPistonRetractEvent e) {
-        if (!isPistonCheck()) return;
+        if (!pistonCheck) return;
+        if (applyPistonCheck(e.getBlocks())) e.setCancelled(true);
+    }
 
-        final boolean altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
-        for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
-            final Shop shop = entry.getValue();
+    private boolean applyPistonCheck(List<Block> blocks) {
+        for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
             if (shop == null || shop.getBaseLocation() == null) continue;
 
             if (altPistonCheck) {
-                final boolean yDiff = (e.getBlock().getY() != shop.getBaseLocation().getY()),
-                        xDiff = (e.getBlock().getX() != shop.getBaseLocation().getX()),
-                        zDiff = (e.getBlock().getZ() != shop.getBaseLocation().getZ());
+                for (int i = -1; ++i < blocks.size(); ) {
+                    final Block block = blocks.get(i);
 
-                final double changeInX = (Math.max(e.getBlock().getX(), shop.getBaseLocation().getX()) - Math.min(e.getBlock().getX(), shop.getBaseLocation().getX())),
-                        changeInY = (Math.max(e.getBlock().getY(), shop.getBaseLocation().getY()) - Math.min(e.getBlock().getY(), shop.getBaseLocation().getY())),
-                        changeInZ = (Math.max(e.getBlock().getZ(), shop.getBaseLocation().getZ()) - Math.min(e.getBlock().getZ(), shop.getBaseLocation().getZ()));
+                    final boolean yDiff = (block.getY() != shop.getBaseLocation().getY()),
+                            xDiff = (block.getX() != shop.getBaseLocation().getX()),
+                            zDiff = (block.getZ() != shop.getBaseLocation().getZ());
 
-                if ((!xDiff && zDiff && changeInZ < 12) || (!zDiff && xDiff && changeInX < 12) || (yDiff && changeInY < 12 && !xDiff && !zDiff)) {
-                    e.setCancelled(true);
-                    break;
+                    final double changeInX = (Math.max(block.getX(), shop.getBaseLocation().getX()) - Math.min(block.getX(), shop.getBaseLocation().getX())),
+                            changeInY = (Math.max(block.getY(), shop.getBaseLocation().getY()) - Math.min(block.getY(), shop.getBaseLocation().getY())),
+                            changeInZ = (Math.max(block.getZ(), shop.getBaseLocation().getZ()) - Math.min(block.getZ(), shop.getBaseLocation().getZ()));
+
+                    if ((xDiff && zDiff && changeInZ >= 12) || (zDiff && xDiff && changeInX >= 12) || (!yDiff && !xDiff && !zDiff && changeInY >= 12)) continue;
+
+                    return true;
                 }
             } else {
-                for (int i = -1; ++i < e.getBlocks().size(); ) {
-                    final Block block = e.getBlocks().get(i);
-                    if (shop.getBaseLocation().isSameNormal(block.getLocation())) {
-                        e.setCancelled(true);
-                        break;
-                    }
+                for (int i = -1; ++i < blocks.size(); ) {
+                    if (!shop.getBaseLocation().isSameNormal(blocks.get(i).getLocation())) continue;
+                    return true;
                 }
             }
         }
+        return false;
     }
 
    /* @EventHandler(ignoreCancelled = true)
@@ -825,24 +758,24 @@ public class Listeners implements Listener {
     }
 
     // helper methods
-    private boolean isTooClose(BlockPlaceEvent e, boolean removeItem) {
-        if (getPluginInstance().getManager().isTooClose(e.getBlock().getLocation())) {
+    private boolean isTooClose(@NotNull Player player, @NotNull Block block, @NotNull ItemStack itemStack, boolean removeItem) {
+        if (getPluginInstance().getManager().isTooClose(block.getLocation())) {
             String message = getPluginInstance().getLangConfig().getString("too-close");
             if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                getPluginInstance().getManager().sendMessage(player, message);
             return true;
         }
 
-        if (getPluginInstance().getManager().exceededShopLimit(e.getPlayer())) {
+        if (getPluginInstance().getManager().exceededShopLimit(player)) {
             String message = getPluginInstance().getLangConfig().getString("max-shops");
             if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                getPluginInstance().getManager().sendMessage(player, message);
             return true;
         }
 
         if (removeItem) {
-            if (e.getItemInHand().getAmount() > 1) e.getItemInHand().setAmount(e.getItemInHand().getAmount() - 1);
-            else getPluginInstance().getManager().removeItem(e.getPlayer().getInventory(), e.getItemInHand(), 1);
+            if (itemStack.getAmount() > 1) itemStack.setAmount(itemStack.getAmount() - 1);
+            else getPluginInstance().getManager().removeItem(player.getInventory(), itemStack, 1);
         }
 
         return false;
@@ -983,64 +916,101 @@ public class Listeners implements Listener {
         return 4;
     }
 
-    private void shopCreationWorks(BlockPlaceEvent e, boolean needsHelp) {
-        Shop shopCheck = getPluginInstance().getManager().getShop(e.getBlock().getLocation());
-        if (shopCheck != null || isTooClose(e, false)) {
-            e.setCancelled(true);
-            return;
+    public boolean shopCreationWorks(@NotNull Player player, @NotNull Block block, @NotNull ItemStack itemStack) {
+
+        if (!itemStack.isSimilar(creationItem)) {
+           /* if(getPluginInstance().isItemAdderInstalled()) {
+                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.byItemStack(itemStack);
+            }*/
+
+            return false;
         }
 
-        if (getPluginInstance().getManager().isBlockedMaterial(e.getBlock().getRelative(BlockFace.DOWN).getType())) {
-            e.setCancelled(true);
-            if (e.getPlayer().getInventory().firstEmpty() == -1)
-                e.getPlayer().getWorld().dropItemNaturally(e.getPlayer().getLocation(),
-                        getPluginInstance().getManager().buildShopCreationItem(e.getPlayer(), 1));
-            else
-                e.getPlayer().getInventory().addItem(getPluginInstance().getManager().buildShopCreationItem(e.getPlayer(), 1));
-            return;
+        if (!player.hasPermission("displayshops.create")) {
+            String message = getPluginInstance().getLangConfig().getString("no-permission");
+            if (message != null && !message.equalsIgnoreCase(""))
+                getPluginInstance().getManager().sendMessage(player, message);
+            return true;
         }
 
-        ShopCreationEvent shopCreationEvent = new ShopCreationEvent(e.getPlayer(), e.getBlockPlaced().getLocation());
-        getPluginInstance().getServer().getPluginManager().callEvent(shopCreationEvent);
-        if (shopCreationEvent.isCancelBlockPlaceEvent()) e.setCancelled(true);
-        if (shopCreationEvent.isCancelled()) return;
+        Block blockRelativeOne = block.getRelative(BlockFace.UP), blockRelativeTwo = blockRelativeOne.getRelative(BlockFace.UP);
+        if (!blockRelativeOne.getType().name().contains("AIR") || !blockRelativeTwo.getType().name().contains("AIR")) {
+            String message = getPluginInstance().getLangConfig().getString("relative-unsafe-world");
+            if (message != null && !message.equalsIgnoreCase(""))
+                getPluginInstance().getManager().sendMessage(player, message);
+            return true;
+        }
 
-        if (needsHelp) getPluginInstance().getServer().getScheduler().runTaskLater(getPluginInstance(), () -> {
-            final Block block = e.getBlock();
-            final ItemStack creationItem = getPluginInstance().getManager().buildShopCreationItem(e.getPlayer(), 1);
-            if ((Math.floor(this.getPluginInstance().getServerVersion()) <= 1_10)) {
-                block.setType(Material.AIR);
-                block.setType(creationItem.getType());
-                block.setBlockData(getPluginInstance().getServer().createBlockData(creationItem.getType()));
-                setBlock(block, creationItem.getType(), (creationItem.getType().name().contains("SHULKER")
-                        ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(e.getPlayer()).name())));
+        if (getPluginInstance().getManager().isBlockedWorld(block.getWorld())) {
+            String message = getPluginInstance().getLangConfig().getString("blocked-world");
+            if (message != null && !message.equalsIgnoreCase(""))
+                getPluginInstance().getManager().sendMessage(player, message);
+            return true;
+        }
 
-                final BlockState blockState = block.getRelative(BlockFace.UP).getState();
-                blockState.setType(Material.AIR);
-                blockState.update(true, false);
-            } else {
-                block.setType(Material.AIR);
-                block.setType(creationItem.getType());
-
-                if (block instanceof Directional) try {
-                    Method method = Block.class.getMethod("setData", Byte.class, Boolean.class);
-                    method.invoke(block, oppositeDirectionByte(Direction.getYaw(e.getPlayer())), true);
-                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
-                }
-                else try {
-                    Method method = Block.class.getMethod("setData", Byte.class, Boolean.class);
-                    method.invoke(block, (byte) creationItem.getDurability(), true);
-                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
-                }
-
-                final BlockState blockState = block.getRelative(BlockFace.UP).getState();
-                blockState.setType(Material.AIR);
-                blockState.update(true, false);
+        if (getPluginInstance().isTownyInstalled()) {
+            final boolean shopPlotOnly = getPluginInstance().getConfig().getBoolean("towny-shop-plots-only");
+            if (shopPlotOnly && (!com.palmergames.bukkit.towny.utils.ShopPlotUtil.isShopPlot(block.getLocation())
+                    || !com.palmergames.bukkit.towny.utils.ShopPlotUtil.doesPlayerHaveAbilityToEditShopPlot(player, block.getLocation()))) {
+                String message = this.getPluginInstance().getLangConfig().getString("towny-no-access");
+                if (message != null && !message.equalsIgnoreCase(""))
+                    getPluginInstance().getManager().sendMessage(player, message);
+                return true;
             }
-        }, 10);
-        else e.getBlock().getRelative(BlockFace.UP).breakNaturally();
+        }
 
-        getPluginInstance().getManager().createShop(e.getPlayer(), e.getBlock(), 1, true, true);
+        ShopCreationEvent shopCreationEvent = new ShopCreationEvent(player, block.getLocation());
+        getPluginInstance().getServer().getPluginManager().callEvent(shopCreationEvent);
+        if (shopCreationEvent.isCancelBlockPlaceEvent()) return true;
+        if (shopCreationEvent.isCancelled()) return false;
+
+        Shop shopCheck = getPluginInstance().getManager().getShop(block.getLocation());
+        if (shopCheck != null || isTooClose(player, block, itemStack, false)) return true;
+
+        if (getPluginInstance().getManager().isBlockedMaterial(block.getRelative(BlockFace.DOWN).getType())) {
+            if (player.getInventory().firstEmpty() == -1)
+                player.getWorld().dropItemNaturally(player.getLocation(), getPluginInstance().getManager().buildShopCreationItem(player, 1));
+            else player.getInventory().addItem(getPluginInstance().getManager().buildShopCreationItem(player, 1));
+            return true;
+        }
+
+        MarketRegion marketRegion = getPluginInstance().getManager().getMarketRegion(block.getLocation());
+        if (marketRegion != null) {
+            getPluginInstance().getServer().getScheduler().runTaskLater(getPluginInstance(), () -> {
+                if ((Math.floor(this.getPluginInstance().getServerVersion()) <= 1_10)) {
+                    block.setType(Material.AIR);
+                    block.setType(creationItem.getType());
+                    block.setBlockData(getPluginInstance().getServer().createBlockData(creationItem.getType()));
+                    setBlock(block, creationItem.getType(), (creationItem.getType().name().contains("SHULKER")
+                            ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(player).name())));
+
+                    final BlockState blockState = block.getRelative(BlockFace.UP).getState();
+                    blockState.setType(Material.AIR);
+                    blockState.update(true, false);
+                } else {
+                    block.setType(Material.AIR);
+                    block.setType(creationItem.getType());
+
+                    if (block instanceof Directional) try {
+                        Method method = Block.class.getMethod("setData", Byte.class, Boolean.class);
+                        method.invoke(block, oppositeDirectionByte(Direction.getYaw(player)), true);
+                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
+                    }
+                    else try {
+                        Method method = Block.class.getMethod("setData", Byte.class, Boolean.class);
+                        method.invoke(block, (byte) creationItem.getDurability(), true);
+                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
+                    }
+
+                    final BlockState blockState = block.getRelative(BlockFace.UP).getState();
+                    blockState.setType(Material.AIR);
+                    blockState.update(true, false);
+                }
+            }, 10);
+        } else block.getRelative(BlockFace.UP).breakNaturally();
+
+        getPluginInstance().getManager().createShop(player, block, 1, true, true);
+        return false;
     }
 
     // getters & setters

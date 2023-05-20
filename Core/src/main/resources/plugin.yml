@@ -7,6 +7,7 @@ description: Create immersive simplistic shops with animations, efficient transa
 softdepend: [ Vault, HeadDatabase, Prisma, PlaceholderAPI, PlotSquared, BentoBox, BSkyBlock, Oneblock, CMI, MultiWorld, Multiverse-Core,
               ASkyBlock, USkyBlock, FabledSkyBlock, PlayerWorldsPro, WorldGuard, WorldEdit, ItemsAdder ]
 loadbefore: [ GriefPrevention, JetsMinions ]
+loadafter: [ ]
 load: POSTWORLD
 
 commands:

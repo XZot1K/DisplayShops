@@ -31,10 +31,7 @@ import xzot1k.plugins.ds.core.Listeners;
 import xzot1k.plugins.ds.core.TabCompleter;
 import xzot1k.plugins.ds.core.gui.BackendMenu;
 import xzot1k.plugins.ds.core.gui.MenuListener;
-import xzot1k.plugins.ds.core.hooks.PapiHelper;
-import xzot1k.plugins.ds.core.hooks.PlotSquaredListener;
-import xzot1k.plugins.ds.core.hooks.SkyBlockListener;
-import xzot1k.plugins.ds.core.hooks.WorldGuardHandler;
+import xzot1k.plugins.ds.core.hooks.*;
 import xzot1k.plugins.ds.core.tasks.CleanupTask;
 import xzot1k.plugins.ds.core.tasks.ManagementTask;
 import xzot1k.plugins.ds.core.tasks.VisualTask;
@@ -127,6 +124,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                 setPaperSpigot(true);
             }
 
+        this.townyInstalled = (getServer().getPluginManager().getPlugin("Towny") != null);
+        this.isItemAdderInstalled = (getServer().getPluginManager().getPlugin("ItemsAdder") != null);
         setPrismaInstalled(getServer().getPluginManager().getPlugin("Prisma") != null);
 
         setupVaultEconomy();
@@ -160,12 +159,11 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             return;
         }
 
-        this.townyInstalled = (getServer().getPluginManager().getPlugin("Towny") != null);
-        this.isItemAdderInstalled = (getServer().getPluginManager().getPlugin("ItemsAdder") != null);
-        new SkyBlockListener(this);
-
         getServer().getPluginManager().registerEvents(listeners = new Listeners(this), this);
         getServer().getPluginManager().registerEvents(menuListener = new MenuListener(this), this);
+
+        if (isItemAdderInstalled()) getServer().getPluginManager().registerEvents(new ItemsAdderHandler(this), this);
+        new SkyBlockListener(this);
 
         Plugin ps = getServer().getPluginManager().getPlugin("PlotSquared");
         if (ps != null && ps.getDescription().getVersion().startsWith("5")) try {

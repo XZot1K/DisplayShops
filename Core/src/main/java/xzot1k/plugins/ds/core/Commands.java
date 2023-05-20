@@ -1165,6 +1165,7 @@ public class Commands implements CommandExecutor {
     }
 
     private void runCDB(CommandSender commandSender) {
+
         if (!commandSender.hasPermission("displayshops.cdb")) {
             String message = getPluginInstance().getLangConfig().getString("no-permission");
             if (message != null && !message.equalsIgnoreCase(""))
@@ -1172,11 +1173,20 @@ public class Commands implements CommandExecutor {
             return;
         }
 
+        // cancel tasks
         if (getPluginInstance().getManagementTask() != null) getPluginInstance().getManagementTask().cancel();
         if (getPluginInstance().getInSightTask() != null) getPluginInstance().getInSightTask().cancel();
         if (getPluginInstance().getCleanupTask() != null) getPluginInstance().getCleanupTask().cancel();
+
+        // reload configs
         getPluginInstance().reloadConfigs();
 
+        // reload global variables
+        getPluginInstance().getListeners().pistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.check");
+        getPluginInstance().getListeners().altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
+        getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
+
+        // handle market regions
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
             getPluginInstance().getManager().saveMarketRegions();
             getPluginInstance().getManager().getMarketRegions().clear();
@@ -1195,6 +1205,8 @@ public class Commands implements CommandExecutor {
             getPluginInstance().getManager().getShopMap().clear();
             getPluginInstance().getManager().loadShops(true, true);
         });
+
+        // restart tasks
         getPluginInstance().setupTasks();
 
         String message = getPluginInstance().getLangConfig().getString("clean-database");
@@ -1587,8 +1599,10 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().log(Level.WARNING, "Vault is either missing or has no economy counterpart. Now using integrated economy solution.");
         } else getPluginInstance().setVaultEconomy(null);
 
+        // reload global variables
+        getPluginInstance().getListeners().pistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.check");
+        getPluginInstance().getListeners().altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
-        getPluginInstance().getListeners().setPistonCheck(getPluginInstance().getConfig().getBoolean("piston-protection.check"));
 
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
             getPluginInstance().getManager().saveMarketRegions();

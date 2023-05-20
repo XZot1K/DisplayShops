@@ -1628,29 +1628,42 @@ public class DManager implements Manager {
      * @return The shop creation physical item stack.
      */
     public ItemStack buildShopCreationItem(Player player, int amount) {
-        CustomItem item = null;
-        String materialName = getPluginInstance().getConfig().getString("shop-block-material");
-        if (materialName != null)
+
+        final String materialName = getPluginInstance().getConfig().getString("shop-block-material");
+        final boolean isEnchanted = getPluginInstance().getConfig().getBoolean("shop-creation-item.enchanted");
+
+        CustomItem item;
+        if (materialName != null) {
             if (materialName.contains(":")) {
                 String[] args = materialName.split(":");
-                item = new CustomItem(getPluginInstance(), args[0], Integer.parseInt(args[1]), amount)
-                        .setDisplayName(player, getPluginInstance().getConfig().getString("shop-creation-item.display-name"))
-                        .setLore(player, getPluginInstance().getConfig().getStringList("shop-creation-item.lore"))
-                        .setEnchantments(getPluginInstance().getConfig().getStringList("shop-creation-item.enchantments"))
-                        .setItemFlags(getPluginInstance().getConfig().getStringList("shop-creation-item.flags"))
-                        .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
-            } else
-                item = new CustomItem(getPluginInstance(), materialName, 0, amount)
-                        .setDisplayName(player, getPluginInstance().getConfig().getString("shop-creation-item.display-name"))
-                        .setLore(player, getPluginInstance().getConfig().getStringList("shop-creation-item.lore"))
-                        .setEnchantments(getPluginInstance().getConfig().getStringList("shop-creation-item.enchantments"))
-                        .setItemFlags(getPluginInstance().getConfig().getStringList("shop-creation-item.flags"))
-                        .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
-        if (getPluginInstance().getConfig().getBoolean("shop-creation-item.enchanted"))
-            item.setEnchanted(true);
+                if (args.length == 2) {
+                    item = new CustomItem(getPluginInstance(), args[0], Integer.parseInt(args[1]), amount)
+                            .setDisplayName(player, getPluginInstance().getConfig().getString("shop-creation-item.display-name"))
+                            .setLore(player, getPluginInstance().getConfig().getStringList("shop-creation-item.lore"))
+                            .setEnchantments(getPluginInstance().getConfig().getStringList("shop-creation-item.enchantments"))
+                            .setItemFlags(getPluginInstance().getConfig().getStringList("shop-creation-item.flags"))
+                            .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
-        return item.get();
+                    if (isEnchanted) item.setEnchanted(true);
+
+                    return item.get();
+                }
+            }
+
+            item = new CustomItem(getPluginInstance(), materialName, 0, amount)
+                    .setDisplayName(player, getPluginInstance().getConfig().getString("shop-creation-item.display-name"))
+                    .setLore(player, getPluginInstance().getConfig().getStringList("shop-creation-item.lore"))
+                    .setEnchantments(getPluginInstance().getConfig().getStringList("shop-creation-item.enchantments"))
+                    .setItemFlags(getPluginInstance().getConfig().getStringList("shop-creation-item.flags"))
+                    .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
+
+            if (isEnchanted) item.setEnchanted(true);
+
+            return item.get();
+        }
+
+        return null;
     }
 
     /**
