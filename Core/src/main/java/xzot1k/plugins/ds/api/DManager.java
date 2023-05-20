@@ -1090,11 +1090,10 @@ public class DManager implements Manager {
                         renterId = (marketRegion.getRenter() != null ? marketRegion.getRenter().toString() : "");
                 if (host == null || host.isEmpty())
                     syntax = "INSERT OR REPLACE INTO market_regions(id, point_one, point_two, renter, extended_duration, rent_time_stamp, " +
-                            "extra_data) VALUES('"
-                            + marketRegion.getMarketId() + "', '" + pointOneString.replace("'", "\\'").replace("\"", "\\\"")
-                            + "', '" + pointTwoString.replace("'", "\\'").replace("\"", "\\\"") + "', '"
-                            + renterId + "', '" + marketRegion.getExtendedDuration() + "', '" + marketRegion.getRentedTimeStamp()
-                            + "', '" + extraDataLine + "');";
+                            "extra_data) VALUES('" + marketRegion.getMarketId() + "', '" + pointOneString.replace("'", "\\'")
+                            .replace("\"", "\\\"") + "', '" + pointTwoString.replace("'", "\\'")
+                            .replace("\"", "\\\"") + "', '" + renterId + "', '" + marketRegion.getExtendedDuration()
+                            + "', '" + marketRegion.getRentedTimeStamp() + "', '" + extraDataLine + "');";
                 else
                     syntax = "INSERT INTO market_regions(id, point_one, point_two, renter, extended_duration, rent_time_stamp, extra_data) VALUES( '"
                             + marketRegion.getMarketId() + "', '" + pointOneString.replace("'", "\\'")
@@ -1104,7 +1103,7 @@ public class DManager implements Manager {
                             + "'," + " point_one = '" + pointOneString.replace("'", "\\'").replace("\"", "\\\"")
                             + "', point_two = '" + pointTwoString.replace("'", "\\'").replace("\"", "\\\"")
                             + "', renter = '" + renterId + "', extended_duration = '" + marketRegion.getExtendedDuration()
-                            + "', rent_time_stamp = '" + marketRegion.getRentedTimeStamp() + "', '" + extraDataLine + "';";
+                            + "', rent_time_stamp = '" + marketRegion.getRentedTimeStamp() + "', extra_data = '" + extraDataLine + "';";
 
                 PreparedStatement preparedStatement = getPluginInstance().getDatabaseConnection().prepareStatement(syntax);
                 preparedStatement.execute();

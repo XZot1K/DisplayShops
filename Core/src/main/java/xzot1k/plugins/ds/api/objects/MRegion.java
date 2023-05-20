@@ -7,6 +7,7 @@ package xzot1k.plugins.ds.api.objects;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
@@ -65,7 +66,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public void resetHelper(Shop shop) {
+    public void resetHelper(@NotNull Shop shop) {
         shop.reset();
         shop.setOwnerUniqueId(UUID.randomUUID());
     }
@@ -76,9 +77,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public boolean extendRent(Player player) {
-        if (player == null) return false;
-
+    public boolean extendRent(@NotNull Player player) {
         EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
                 null, null, EconomyCallType.RENT_RENEW, this.getPluginInstance().getConfig().getDouble("rent-renew-cost"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;
@@ -92,9 +91,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public boolean rent(Player player) {
-        if (player == null) return false;
-
+    public boolean rent(@NotNull Player player) {
         final EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
                 null, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ? getRenewCost() : getCost()));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;
@@ -195,10 +192,9 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public boolean isInRegion(Location location) {
-        if (this.getRegion().getPointOne() == null || this.getRegion().getPointTwo() == null) {
-            return false;
-        }
+    public boolean isInRegion(@NotNull Location location) {
+        if (this.getRegion().getPointOne() == null || this.getRegion().getPointTwo() == null) return false;
+
         return (location.getWorld() != null
                 && (location.getWorld().getName().equalsIgnoreCase(this.getRegion().getPointOne().getWorldName())
                 && (location.getX() >= this.getRegion().getPointOne().getX()
@@ -216,10 +212,9 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public boolean isInRegion(LocationClone location) {
-        if (this.getRegion().getPointOne() == null || this.getRegion().getPointTwo() == null) {
-            return false;
-        }
+    public boolean isInRegion(@NotNull LocationClone location) {
+        if (this.getRegion().getPointOne() == null || this.getRegion().getPointTwo() == null) return false;
+
         return location.getWorldName().equalsIgnoreCase(this.getRegion().getPointOne().getWorldName())
                 && (location.getX() >= this.getRegion().getPointOne().getX()
                 && location.getX() <= this.getRegion().getPointTwo().getX()
