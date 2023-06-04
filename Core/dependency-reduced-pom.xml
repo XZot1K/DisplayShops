@@ -158,7 +158,7 @@
         <dependency>
             <groupId>com.iridium</groupId>
             <artifactId>IridiumSkyblock</artifactId>
-            <version>LATEST</version>
+            <version>3.2.8</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -171,7 +171,7 @@
     <properties>
         <maven.compiler.target>8</maven.compiler.target>
         <maven.compiler.source>8</maven.compiler.source>
-        <core.build>5</core.build>
+        <core.build>6</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 </project>

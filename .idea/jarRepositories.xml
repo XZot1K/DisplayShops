@@ -12,6 +12,11 @@
       <option name="url" value="https://jitpack.io" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="iridiumdevelopment" />
+      <option name="name" value="iridiumdevelopment" />
+      <option name="url" value="https://nexus.iridiumdevelopment.net/repository/maven-releases/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="savagelabs" />
       <option name="name" value="savagelabs" />
       <option name="url" value="https://nexus.savagelabs.net" />
@@ -75,6 +80,11 @@
       <option name="id" value="jboss.community" />
       <option name="name" value="JBoss Community repository" />
       <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="my-local-repo" />
+      <option name="name" value="my-local-repo" />
+      <option name="url" value="file://C:\Users\alexo/.m2/repository" />
     </remote-repository>
   </component>
 </project>

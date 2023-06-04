@@ -94,7 +94,10 @@ public class RecoveryData {
             if (resultSet.next()) {
                 setCurrency(resultSet.getDouble("currency"));
                 setItemAmount(resultSet.getInt("item_amount"));
-                setItem(DisplayShops.getPluginInstance().getPacketManager().toItem(resultSet.getString("item")));
+
+                String itemString = resultSet.getString("item");
+                if (itemString != null && !itemString.isEmpty())
+                    setItem(DisplayShops.getPluginInstance().getPacketManager().toItem(itemString));
             }
         } catch (SQLException e) {
             e.printStackTrace();

@@ -206,6 +206,7 @@ public class Listeners implements Listener {
             return;
         }
 
+        final boolean editPrevention = getPluginInstance().getConfig().getBoolean("editor-prevention");
         if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
             if (handItem.getType() == Material.LAVA_BUCKET) getPluginInstance().getInSightTask().refreshShop(shop);
 
@@ -244,22 +245,24 @@ public class Listeners implements Listener {
                     return;
                 }
 
-                if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
-                    if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
-                        e.setCancelled(true);
-                        String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
-                        if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-                        return;
+                if (editPrevention) {
+                    if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
+                        if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
+                            e.setCancelled(true);
+                            String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
+                            if (message != null && !message.equalsIgnoreCase(""))
+                                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                            return;
+                        }
+                        shop.setCurrentEditor(null);
                     }
-                    shop.setCurrentEditor(null);
                 }
 
                 ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.QUICK_WITHDRAW);
                 getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
                 if (shopEditEvent.isCancelled()) return;
 
-                shop.setCurrentEditor(e.getPlayer().getUniqueId());
+                if (editPrevention) shop.setCurrentEditor(e.getPlayer().getUniqueId());
                 dataPack.setSelectedShop(shop);
 
                 String message = getPluginInstance().getLangConfig().getString("quick-withdraw");
@@ -313,15 +316,17 @@ public class Listeners implements Listener {
                     }
                 }
 
-                if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
-                    if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
-                        e.setCancelled(true);
-                        String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
-                        if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-                        return;
+                if (editPrevention) {
+                    if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
+                        if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
+                            e.setCancelled(true);
+                            String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
+                            if (message != null && !message.equalsIgnoreCase(""))
+                                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                            return;
+                        }
+                        shop.setCurrentEditor(null);
                     }
-                    shop.setCurrentEditor(null);
                 }
 
                 if (!shop.isAdminShop() && (shop.getOwnerUniqueId().toString().equals(e.getPlayer().getUniqueId().toString()) || shop.getAssistants().contains(e.getPlayer().getUniqueId()))) {
@@ -443,22 +448,24 @@ public class Listeners implements Listener {
                     return;
                 }
 
-                if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
-                    if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
-                        e.setCancelled(true);
-                        String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
-                        if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-                        return;
+                if (editPrevention) {
+                    if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
+                        if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
+                            e.setCancelled(true);
+                            String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
+                            if (message != null && !message.equalsIgnoreCase(""))
+                                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                            return;
+                        }
+                        shop.setCurrentEditor(null);
                     }
-                    shop.setCurrentEditor(null);
                 }
 
                 ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.OPEN_EDIT_MENU);
                 getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
                 if (shopEditEvent.isCancelled()) return;
 
-                shop.setCurrentEditor(e.getPlayer().getUniqueId());
+                if (editPrevention) shop.setCurrentEditor(e.getPlayer().getUniqueId());
 
                 dataPack.setSelectedShop(shop);
                 Inventory inventory = getPluginInstance().getManager().buildShopEditMenu(e.getPlayer());
@@ -475,15 +482,17 @@ public class Listeners implements Listener {
                     }
                 }
 
-                if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
-                    if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
-                        e.setCancelled(true);
-                        String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
-                        if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
-                        return;
+                if (editPrevention) {
+                    if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(e.getPlayer().getUniqueId().toString())) {
+                        if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
+                            e.setCancelled(true);
+                            String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
+                            if (message != null && !message.equalsIgnoreCase(""))
+                                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                            return;
+                        }
+                        shop.setCurrentEditor(null);
                     }
-                    shop.setCurrentEditor(null);
                 }
 
                 ShopTransactionEvent shopTransactionEvent = new ShopTransactionEvent(e.getPlayer(), shop);
@@ -582,16 +591,19 @@ public class Listeners implements Listener {
                 return;
             }
 
-            if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(player.getUniqueId().toString())) {
-                if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
-                    dataPack.resetEditData();
-                    player.closeInventory();
-                    String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
-                    if (message != null && !message.equalsIgnoreCase(""))
-                        getPluginInstance().getManager().sendMessage(player, message);
-                    return;
+
+            if (getPluginInstance().getConfig().getBoolean("editor-prevention")) {
+                if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(player.getUniqueId().toString())) {
+                    if (getPluginInstance().getServer().getOfflinePlayer(shop.getCurrentEditor()).isOnline()) {
+                        dataPack.resetEditData();
+                        player.closeInventory();
+                        String message = getPluginInstance().getLangConfig().getString("shop-under-edit");
+                        if (message != null && !message.equalsIgnoreCase(""))
+                            getPluginInstance().getManager().sendMessage(player, message);
+                        return;
+                    }
+                    shop.setCurrentEditor(null);
                 }
-                shop.setCurrentEditor(null);
             }
 
             String message;
@@ -944,10 +956,12 @@ public class Listeners implements Listener {
                 return;
             }
 
-            if ((shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(player.getUniqueId().toString())) || !shop.canEdit(player)) {
-                dataPack.resetEditData();
-                player.closeInventory();
-                return;
+            if (getPluginInstance().getConfig().getBoolean("editor-prevention")) {
+                if ((shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(player.getUniqueId().toString())) || !shop.canEdit(player)) {
+                    dataPack.resetEditData();
+                    player.closeInventory();
+                    return;
+                }
             }
 
             boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null);
@@ -1618,10 +1632,12 @@ public class Listeners implements Listener {
                 return;
             }
 
-            if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(player.getUniqueId().toString())) {
-                dataPack.resetEditData();
-                player.closeInventory();
-                return;
+            if (getPluginInstance().getConfig().getBoolean("editor-prevention")) {
+                if (shop.getCurrentEditor() != null && !shop.getCurrentEditor().toString().equals(player.getUniqueId().toString())) {
+                    dataPack.resetEditData();
+                    player.closeInventory();
+                    return;
+                }
             }
 
             if (e.getCurrentItem() == null || e.getCurrentItem().getType().name().contains("AIR")) return;

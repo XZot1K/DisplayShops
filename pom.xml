@@ -68,6 +68,11 @@
         </repository>
 
         <repository>
+            <id>iridiumdevelopment</id>
+            <url>https://nexus.iridiumdevelopment.net/repository/maven-releases/</url>
+        </repository>
+
+        <repository>
             <id>codemc-snapshots</id>
             <url>https://repo.codemc.org/repository/maven-snapshots</url>
         </repository>
@@ -80,11 +85,6 @@
         <repository>
             <id>jitpack-repo</id>
             <url>https://jitpack.io</url>
-        </repository>
-
-        <repository>
-            <id>public</id>
-            <url>https://repo.songoda.com/repository/public/</url>
         </repository>
     </repositories>
 
@@ -193,7 +193,7 @@
         <dependency>
             <groupId>com.iridium</groupId>
             <artifactId>IridiumSkyblock</artifactId>
-            <version>LATEST</version>
+            <version>3.2.8</version>
             <scope>provided</scope>
         </dependency>
 

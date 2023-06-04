@@ -641,7 +641,10 @@ public class DShop implements Shop {
      */
     public void updateTimeStamp() {
         setChangeTimeStamp(System.currentTimeMillis());
+        addToRebuildQueue();
+    }
 
+    public void addToRebuildQueue() {
         if (DisplayShops.getPluginInstance().getShopVisitItemTask() != null) {
             final Queue<UUID> rebuildQueue = DisplayShops.getPluginInstance().getShopVisitItemTask().getRebuildQueue();
             if (rebuildQueue != null && !rebuildQueue.contains(getShopId())) rebuildQueue.add(getShopId());
@@ -759,6 +762,7 @@ public class DShop implements Shop {
 
     public void setStock(int stock) {
         getIntegerValues()[0] = stock;
+        addToRebuildQueue();
     }
 
     /**
@@ -777,6 +781,7 @@ public class DShop implements Shop {
      */
     public void setStoredBalance(double amount) {
         this.storedBalance = new BigDecimal(amount);
+        addToRebuildQueue();
     }
 
     public int getBuyLimit() {
@@ -817,6 +822,7 @@ public class DShop implements Shop {
 
     public void setShopItemAmount(int shopItemAmount) {
         getIntegerValues()[5] = shopItemAmount;
+        addToRebuildQueue();
     }
 
     // dynamic price changing getters & setters.
@@ -852,6 +858,7 @@ public class DShop implements Shop {
 
     public void setShopItem(ItemStack shopItem) {
         this.shopItem = shopItem;
+        addToRebuildQueue();
     }
 
     /**
@@ -867,6 +874,7 @@ public class DShop implements Shop {
 
     public void setBuyPrice(double buyPrice) {
         this.buyPrice = new BigDecimal(buyPrice);
+        addToRebuildQueue();
     }
 
     /**
@@ -882,6 +890,7 @@ public class DShop implements Shop {
 
     public void setSellPrice(double sellPrice) {
         this.sellPrice = new BigDecimal(sellPrice);
+        addToRebuildQueue();
     }
 
     public UUID getOwnerUniqueId() {
@@ -890,6 +899,7 @@ public class DShop implements Shop {
 
     public void setOwnerUniqueId(UUID ownerUniqueId) {
         this.ownerUniqueId = ownerUniqueId;
+        addToRebuildQueue();
     }
 
     public LocationClone getBaseLocation() {
@@ -898,6 +908,7 @@ public class DShop implements Shop {
 
     public void setBaseLocation(LocationClone baseLocation) {
         this.baseLocation = baseLocation;
+        addToRebuildQueue();
     }
 
     public UUID getShopId() {
@@ -930,6 +941,7 @@ public class DShop implements Shop {
 
     public void setTradeItem(ItemStack tradeItem) {
         this.tradeItem = tradeItem;
+        addToRebuildQueue();
     }
 
     public long getChangeTimeStamp() {
@@ -946,6 +958,7 @@ public class DShop implements Shop {
 
     public void setDescription(String description) {
         this.description = description;
+        addToRebuildQueue();
     }
 
     public String getStoredBaseBlockMaterial() {
