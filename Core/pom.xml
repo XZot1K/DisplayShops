@@ -16,7 +16,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>9</core.build>
+        <core.build>10</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -104,6 +104,12 @@
         </dependency>
 
         <!-- NMS -->
+        <dependency>
+            <groupId>xzot1k.plugins.ds</groupId>
+            <artifactId>v1_20_r1</artifactId>
+            <version>1.0</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>xzot1k.plugins.ds</groupId>
             <artifactId>v1_19_r3</artifactId>
@@ -223,7 +229,7 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>
-            <version>1.19.4-R0.1-SNAPSHOT</version>
+            <version>1.20-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 
