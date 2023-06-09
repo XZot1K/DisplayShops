@@ -10,19 +10,20 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>Core</artifactId>
-    <version>1.7.1</version>
+    <version>1.7.2</version>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>7</core.build>
+        <core.build>1</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
         <defaultGoal>clean package</defaultGoal>
         <finalName>DisplayShops_${project.version}-build_${core.build}</finalName>
+        <!-- <finalName>DisplayShops_${project.version}</finalName> -->
 
         <resources>
             <resource>
@@ -100,6 +101,12 @@
         </dependency>
 
         <!-- NMS -->
+        <dependency>
+            <groupId>xzot1k.plugins.ds</groupId>
+            <artifactId>v1_20_r1</artifactId>
+            <version>1.0</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>xzot1k.plugins.ds</groupId>
             <artifactId>v1_19_r3</artifactId>

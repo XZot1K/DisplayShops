@@ -25,8 +25,11 @@ public class PacketManager implements xzot1k.plugins.ds.api.PacketManager {
 
     private void setup() {
         // TODO add reflection backup
-
-        if (INSTANCE.getServerVersion() == 1_19.3) {
+        if (INSTANCE.getServerVersion() == 1_20.1) {
+            this.particleHandler = new xzot1k.plugins.ds.core.packets.v1_20_R1.PPacket();
+            this.actionBarHandler = new xzot1k.plugins.ds.core.packets.v1_20_R1.ABPacket();
+            this.serializeUtil = new xzot1k.plugins.ds.core.packets.v1_20_R1.SUtil(INSTANCE);
+        } else if (INSTANCE.getServerVersion() == 1_19.3) {
             this.particleHandler = new xzot1k.plugins.ds.core.packets.v1_19_R3.PPacket();
             this.actionBarHandler = new xzot1k.plugins.ds.core.packets.v1_19_R3.ABPacket();
             this.serializeUtil = new xzot1k.plugins.ds.core.packets.v1_19_R3.SUtil(INSTANCE);

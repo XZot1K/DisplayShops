@@ -253,7 +253,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setupTasks();
         double version = Math.floor(getServerVersion());
-        log(Level.INFO, "Fully loaded and enabled with " + (version / (version >= 100 ? 100 : 10))
+        log(Level.INFO, "Fully loaded and enabled with " + (version / (version >= 100 ? 100 : 10)) + (version >= 100 ? "0" : "")
                 + " packets (Took " + (System.currentTimeMillis() - startTime) + "ms).");
 
         if (getDescription().getVersion().toLowerCase().contains("build") || getDescription().getVersion().toLowerCase().contains("snapshot"))
@@ -338,7 +338,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                 try {
                     statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/auto-backup.db").getPath()
                             .replace("'", "").replace("\"", "") + "';");
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
 
                 statement.executeUpdate("PRAGMA integrity_check;");
                 String shopParameters = "(id TEXT PRIMARY KEY NOT NULL, location TEXT NOT NULL, owner TEXT, assistants TEXT, buy_price REAL,"
@@ -559,7 +560,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                     statement.executeUpdate();
                     statement.close();
 
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -1329,7 +1331,11 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return listeners;
     }
 
-    public PacketManager getPacketManager() {return packetManager;}
+    public PacketManager getPacketManager() {
+        return packetManager;
+    }
 
-    public boolean isItemAdderInstalled() {return isItemAdderInstalled;}
+    public boolean isItemAdderInstalled() {
+        return isItemAdderInstalled;
+    }
 }
