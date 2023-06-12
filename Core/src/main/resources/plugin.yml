@@ -25,7 +25,6 @@ permissions:
       displayshops.give: true
       displayshops.admin: true
       displayshops.reload: true
-      displayshops.edit: true
       displayshops.stock: true
       displayshops.owner: true
       displayshops.cmr: true
@@ -56,6 +55,7 @@ permissions:
       displayshops.copy: true
       displayshops.help: true
       displayshops.rent: true
+      displayshops.edit: true
       displayshops.assistants: true
       displayshops.description: true
       displayshops.advertise: true

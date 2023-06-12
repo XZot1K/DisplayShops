@@ -31,10 +31,7 @@ import xzot1k.plugins.ds.api.events.ShopDeletionEvent;
 import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 public class MenuListener implements Listener {
 
@@ -306,9 +303,14 @@ public class MenuListener implements Listener {
                 final String title = menu.getConfiguration().getString("description-entry.title");
 
                 new AnvilGUI.Builder()
-                        .onClose(p -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> p.openInventory(menu.build(player)), 1))
-                        .onComplete((p, t) -> {
-                            String filteredEntry = t.substring(0, Math.min(t.length(), INSTANCE.getConfig().getInt("description-character-limit")));
+                        .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                        .onClick((slot, stateSnapshot) -> {
+
+                            if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                            String filteredEntry = stateSnapshot.getText().substring(0, Math.min(stateSnapshot.getText().length(),
+                                    INSTANCE.getConfig().getInt("description-character-limit")));
                             List<String> filterList = INSTANCE.getConfig().getStringList("description-filter");
                             for (int i = -1; ++i < filterList.size(); )
                                 filteredEntry = filteredEntry.replaceAll("(?i)" + filterList.get(i), "");
@@ -317,7 +319,7 @@ public class MenuListener implements Listener {
 
                             if (filteredEntry.equalsIgnoreCase(shop.getDescription())) {
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
-                                return AnvilGUI.Response.text(menu.getConfiguration().getString("description-entry.too-similar"));
+                                return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(menu.getConfiguration().getString("description-entry.too-similar")));
                             }
 
                             EconomyCallEvent economyCallEvent = INSTANCE.getManager().initiateShopEconomyTransaction(player, null, shop,
@@ -331,7 +333,7 @@ public class MenuListener implements Listener {
                                     ("{description}:" + shop.getDescription()));
 
                             INSTANCE.runEventCommands("shop-description", player);
-                            return AnvilGUI.Response.close();
+                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
                         })
                         .text((shop.getDescription() != null && !shop.getDescription().isEmpty()) ?
                                 INSTANCE.getManager().color(shop.getDescription()) : " ")
@@ -894,13 +896,16 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     new AnvilGUI.Builder()
-                            .onClose(p -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> p.openInventory(menu.build(player)), 1))
-                            .onComplete((p, t) -> {
+                            .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                            .onClick((slot, stateSnapshot) -> {
 
-                                menu.loadPages(player, dataPack, shop, t.trim());
+                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim());
                                 menu.switchPage(inventory, player, dataPack.getCurrentPage());
 
-                                return AnvilGUI.Response.close();
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")
                             .title(INSTANCE.getManager().color(title))
@@ -1053,13 +1058,16 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     new AnvilGUI.Builder()
-                            .onClose(p -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> p.openInventory(menu.build(player)), 1))
-                            .onComplete((p, t) -> {
+                            .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                            .onClick((slot, stateSnapshot) -> {
 
-                                menu.loadPages(player, dataPack, shop, t.trim());
+                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim());
                                 menu.switchPage(inventory, player, dataPack.getCurrentPage());
 
-                                return AnvilGUI.Response.close();
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")
                             .title(INSTANCE.getManager().color(title))
@@ -1161,13 +1169,16 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     new AnvilGUI.Builder()
-                            .onClose(p -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> p.openInventory(menu.build(player)), 1))
-                            .onComplete((p, t) -> {
+                            .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                            .onClick((slot, stateSnapshot) -> {
 
-                                menu.loadPages(player, dataPack, null, t.trim());
+                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim());
                                 menu.switchPage(inventory, player, dataPack.getCurrentPage());
 
-                                return AnvilGUI.Response.close();
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")
                             .title(INSTANCE.getManager().color(title))
@@ -1334,21 +1345,25 @@ public class MenuListener implements Listener {
                 final String title = Objects.requireNonNull(menu.getConfiguration().getString("custom-amount-entry.title"));
 
                 new AnvilGUI.Builder()
-                        .onClose(p -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> p.openInventory(menu.build(player)), 1))
-                        .onComplete((p, t) -> {
-                            t = t.replace(" ", "").replace(",", ".");
+                        .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                        .onClick((slot, stateSnapshot) -> {
+
+                            if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                            String text = stateSnapshot.getText().replace(" ", "").replace(",", ".");
 
                             if (dataPack.getInteractionType() != InteractionType.AMOUNT_STOCK
                                     && dataPack.getInteractionType() != InteractionType.AMOUNT_BALANCE) {
-                                if (t.startsWith("-"))
-                                    return AnvilGUI.Response.text(menu.getConfiguration().getString("custom-amount-entry.negative"));
+                                if (text.startsWith("-"))
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(menu.getConfiguration().getString("custom-amount-entry.negative")));
                             }
 
-                            if (INSTANCE.getManager().isNotNumeric(t))
-                                return AnvilGUI.Response.text(menu.getConfiguration().getString("custom-amount-entry.invalid"));
+                            if (INSTANCE.getManager().isNotNumeric(text))
+                                return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(menu.getConfiguration().getString("custom-amount-entry.invalid")));
 
-                            dataPack.setInteractionValue(Double.parseDouble(t));
-                            return AnvilGUI.Response.close();
+                            dataPack.setInteractionValue(Double.parseDouble(text));
+                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
                         })
                         .text(" ")
                         .title(INSTANCE.getManager().color(title))
@@ -1697,12 +1712,13 @@ public class MenuListener implements Listener {
         if (itemMeta != null) {
             String name = menu.getConfiguration().getString("buttons.amount.name");
             if (name != null) {
-                final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE")
-                        || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE);
+                final String currencySymbol = INSTANCE.getConfig().getString("currency-symbol");
+                final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE") || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE);
 
                 itemMeta.setDisplayName(INSTANCE.getManager().color(name
-                        .replace("{amount}", (isDecimal ? INSTANCE.getConfig().getString("currency-symbol")
-                                : "") + INSTANCE.getManager().formatNumber(finalAmount, isDecimal))));
+                        .replace("{currency-symbol}", (isDecimal ? (currencySymbol != null ? currencySymbol : "") : ""))
+                        .replace("{amount}", INSTANCE.getManager().formatNumber(finalAmount, isDecimal))));
+
                 amountItem.setItemMeta(itemMeta);
             }
         }

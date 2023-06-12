@@ -69,23 +69,19 @@ public class SUtil implements SerializeUtil {
 
     public String toJSON(@NotNull ItemStack itemStack) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
-        final NBTTagCompound tag = item.v();
-        if (tag == null) return null;
+        final NBTTagCompound tag = item.w();
         return tag.toString();
     }
 
     public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
-        final NBTTagCompound tag = item.v();
-        if (tag == null) return null;
+        final NBTTagCompound tag = item.w();
         return tag.l(nbtTag);
     }
 
     public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
-        final NBTTagCompound tag = item.v(); // getOrCreateTag()
-        if (tag == null) return itemStack;
-
+        final NBTTagCompound tag = item.w(); // getOrCreateTag()
         tag.a(nbtTag, value); // putString()
         item.b(tag); // save()
 
