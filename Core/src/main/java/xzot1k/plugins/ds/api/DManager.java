@@ -1659,7 +1659,7 @@ public class DManager implements Manager {
 
             if (isEnchanted) item.setEnchanted(true);
 
-            return item.get();
+            return getPluginInstance().getPacketManager().updateNBT(item.get(), "DisplayShops", "Creation Item");
         }
 
         return null;

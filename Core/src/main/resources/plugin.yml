@@ -7,7 +7,6 @@ description: Create immersive simplistic shops with animations, efficient transa
 softdepend: [ Vault, HeadDatabase, Prisma, PlaceholderAPI, PlotSquared, BentoBox, BSkyBlock, Oneblock, CMI, MultiWorld, Multiverse-Core,
               ASkyBlock, USkyBlock, FabledSkyBlock, PlayerWorldsPro, WorldGuard, WorldEdit, ItemsAdder ]
 loadbefore: [ GriefPrevention, JetsMinions ]
-loadafter: [ ]
 load: POSTWORLD
 
 commands:
@@ -31,6 +30,7 @@ permissions:
       displayshops.dmr: true
       displayshops.sm: true
       displayshops.mrl: true
+      displayshops.adminedit: true
       displayshops.adminhelp: true
       displayshops.admindelete: true
       displayshops.cdbypass: true
@@ -86,6 +86,9 @@ permissions:
     default: op
     description: Allows the sender to view the user help message.
   displayshops.edit:
+    default: op
+    description: Allows the player to do anything to any shop without being the rightful owner.
+  displayshops.adminedit:
     default: op
     description: Allows the player to do anything to any shop without being the rightful owner.
   displayshops.bypass:
