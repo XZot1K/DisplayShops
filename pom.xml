@@ -37,7 +37,7 @@
         <maven.compiler.target>8</maven.compiler.target>
 
         <api.version>1.4.1</api.version>
-        <vault.version>1.7.1</vault.version>
+        <vault.version>1.7</vault.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

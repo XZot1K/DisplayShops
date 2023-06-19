@@ -143,7 +143,7 @@ public class SkyBlockListener implements Listener {
                     for (Shop shop : new ArrayList<>(getPluginInstance().getManager().getShopMap().values())) {
                         if (shop == null || !getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId())
                                 || shop.getBaseLocation() == null || (shop.getBaseLocation() != null
-                                && !shop.getBaseLocation().getWorldName().equalsIgnoreCase(Objects.requireNonNull(e.getIsland().getCenter().getWorld()).getName())))
+                                && (e.getIsland().getWorld() != null && !shop.getBaseLocation().getWorldName().equalsIgnoreCase(e.getIsland().getWorld().getName()))))
                             continue;
 
                         if (e.getIsland().inIslandSpace((int) shop.getBaseLocation().getX(), (int) shop.getBaseLocation().getZ())) {

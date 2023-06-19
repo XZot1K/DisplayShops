@@ -2154,10 +2154,13 @@ public class DManager implements Manager {
                         .setItemFlags(getPluginInstance().getConfig().getStringList("shop-creation-item.flags"))
                         .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
-        if (getPluginInstance().getConfig().getBoolean("shop-creation-item.enchanted"))
-            item.setEnchanted(true);
+        if (item != null) {
+            if (getPluginInstance().getConfig().getBoolean("shop-creation-item.enchanted")) item.setEnchanted(true);
 
-        return item.get();
+            return getPluginInstance().getPacketManager().updateNBT(item.get(), "DisplayShops", "Creation Item");
+        }
+
+        return null;
     }
 
     /**
