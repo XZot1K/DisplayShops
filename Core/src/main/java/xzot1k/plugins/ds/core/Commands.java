@@ -1615,7 +1615,6 @@ public class Commands implements CommandExecutor {
         getPluginInstance().reloadConfigs();
 
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
-        getPluginInstance().getListeners().setPistonCheck(getPluginInstance().getConfig().getBoolean("piston-protection.check"));
 
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
             getPluginInstance().getManager().saveMarketRegions();

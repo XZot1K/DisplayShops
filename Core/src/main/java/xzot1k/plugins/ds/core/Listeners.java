@@ -18,10 +18,7 @@ import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.*;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockPistonExtendEvent;
-import org.bukkit.event.block.BlockPistonRetractEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.*;
@@ -49,20 +46,9 @@ public class Listeners implements Listener {
     private DisplayShops pluginInstance;
     public ItemStack creationItem;
 
-    public boolean isPistonCheck() {
-        return pistonCheck;
-    }
-
-    public void setPistonCheck(boolean pistonCheck) {
-        this.pistonCheck = pistonCheck;
-    }
-
-    private boolean pistonCheck;
-
     public Listeners(DisplayShops pluginInstance) {
         setPluginInstance(pluginInstance);
         creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
-        setPistonCheck(getPluginInstance().getConfig().getBoolean("piston-protection.check"));
     }
 
     private boolean isCreationItem(BlockPlaceEvent e) {
@@ -389,7 +375,8 @@ public class Listeners implements Listener {
                     getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
                     if (shopEditEvent.isCancelled()) return;
 
-                    final int maxStock = getPluginInstance().getManager().getMaxStock(shop), newTotalStock = (shop.getStock() + itemInHand.getAmount()), remainderInHand = (newTotalStock - maxStock);
+                    final int maxStock = getPluginInstance().getManager().getMaxStock(shop), newTotalStock = (shop.getStock() + itemInHand.getAmount()), remainderInHand =
+                            (newTotalStock - maxStock);
 
                     if (shop.isAdminShop() && shop.getStock() < 0) {
                         String message = getPluginInstance().getLangConfig().getString("shop-infinite-stock");
@@ -415,7 +402,8 @@ public class Listeners implements Listener {
                                             , false)));
                     } else {
                         if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{amount}", getPluginInstance().getManager().formatNumber(itemInHand.getAmount(), false)));
+                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{amount}",
+                                    getPluginInstance().getManager().formatNumber(itemInHand.getAmount(), false)));
                         shop.setStock(newTotalStock);
                         if (remainderInHand <= 0) {
                             if (isOffhandVersion) e.getPlayer().getInventory().setItemInMainHand(null);
@@ -621,10 +609,12 @@ public class Listeners implements Listener {
                     ItemStack currencyItem = (!forceUse && shop.getTradeItem() != null) ? shop.getTradeItem().clone() : getPluginInstance().getManager().buildShopCurrencyItem(1);
                     ItemMeta itemMeta = currencyItem.getItemMeta();
                     if (itemMeta != null) {
-                        List<String> tradeLore = getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.trade-item-lore"), lore = (currencyItem.getItemMeta().getLore() != null ?
-                                currencyItem.getItemMeta().getLore() : new ArrayList<>());
+                        List<String> tradeLore = getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.trade-item-lore"), lore =
+                                (currencyItem.getItemMeta().getLore() != null ?
+                                        currencyItem.getItemMeta().getLore() : new ArrayList<>());
                         for (int i = -1; ++i < tradeLore.size(); )
-                            lore.add(getPluginInstance().getManager().color(tradeLore.get(i).replace("{sell}", getPluginInstance().getManager().formatNumber(shop.getSellPrice(true), false)).replace(
+                            lore.add(getPluginInstance().getManager().color(tradeLore.get(i).replace("{sell}",
+                                    getPluginInstance().getManager().formatNumber(shop.getSellPrice(true), false)).replace(
                                     "{buy}", getPluginInstance().getManager().formatNumber(shop.getBuyPrice(true), false))));
                         itemMeta.setLore(lore);
                         currencyItem.setItemMeta(itemMeta);
@@ -639,8 +629,9 @@ public class Listeners implements Listener {
                     if (!(getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null)) {
                         ItemMeta itemMeta = previewItem.getItemMeta();
                         if (itemMeta != null) {
-                            List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()), previewLore = getPluginInstance().getMenusConfig().getStringList(
-                                    "shop-transaction-menu.preview-trade-item-lore");
+                            List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()), previewLore =
+                                    getPluginInstance().getMenusConfig().getStringList(
+                                            "shop-transaction-menu.preview-trade-item-lore");
                             for (int i = -1; ++i < previewLore.size(); )
                                 lore.add(getPluginInstance().getManager().color(previewLore.get(i)));
                             itemMeta.setLore(lore);
@@ -1500,7 +1491,8 @@ public class Listeners implements Listener {
             final String buyType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.buy-type"),
                     sellType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.sell-type"),
                     bothType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.both-type"),
-                    nameFormat = ChatColor.stripColor(getPluginInstance().getManager().color(getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.display-name"))),
+                    nameFormat = ChatColor.stripColor(getPluginInstance().getManager().color(getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item" +
+                            ".display-name"))),
                     currentType = getCurrentShopFilterType(e.getCurrentItem());
 
             final ItemStack itemStack = e.getCurrentItem().clone();
@@ -1877,48 +1869,43 @@ public class Listeners implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onExplode(EntityExplodeEvent e) {
-        for (int i = -1; ++i < e.blockList().size(); ) {
+
+        if (getPluginInstance().getConfig().getBoolean("explosive-protection.check")) {
+            e.blockList().stream().parallel().forEach(block -> {
+                final Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
+                if (shop != null) shop.delete(true);
+            }); return;
+        }
+
+        if (getPluginInstance().getConfig().getBoolean("explosive-protection.alternative-method")) {
+            Optional<Block> blockSearch = e.blockList().stream().parallel().filter(block ->
+                    (getPluginInstance().getManager().getShop(block.getLocation()) != null)).findAny();
+            blockSearch.ifPresent(block -> e.setCancelled(true));
+        } else e.blockList().removeIf(block -> (getPluginInstance().getManager().getShop(block.getLocation()) != null));
+
+        /*for (int i = -1; ++i < e.blockList().size(); ) {
             Block block = e.blockList().get(i);
             Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
-            if (shop != null) e.blockList().remove(i);
-        }
+            if (shop != null) {
+                getPluginInstance().log(Level.WARNING, shop.getShopId() + " was protected from TNT.");
+                e.blockList().remove(i);
+            }
+        }*/
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent e) {
-        if (!isPistonCheck()) return;
-
-        final boolean altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
-        for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
-            final Shop shop = entry.getValue();
-            if (shop == null || shop.getBaseLocation() == null) continue;
-
-            if (altPistonCheck) {
-                final boolean yDiff = (e.getBlock().getY() != shop.getBaseLocation().getY()),
-                        xDiff = (e.getBlock().getX() != shop.getBaseLocation().getX()),
-                        zDiff = (e.getBlock().getZ() != shop.getBaseLocation().getZ());
-
-                final double changeInX = (Math.max(e.getBlock().getX(), shop.getBaseLocation().getX()) - Math.min(e.getBlock().getX(), shop.getBaseLocation().getX())),
-                        changeInY = (Math.max(e.getBlock().getY(), shop.getBaseLocation().getY()) - Math.min(e.getBlock().getY(), shop.getBaseLocation().getY())),
-                        changeInZ = (Math.max(e.getBlock().getZ(), shop.getBaseLocation().getZ()) - Math.min(e.getBlock().getZ(), shop.getBaseLocation().getZ()));
-
-                if ((!xDiff && zDiff && changeInZ < 12) || (!zDiff && xDiff && changeInX < 12) || (yDiff && changeInY < 12 && !xDiff && !zDiff)) {
-                    e.setCancelled(true);
-                    break;
-                }
-            } else {
-                if (e.getBlocks().removeIf(block -> shop.getBaseLocation().isSameNormal(block.getLocation()))) {
-                    e.setCancelled(true);
-                    break;
-                }
-            }
-        }
+        if (!getPluginInstance().getConfig().getBoolean("piston-protection.check")) return;
+        handlePistons(e, e.getBlocks());
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent e) {
-        if (!isPistonCheck()) return;
+        if (!getPluginInstance().getConfig().getBoolean("piston-protection.check")) return;
+        handlePistons(e, e.getBlocks());
+    }
 
+    private void handlePistons(BlockPistonEvent e, List<Block> blocks) {
         final boolean altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
         for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
             final Shop shop = entry.getValue();
@@ -1938,16 +1925,14 @@ public class Listeners implements Listener {
                     break;
                 }
             } else {
-                for (int i = -1; ++i < e.getBlocks().size(); ) {
-                    final Block block = e.getBlocks().get(i);
-                    if (shop.getBaseLocation().isSameNormal(block.getLocation())) {
-                        e.setCancelled(true);
-                        break;
-                    }
+                if (blocks.stream().parallel().anyMatch(block -> shop.getBaseLocation().isSame(block.getLocation()))) {
+                    e.setCancelled(true);
+                    break;
                 }
             }
         }
     }
+
 
    /* @EventHandler(ignoreCancelled = true)
     public void onHopper(InventoryMoveItemEvent e) {
