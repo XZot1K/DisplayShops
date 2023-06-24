@@ -1182,8 +1182,6 @@ public class Commands implements CommandExecutor {
         getPluginInstance().reloadConfigs();
 
         // reload global variables
-        getPluginInstance().getListeners().pistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.check");
-        getPluginInstance().getListeners().altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
 
         // handle market regions
@@ -1600,8 +1598,6 @@ public class Commands implements CommandExecutor {
         } else getPluginInstance().setVaultEconomy(null);
 
         // reload global variables
-        getPluginInstance().getListeners().pistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.check");
-        getPluginInstance().getListeners().altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
 
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {

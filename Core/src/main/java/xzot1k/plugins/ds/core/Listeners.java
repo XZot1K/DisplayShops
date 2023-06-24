@@ -23,10 +23,7 @@ import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockPistonExtendEvent;
-import org.bukkit.event.block.BlockPistonRetractEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
@@ -46,21 +43,16 @@ import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Listeners implements Listener {
 
     private DisplayShops pluginInstance;
     public ItemStack creationItem;
-    public boolean pistonCheck, altPistonCheck;
 
     public Listeners(DisplayShops pluginInstance) {
         setPluginInstance(pluginInstance);
         creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
-        pistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.check");
-        altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
     }
 
     @EventHandler
@@ -374,7 +366,8 @@ public class Listeners implements Listener {
                     getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
                     if (shopEditEvent.isCancelled()) return;
 
-                    final int maxStock = getPluginInstance().getManager().getMaxStock(shop), newTotalStock = (shop.getStock() + itemInHand.getAmount()), remainderInHand = (newTotalStock - maxStock);
+                    final int maxStock = getPluginInstance().getManager().getMaxStock(shop), newTotalStock = (shop.getStock() + itemInHand.getAmount()), remainderInHand =
+                            (newTotalStock - maxStock);
 
                     if (shop.isAdminShop() && shop.getStock() < 0) {
                         String message = getPluginInstance().getLangConfig().getString("shop-infinite-stock");
@@ -400,7 +393,8 @@ public class Listeners implements Listener {
                                             , false)));
                     } else {
                         if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{amount}", getPluginInstance().getManager().formatNumber(itemInHand.getAmount(), false)));
+                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{amount}",
+                                    getPluginInstance().getManager().formatNumber(itemInHand.getAmount(), false)));
                         shop.setStock(newTotalStock);
                         if (remainderInHand <= 0) {
                             if (isOffhandVersion) e.getPlayer().getInventory().setItemInMainHand(null);
@@ -566,53 +560,52 @@ public class Listeners implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onExplode(EntityExplodeEvent e) {
-        for (int i = -1; ++i < e.blockList().size(); ) {
-            Block block = e.blockList().get(i);
-            Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
-            if (shop != null) e.blockList().remove(i);
+        if (getPluginInstance().getConfig().getBoolean("explosive-protection.check")) {
+            e.blockList().stream().parallel().forEach(block -> {
+                final Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
+                if (shop != null) shop.delete(true);
+            }); return;
         }
+
+        if (getPluginInstance().getConfig().getBoolean("explosive-protection.alternative-method")) {
+            Optional<Block> blockSearch = e.blockList().stream().parallel().filter(block ->
+                    (getPluginInstance().getManager().getShop(block.getLocation()) != null)).findAny();
+            blockSearch.ifPresent(block -> e.setCancelled(true));
+        } else e.blockList().removeIf(block -> (getPluginInstance().getManager().getShop(block.getLocation()) != null));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPistonExtend(BlockPistonExtendEvent e) {
-        if (!pistonCheck) return;
-        if (applyPistonCheck(e.getBlocks())) e.setCancelled(true);
+        if (!getPluginInstance().getConfig().getBoolean("piston-protection.check")) return;
+        handlePistons(e, e.getBlocks());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPistonRetract(BlockPistonRetractEvent e) {
-        if (!pistonCheck) return;
-        if (applyPistonCheck(e.getBlocks())) e.setCancelled(true);
+        if (!getPluginInstance().getConfig().getBoolean("piston-protection.check")) return;
+        handlePistons(e, e.getBlocks());
     }
 
-    private boolean applyPistonCheck(List<Block> blocks) {
-        for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
-            if (shop == null || shop.getBaseLocation() == null) continue;
+    private void handlePistons(@NotNull BlockPistonEvent e, @NotNull List<Block> blocks) {
+        if (!getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method")) {
+            if (blocks.stream().parallel().anyMatch(block -> (getPluginInstance().getManager().getShop(block.getLocation()) != null)))
+                e.setCancelled(true);
+        } else {
+            for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
+                final Shop shop = entry.getValue();
+                if (shop == null || shop.getBaseLocation() == null) continue;
 
-            if (altPistonCheck) {
-                for (int i = -1; ++i < blocks.size(); ) {
-                    final Block block = blocks.get(i);
+                if (blocks.stream().parallel().noneMatch(block -> (((block.getX() != shop.getBaseLocation().getX()) && (block.getZ() != shop.getBaseLocation().getZ())
+                        && (Math.max(block.getZ(), shop.getBaseLocation().getZ()) - Math.min(block.getZ(), shop.getBaseLocation().getZ())) >= 12)
+                        || ((block.getZ() != shop.getBaseLocation().getZ()) && (block.getX() != shop.getBaseLocation().getX())
+                        && (Math.max(block.getX(), shop.getBaseLocation().getX()) - Math.min(block.getX(), shop.getBaseLocation().getX())) >= 12
+                        || (!(block.getY() != shop.getBaseLocation().getY()) && !(block.getX() != shop.getBaseLocation().getX())
+                        && !(block.getZ() != shop.getBaseLocation().getZ())
+                        && (Math.max(block.getY(), shop.getBaseLocation().getY()) - Math.min(block.getY(), shop.getBaseLocation().getY())) >= 12))))) continue;
 
-                    final boolean yDiff = (block.getY() != shop.getBaseLocation().getY()),
-                            xDiff = (block.getX() != shop.getBaseLocation().getX()),
-                            zDiff = (block.getZ() != shop.getBaseLocation().getZ());
-
-                    final double changeInX = (Math.max(block.getX(), shop.getBaseLocation().getX()) - Math.min(block.getX(), shop.getBaseLocation().getX())),
-                            changeInY = (Math.max(block.getY(), shop.getBaseLocation().getY()) - Math.min(block.getY(), shop.getBaseLocation().getY())),
-                            changeInZ = (Math.max(block.getZ(), shop.getBaseLocation().getZ()) - Math.min(block.getZ(), shop.getBaseLocation().getZ()));
-
-                    if ((xDiff && zDiff && changeInZ >= 12) || (zDiff && xDiff && changeInX >= 12) || (!yDiff && !xDiff && !zDiff && changeInY >= 12)) continue;
-
-                    return true;
-                }
-            } else {
-                for (int i = -1; ++i < blocks.size(); ) {
-                    if (!shop.getBaseLocation().isSameNormal(blocks.get(i).getLocation())) continue;
-                    return true;
-                }
+                e.setCancelled(true);
             }
         }
-        return false;
     }
 
    /* @EventHandler(ignoreCancelled = true)
