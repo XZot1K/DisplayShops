@@ -58,10 +58,15 @@ public class SkyBlockListener implements Listener {
 
                         boolean foundEnv = false;
                         for (World.Environment env : World.Environment.values()) {
-                            if (shop.getBaseLocation().getWorldName().equalsIgnoreCase(Objects.requireNonNull(e.getIsland().getCenter(env).getWorld()).getName())) {
-                                foundEnv = true;
-                                break;
-                            }
+                            try {
+                                Location location = e.getIsland().getCenter(env);
+                                if (location != null && location.getWorld() != null) {
+                                    if (shop.getBaseLocation().getWorldName().equalsIgnoreCase(location.getWorld().getName())) {
+                                        foundEnv = true;
+                                        break;
+                                    }
+                                }
+                            } catch (NullPointerException ignored) {}
                         }
 
                         if (foundEnv && e.getIsland().isInside(shop.getBaseLocation().asBukkitLocation())) {
