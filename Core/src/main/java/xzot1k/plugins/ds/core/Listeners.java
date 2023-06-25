@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.*;
 import org.bukkit.event.block.*;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.*;
@@ -1865,6 +1866,12 @@ public class Listeners implements Listener {
                 }
             });
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityBlockChange(EntityChangeBlockEvent e) {
+        if (getPluginInstance().getManager().getShop(e.getBlock().getLocation()) != null)
+            e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
