@@ -778,10 +778,7 @@ public class DManager implements Manager {
      * @param shopId The ID to get the shop from
      * @return the shop object. (Can return NULL if the object does not exist)
      */
-    public Shop getShopById(UUID shopId) {
-        if (getShopMap().containsKey(shopId)) return getShopMap().get(shopId);
-        return null;
-    }
+    public Shop getShopById(@NotNull UUID shopId) {return getShopMap().getOrDefault(shopId, null);}
 
     /**
      * Get a shop from the passed chest if possible.
@@ -789,17 +786,11 @@ public class DManager implements Manager {
      * @param location Chest location.
      * @return The shop if found.
      */
-    public Shop getShop(Location location) {
-
-        final Shop[] list = getShopMap().values().toArray(new Shop[0]);
-        for (int i = -1; ++i < list.length; ) {
-            final Shop shop = list[i];
-            if (shop == null || shop.getBaseLocation() == null
-                    || !shop.getBaseLocation().isSame(location)) continue;
-            return shop;
-        }
-
-        return null;
+    public Shop getShop(@NotNull Location location) {
+        Optional<Map.Entry<UUID, Shop>> shopEntry = getShopMap().entrySet().parallelStream().filter(entry ->
+                (entry.getValue() != null && entry.getValue().getBaseLocation() != null
+                        && entry.getValue().getBaseLocation().isSame(location))).findAny();
+        return shopEntry.map(Map.Entry::getValue).orElse(null);
     }
 
     /**

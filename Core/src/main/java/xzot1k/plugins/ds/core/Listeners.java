@@ -24,6 +24,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
@@ -556,6 +557,12 @@ public class Listeners implements Listener {
                 getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(),
                         () -> getPluginInstance().writeToLog(stringBuilder.toString()));
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityBlockChange(EntityChangeBlockEvent e) {
+        if (getPluginInstance().getManager().getShop(e.getBlock().getLocation()) != null)
+            e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

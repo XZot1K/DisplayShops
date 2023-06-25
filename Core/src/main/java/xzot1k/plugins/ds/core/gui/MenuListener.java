@@ -837,7 +837,6 @@ public class MenuListener implements Listener {
         }
     }
 
-
     private void operateAppearanceMenu(@NotNull InventoryClickEvent e, @NotNull Inventory inventory, @NotNull Menu menu, @NotNull Player player) {
 
         e.setCancelled(true);

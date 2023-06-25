@@ -92,7 +92,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 }
 
                 // This will add the trade-item-amount, if missing
-                if (!buttonSection.contains("trade-item-amount")) {
+               /* if (!buttonSection.contains("trade-item-amount")) {
                     ConfigurationSection newSection = buttonSection.createSection("trade-item-amount");
                     final FileConfiguration jarConfigCopy = instance.getConfigFromJar("menus/edit.yml");
                     if (jarConfigCopy != null) {
@@ -106,7 +106,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                         save();
                     }
-                }
+                }*/
 
             }
         } else if (getMenuName().equals("amount-selector")) { // ensure {currency-symbol} is used in amount-selector
