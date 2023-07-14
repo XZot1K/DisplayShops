@@ -1058,14 +1058,9 @@ public class MenuListener implements Listener {
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     new AnvilGUI.Builder()
                             .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player, stateSnapshot.getText().trim())), 1))
                             .onClick((slot, stateSnapshot) -> {
-
                                 if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-
-                                menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim());
-                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
-
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")

@@ -4,10 +4,11 @@
 
 package xzot1k.plugins.ds.core;
 
-import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.ItemTag;
 import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Item;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
@@ -67,9 +68,6 @@ public class Commands implements CommandExecutor {
                     } else if (args[0].equalsIgnoreCase("cleanup")) {
                         runCleanUp(commandSender);
                         return true;
-                    } else if (args[0].equalsIgnoreCase("copy")) {
-                        runCopy(commandSender);
-                        return true;
                     } else if (args[0].equalsIgnoreCase("info")) {
                         runInfo(commandSender);
                         return true;
@@ -115,6 +113,9 @@ public class Commands implements CommandExecutor {
                         return true;
                     } else if (args[0].equalsIgnoreCase("notify")) {
                         runNotify(commandSender);
+                        return true;
+                    } else if (args[0].equalsIgnoreCase("id")) {
+                        runId(commandSender);
                         return true;
                     }
 
@@ -781,14 +782,60 @@ public class Commands implements CommandExecutor {
                     .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
                     .replace("{buy}", getPluginInstance().getManager().formatNumber(shop.getBuyPrice(true), true))
                     .replace("{sell}", getPluginInstance().getManager().formatNumber(shop.getSellPrice(true), true))));
-            if (shop.getShopItem() != null)
-                textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM,
-                        new BaseComponent[]{new TextComponent(getPluginInstance().getPacketManager().toJSON(shop.getShopItem()))}));
+            if (shop.getShopItem() != null) {
+
+                final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
+                        (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
+                                : shop.getShopItem().getItemMeta().toString()));
+
+                textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM, new Item(shop.getShopItem().getType().getKey().toString(),
+                        Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag)));
+            }
             textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/displayshops visit " + shop.getShopId()));
             getPluginInstance().getServer().getOnlinePlayers().forEach(p -> p.spigot().sendMessage(textComponent));
         }
 
         dataPack.updateCooldown("advertise");
+    }
+
+    private void runId(CommandSender commandSender) {
+        if (!(commandSender instanceof Player)) {
+            String message = getPluginInstance().getLangConfig().getString("must-be-player");
+            if (message != null && !message.equalsIgnoreCase(""))
+                commandSender.sendMessage(getPluginInstance().getManager().color(message));
+            return;
+        }
+
+        final Player player = (Player) commandSender;
+        if (!player.hasPermission("displayshops.id")) {
+            getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("no-permission"));
+            return;
+        }
+
+        final Block block = player.getTargetBlock(null, 10);
+        final Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
+        if (shop == null) {
+            String message = getPluginInstance().getLangConfig().getString("shop-invalid");
+            if (message != null && !message.equalsIgnoreCase(""))
+                getPluginInstance().getManager().sendMessage(player, message);
+            return;
+        }
+
+        String message = getPluginInstance().getLangConfig().getString("shop-id");
+        if (message != null && !message.isEmpty()) {
+            TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{id}", shop.getShopId().toString())));
+            if (shop.getShopItem() != null) {
+
+                final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
+                        (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
+                                : shop.getShopItem().getItemMeta().toString()));
+
+                textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM, new Item(shop.getShopItem().getType().getKey().toString(),
+                        Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag)));
+            }
+            textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, shop.getShopId().toString()));
+            player.spigot().sendMessage(textComponent);
+        }
     }
 
     private void runTime(CommandSender commandSender, String marketRegionId) {
@@ -1282,44 +1329,6 @@ public class Commands implements CommandExecutor {
         if (message != null && !message.equalsIgnoreCase(""))
             commandSender.sendMessage(getPluginInstance().getManager().color(message
                     .replace("{count}", getPluginInstance().getManager().formatNumber(cleanCount, false))));
-    }
-
-    private void runCopy(CommandSender commandSender) {
-        if (!(commandSender instanceof Player)) {
-            String message = getPluginInstance().getLangConfig().getString("must-be-player");
-            if (message != null && !message.equalsIgnoreCase(""))
-                commandSender.sendMessage(getPluginInstance().getManager().color(message));
-            return;
-        }
-
-        Player player = (Player) commandSender;
-        if (!player.hasPermission("displayshops.copy")) {
-            String message = getPluginInstance().getLangConfig().getString("no-permission");
-            if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(player, message);
-            return;
-        }
-
-        Block block = player.getTargetBlock(null, 10);
-        Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
-        if (shop == null) {
-            String message = getPluginInstance().getLangConfig().getString("shop-invalid");
-            if (message != null && !message.equalsIgnoreCase(""))
-                getPluginInstance().getManager().sendMessage(player, message);
-            return;
-        }
-
-        String message = getPluginInstance().getLangConfig().getString("shop-id-copy");
-        if (message != null && !message.equalsIgnoreCase("")) {
-            final boolean isCopyVersion = (Math.floor(this.getPluginInstance().getServerVersion()) >= 1_15);
-
-            BaseComponent jsonMessage = new TextComponent(getPluginInstance().getManager().color(message.replace("{id}", shop.getShopId().toString())));
-            jsonMessage.setClickEvent(new ClickEvent(!isCopyVersion ? ClickEvent.Action.SUGGEST_COMMAND : ClickEvent.Action.COPY_TO_CLIPBOARD, shop.getShopId().toString()));
-            jsonMessage.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new BaseComponent[]{
-                    new TextComponent(shop.getShopId().toString())
-            }));
-            player.spigot().sendMessage(jsonMessage);
-        }
     }
 
     private void runInfo(CommandSender commandSender) {

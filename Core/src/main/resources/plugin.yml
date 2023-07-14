@@ -42,6 +42,7 @@ permissions:
       displayshops.block: true
       displayshops.cost: true
       displayshops.rcost: true
+      displayshops.id: true
 
   displayshops.user:
     default: op
@@ -52,7 +53,6 @@ permissions:
       displayshops.delete: true
       displayshops.craft: true
       displayshops.visit: true
-      displayshops.copy: true
       displayshops.help: true
       displayshops.rent: true
       displayshops.edit: true
@@ -136,9 +136,6 @@ permissions:
   displayshops.visit:
     default: op
     description: Allows the player to teleport to a safe location near a shop.
-  displayshops.copy:
-    default: op
-    description: Allows the player to obtain an ID from a shop currently in view through command.
   displayshops.cleanup:
     default: op
     description: Allows the player to use the shop cleanup command.
@@ -193,3 +190,6 @@ permissions:
   displayshops.baldeposit:
     default: op
     description: Allows the player to use the deposit balance command.
+  displayshops.id:
+    default: op
+    description: Allows the player to retrieve the ID of a shop in view.

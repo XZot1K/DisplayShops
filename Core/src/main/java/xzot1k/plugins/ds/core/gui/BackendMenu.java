@@ -359,7 +359,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 inventory.setItem(previewSlot, previewItem);
             }
 
-        } else if (getMenuName().contains("visit") || getMenuName().contains("appearance")) {
+        } else if (getMenuName().contains("visit") || getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
 
             // loadPages(player, dataPack, dataPack.getSelectedShop(), stitchSearchText(searchText));
             if (!dataPack.getPageMap().isEmpty()) switchPage(inventory, player, dataPack.getCurrentPage());
@@ -645,6 +645,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     final List<String> loreFormat = getStringList("head-lore");
 
                     DisplayShops.getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(currentPlayer -> {
+
+                        if (currentPlayer.getUniqueId().toString().equals(player.getUniqueId().toString())) return;
 
                         if (searchText != null && !searchText.isEmpty()
                                 && !currentPlayer.getName().toLowerCase().startsWith(searchText.toLowerCase())
