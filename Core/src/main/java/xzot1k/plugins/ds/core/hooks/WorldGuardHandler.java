@@ -2,14 +2,6 @@
  * Copyright (c) 2021 XZot1K, All rights reserved.
  */
 
-/*
- * Decompiled with CFR 0.150.
- * 
- * Could not load the following classes:
- *  com.sk89q.worldguard.bukkit.WorldGuardPlugin
- *  org.bukkit.Location
- *  org.bukkit.entity.Player
- */
 package xzot1k.plugins.ds.core.hooks;
 
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;

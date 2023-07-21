@@ -974,7 +974,9 @@ public class DManager implements Manager {
         if (itemStack == null) return "";
         if (itemStack.hasItemMeta() && itemStack.getItemMeta() != null && itemStack.getItemMeta().hasDisplayName())
             return itemStack.getItemMeta().getDisplayName();//.replace("\"", "\\\"").replace("'", "\\'");
-        else return getPluginInstance().getManager().getTranslatedName(itemStack.getType());
+        else return ((Math.floor(getPluginInstance().getServerVersion()) <= 1_13)
+                ? getPluginInstance().getManager().getTranslatedName(itemStack.getType(), itemStack.getDurability())
+                : getPluginInstance().getManager().getTranslatedName(itemStack.getType()));
         //.replace("\"", "\\\"").replace("'", "\\'");
     }
 
@@ -982,16 +984,29 @@ public class DManager implements Manager {
      * Obtains any translation created for the passed material found in the "lang.yml".
      *
      * @param material The material to obtain the translation for.
+     * @param data     The durability/data value used in older versions (Optional, defaults to 0).
      * @return The translated version.
      */
-    public String getTranslatedName(Material material) {
+    public String getTranslatedName(Material material, int... data) {
+        final int durability = ((data.length > 0) ? data[0] : 0);
         ConfigurationSection cs = getPluginInstance().getLangConfig().getConfigurationSection("translated-material-names");
         if (cs != null) {
             Collection<String> keys = cs.getKeys(false);
             if (!keys.isEmpty())
                 for (String key : keys) {
-                    if (key.toUpperCase().replace(" ", "_")
-                            .replace("-", "_").equalsIgnoreCase(material.name()))
+                    if (key.contains(":")) {
+                        String[] args = key.split(":");
+                        if (args[0].toUpperCase().replace(" ", "_").replace("-", "_")
+                                .equalsIgnoreCase(material.name()) && String.valueOf(durability).equals(args[1]))
+                            return cs.getString(key);
+                    } else if (key.contains(",")) {
+                        String[] args = key.split(",");
+                        if (args[0].toUpperCase().replace(" ", "_").replace("-", "_")
+                                .equalsIgnoreCase(material.name()) && String.valueOf(durability).equals(args[1]))
+                            return cs.getString(key);
+                    }
+
+                    if (key.toUpperCase().replace(" ", "_").replace("-", "_").equalsIgnoreCase(material.name()))
                         return cs.getString(key);
                 }
         }
@@ -1188,9 +1203,10 @@ public class DManager implements Manager {
         else formatted = String.format("%,.0f", value);
 
         formatted = formatted.replace("\\s", "").replace("_", "");
-        return getPluginInstance().getConfig().getBoolean("short-number-format") ? format((long) Double.parseDouble(formatted.replace(",", "")), useUKFormatting) : (useUKFormatting ?
-                formatted.replace(
-                        ".", "_COMMA_").replace(",", "_PERIOD_").replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted);
+        return getPluginInstance().getConfig().getBoolean("short-number-format") ? format((long) Double.parseDouble(formatted.replace(",", "")), useUKFormatting) :
+                (useUKFormatting ?
+                        formatted.replace(
+                                ".", "_COMMA_").replace(",", "_PERIOD_").replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted);
     }
 
     private String format(long value, boolean useUKFormatting) {
@@ -1868,7 +1884,8 @@ public class DManager implements Manager {
     /**
      * Obtains the passed shop's max stock based on owner permissions or administrator bypasses.
      *
-     * @param shop The shop to get the max stock for (obtains owner for permissions, returns max possible integer if the shop is admin or the owner has the "displayshops.stock.max").
+     * @param shop The shop to get the max stock for (obtains owner for permissions, returns max possible integer if the shop is admin or the owner has the "displayshops.stock
+     *             .max").
      * @return The obtained max stock (defaults to configuration value or max possible integer, if the shop is admin).
      */
     public int getMaxStock(Shop shop) {
@@ -2299,13 +2316,15 @@ public class DManager implements Manager {
                         itemMeta.setLore(new ArrayList<String>() {{
                             if (allowedMaterialLine.contains(":")) {
                                 String[] args = allowedMaterialLine.split(":");
-                                for (String line : getPluginInstance().getMenusConfig().getStringList("base-block-menu." + (isUnlocked ? "unlocked" : "locked") + "-item-format.lore"))
+                                for (String line : getPluginInstance().getMenusConfig().getStringList("base-block-menu." + (isUnlocked ? "unlocked" : "locked") + "-item-format" +
+                                        ".lore"))
                                     if (!line.equalsIgnoreCase("{requirement}"))
                                         add(color(getPluginInstance().papiText(player, line.replace("{price}",
                                                 getPluginInstance().getManager().formatNumber(finalFoundPrice, true)))));
                                     else if (args.length >= 4) add(color(getPluginInstance().papiText(player, args[3])));
                             } else
-                                for (String line : getPluginInstance().getMenusConfig().getStringList("base-block-menu." + (isUnlocked ? "unlocked" : "locked") + "-item-format.lore"))
+                                for (String line : getPluginInstance().getMenusConfig().getStringList("base-block-menu." + (isUnlocked ? "unlocked" : "locked") + "-item-format" +
+                                        ".lore"))
                                     add(color(getPluginInstance().papiText(player, line.replace("{price}",
                                             getPluginInstance().getManager().formatNumber(finalFoundPrice, true)))));
                         }});
@@ -2773,8 +2792,9 @@ public class DManager implements Manager {
             if (!useVault) {
                 ItemMeta itemMeta = previewItem.getItemMeta();
                 if (itemMeta != null) {
-                    List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()), previewLore = getPluginInstance().getMenusConfig().getStringList("shop" +
-                            "-transaction-menu.preview-trade-item-lore");
+                    List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()), previewLore =
+                            getPluginInstance().getMenusConfig().getStringList("shop" +
+                                    "-transaction-menu.preview-trade-item-lore");
                     for (int i = -1; ++i < previewLore.size(); )
                         lore.add(color(getPluginInstance().papiText(player, previewLore.get(i))));
                     itemMeta.setLore(lore);
@@ -2805,8 +2825,10 @@ public class DManager implements Manager {
                 sellItem = getActionBlockedItem(player, shop, material, unitCount, getPluginInstance().getLangConfig().getString("transaction-reasons.commands-present"));
                 if (sellItem != null) inventory.setItem(sellItemSlot, sellItem);
             } else {
-                sellItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.sell-item.material"), getPluginInstance().getMenusConfig().getInt(
-                        "shop-transaction-menu.sell-item.durability"), getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.sell-item.amount"), shop, material.getMaxStackSize(),
+                sellItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.sell-item.material"),
+                        getPluginInstance().getMenusConfig().getInt(
+                                "shop-transaction-menu.sell-item.durability"), getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.sell-item.amount"), shop,
+                        material.getMaxStackSize(),
                         unitCount).setDisplayName(player, getPluginInstance().getMenusConfig().getString("shop-transaction-menu.sell-item.display-name")).setLore(player,
                         getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.sell-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop" +
                         "-transaction-menu.sell-item.enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.sell-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.sell-item.model-data")).get();
@@ -2817,30 +2839,41 @@ public class DManager implements Manager {
         if (unitSlot >= 0 && unitSlot < inventory.getSize()) {
             final ItemStack unitItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-item.material"),
                     getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-item.durability"), unitCount, shop, material.getMaxStackSize(), unitCount).setDisplayName(player,
-                    getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-item.display-name")).setLore(player, getPluginInstance().getMenusConfig().getStringList("shop" +
-                    "-transaction" +
-                    "-menu" +
-                    ".unit-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-item.enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-item.model-data")).get();
+                    getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-item.display-name")).setLore(player,
+                    getPluginInstance().getMenusConfig().getStringList("shop" +
+                            "-transaction" +
+                            "-menu" +
+                            ".unit-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-item.enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-item.model-data")).get();
             if (unitItem != null) inventory.setItem(unitSlot, unitItem);
         }
 
         if (unitIncreaseSlot >= 0 && unitIncreaseSlot < inventory.getSize()) {
-            final ItemStack unitIncreaseItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-increase-item.material"),
-                    getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-increase-item.durability"), getPluginInstance().getMenusConfig().getInt("shop-transaction-menu" +
+            final ItemStack unitIncreaseItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-increase-item" +
+                    ".material"),
+                    getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-increase-item.durability"), getPluginInstance().getMenusConfig().getInt("shop" +
+                    "-transaction-menu" +
                     ".unit-increase-item" +
                     ".amount"), shop, material.getMaxStackSize(), unitCount).setDisplayName(player,
-                    getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-increase-item.display-name")).setLore(player, getPluginInstance().getMenusConfig().getStringList("shop" +
-                    "-transaction-menu.unit-increase-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-increase-item.enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-increase-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-increase-item.model-data")).get();
+                    getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-increase-item.display-name")).setLore(player,
+                    getPluginInstance().getMenusConfig().getStringList("shop" +
+                            "-transaction-menu.unit-increase-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu" +
+                    ".unit-increase-item" +
+                    ".enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-increase-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-increase-item.model-data")).get();
             if (unitIncreaseItem != null) inventory.setItem(unitIncreaseSlot, unitIncreaseItem);
         }
 
         if (unitDecreaseSlot >= 0 && unitDecreaseSlot < inventory.getSize()) {
-            final ItemStack unitDecreaseItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-decrease-item.material"),
-                    getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-decrease-item.durability"), getPluginInstance().getMenusConfig().getInt("shop-transaction-menu" +
+            final ItemStack unitDecreaseItem = new CustomItem(getPluginInstance(), getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-decrease-item" +
+                    ".material"),
+                    getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-decrease-item.durability"), getPluginInstance().getMenusConfig().getInt("shop" +
+                    "-transaction-menu" +
                     ".unit-decrease-item" +
                     ".amount"), shop, material.getMaxStackSize(), unitCount).setDisplayName(player,
-                    getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-decrease-item.display-name")).setLore(player, getPluginInstance().getMenusConfig().getStringList("shop" +
-                    "-transaction-menu.unit-decrease-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-decrease-item.enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-decrease-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-decrease-item.model-data")).get();
+                    getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-decrease-item.display-name")).setLore(player,
+                    getPluginInstance().getMenusConfig().getStringList("shop" +
+                            "-transaction-menu.unit-decrease-item.lore")).setEnchantments(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu" +
+                    ".unit-decrease-item" +
+                    ".enchantments")).setItemFlags(getPluginInstance().getMenusConfig().getStringList("shop-transaction-menu.unit-decrease-item.flags")).setModelData(getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.unit-decrease-item.model-data")).get();
             if (unitDecreaseItem != null) inventory.setItem(unitDecreaseSlot, unitDecreaseItem);
         }
 
