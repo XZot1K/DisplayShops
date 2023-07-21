@@ -4,10 +4,8 @@
 
 package xzot1k.plugins.ds.core;
 
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.*;
+import net.md_5.bungee.api.chat.hover.content.Item;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
@@ -789,16 +787,28 @@ public class Commands implements CommandExecutor {
             }
         }
 
-        String message = getPluginInstance().getLangConfig().getString("shop-advertise");
+        String message = getPluginInstance().getLangConfig().getString("shop-advertisement.message");
         if (message != null && !message.isEmpty()) {
             TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName())
                     .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
                     .replace("{buy}", getPluginInstance().getManager().formatNumber(shop.getBuyPrice(true), true))
                     .replace("{sell}", getPluginInstance().getManager().formatNumber(shop.getSellPrice(true), true))));
-            if (shop.getShopItem() != null)
-                textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM,
-                        new BaseComponent[]{new TextComponent(getPluginInstance().getPacketManager().toJSON(shop.getShopItem()))}));
-            textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/displayshops visit " + shop.getShopId()));
+            if (shop.getShopItem() != null) {
+                final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
+                        (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
+                                : shop.getShopItem().getItemMeta().toString()));
+
+                textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM, new Item(shop.getShopItem().getType().getKey().toString(),
+                        Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag)));
+            }
+
+            String visitClickable = getPluginInstance().getLangConfig().getString("shop-advertisement.visit-clickable");
+            if (visitClickable != null && !visitClickable.isEmpty()) {
+                TextComponent visitClickableComponent = new TextComponent(getPluginInstance().getManager().color(visitClickable));
+                visitClickableComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
+                textComponent.addExtra(visitClickableComponent);
+            } else textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
+
             getPluginInstance().getServer().getOnlinePlayers().forEach(p -> p.spigot().sendMessage(textComponent));
         }
 
