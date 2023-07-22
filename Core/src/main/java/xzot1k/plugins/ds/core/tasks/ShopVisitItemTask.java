@@ -125,6 +125,9 @@ public class ShopVisitItemTask extends BukkitRunnable {
                         continue;
                     }
 
+                    if ((line.contains("{buy}") && shop.getBuyPrice(shop.canDynamicPriceChange()) < 0)
+                            || (line.contains("{sell}") && shop.getSellPrice(shop.canDynamicPriceChange()) < 0)) continue;
+
                     add(INSTANCE.getManager().color(line.replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null
                                     && offlinePlayer.getName() != null) ? offlinePlayer.getName() : ""))
                             .replace("{balance}", (shop.getStoredBalance() < 0 ? "∞" : INSTANCE.getManager().formatNumber(shop.getStoredBalance(), true)))

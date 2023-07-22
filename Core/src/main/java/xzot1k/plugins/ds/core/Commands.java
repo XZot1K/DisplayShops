@@ -787,12 +787,19 @@ public class Commands implements CommandExecutor {
             }
         }
 
-        String message = getPluginInstance().getLangConfig().getString("shop-advertisement.message");
+        final String message = getPluginInstance().getLangConfig().getString("shop-advertisement.message");
         if (message != null && !message.isEmpty()) {
+
+            final String notApplicable = getPluginInstance().getLangConfig().getString("not-applicable");
+            final boolean naNotEmpty = (notApplicable != null && !notApplicable.isEmpty());
+
+            final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange()),
+                    sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
+
             TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName())
                     .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
-                    .replace("{buy}", getPluginInstance().getManager().formatNumber(shop.getBuyPrice(true), true))
-                    .replace("{sell}", getPluginInstance().getManager().formatNumber(shop.getSellPrice(true), true))));
+                    .replace("{buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
+                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)))));
             if (shop.getShopItem() != null) {
                 final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
                         (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
@@ -802,7 +809,7 @@ public class Commands implements CommandExecutor {
                         Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag)));
             }
 
-            String visitClickable = getPluginInstance().getLangConfig().getString("shop-advertisement.visit-clickable");
+            final String visitClickable = getPluginInstance().getLangConfig().getString("shop-advertisement.visit-clickable");
             if (visitClickable != null && !visitClickable.isEmpty()) {
                 TextComponent visitClickableComponent = new TextComponent(getPluginInstance().getManager().color(visitClickable));
                 visitClickableComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
@@ -1903,7 +1910,9 @@ public class Commands implements CommandExecutor {
 
         enteredAmount = Integer.parseInt(args[2]);
 
-        ItemStack itemStack = getPluginInstance().getManager().buildShopCreationItem(player, enteredAmount);
+        ItemStack itemStack = getPluginInstance().getListeners().creationItem.clone();
+        itemStack.setAmount(enteredAmount);
+
         if (player.getInventory().firstEmpty() == -1)
             player.getWorld().dropItemNaturally(player.getLocation(), itemStack);
         else

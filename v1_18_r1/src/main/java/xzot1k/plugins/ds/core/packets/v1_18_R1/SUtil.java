@@ -24,7 +24,7 @@ import java.math.BigInteger;
 
 public class SUtil implements SerializeUtil {
 
-    private DisplayShops INSTANCE;
+    private final DisplayShops INSTANCE;
 
     public SUtil(DisplayShops instance) {this.INSTANCE = instance;}
 
@@ -68,7 +68,7 @@ public class SUtil implements SerializeUtil {
     public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
         final NBTTagCompound tag = item.t(); // getOrCreateTag()
-        return tag.l(nbtTag); // getString()
+        return (tag != null ? tag.l(nbtTag) : null); // getString()
     }
 
     public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {

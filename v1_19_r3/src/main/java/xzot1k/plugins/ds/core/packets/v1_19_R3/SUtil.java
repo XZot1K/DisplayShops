@@ -76,7 +76,7 @@ public class SUtil implements SerializeUtil {
     public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
         final NBTTagCompound tag = item.v();
-        return tag.l(nbtTag);
+        return (tag != null ? tag.l(nbtTag) : null);
     }
 
     public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {

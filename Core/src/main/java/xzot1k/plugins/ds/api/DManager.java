@@ -2427,7 +2427,7 @@ public class DManager implements Manager {
     private boolean checkShopAgainstFilters(@NotNull Shop shop, @Nullable OfflinePlayer offlinePlayer, @Nullable String currentFilterType, @Nullable String filter) {
 
         if (shop.getBaseLocation() == null || (!getPluginInstance().getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops") && shop.isAdminShop())
-                || shop.getShopItem() == null || shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount())
+                || shop.getShopItem() == null || ((shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount()) && shop.getSellPrice(shop.canDynamicPriceChange()) < 0))
             return false;
 
         if (currentFilterType != null && !currentFilterType.isEmpty()) {

@@ -53,7 +53,8 @@ public class Listeners implements Listener {
     }
 
     private boolean isCreationItem(BlockPlaceEvent e) {
-        return (e.getItemInHand().isSimilar(creationItem));
+        final String nbtResult = getPluginInstance().getPacketManager().getNBT(e.getItemInHand(), "DisplayShops");
+        return (nbtResult != null && nbtResult.equals("Creation Item"));
     }
 
     @EventHandler
