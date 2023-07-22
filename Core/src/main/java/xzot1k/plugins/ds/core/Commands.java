@@ -27,10 +27,7 @@ import xzot1k.plugins.ds.api.objects.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 public class Commands implements CommandExecutor {
@@ -787,7 +784,7 @@ public class Commands implements CommandExecutor {
             }
         }
 
-        final String message = getPluginInstance().getLangConfig().getString("shop-advertisement.message");
+        String message = getPluginInstance().getLangConfig().getString("shop-advertisement.message");
         if (message != null && !message.isEmpty()) {
 
             final String notApplicable = getPluginInstance().getLangConfig().getString("not-applicable");
@@ -796,29 +793,72 @@ public class Commands implements CommandExecutor {
             final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange()),
                     sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
 
-            TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName()))
-                    .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
-                    .replace("${buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
-                    .replace("${sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)))
-                    .replace("{buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
-                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true))));
-            if (shop.getShopItem() != null) {
-                final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
-                        (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
-                                : shop.getShopItem().getItemMeta().toString()));
+            final String buyReplacement = ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)),
+                    sellReplacement = ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)),
+                    itemName = getPluginInstance().getManager().getItemName(shop.getShopItem());
+            for (Currency currency : Currency.getAvailableCurrencies())
+                message = message.replace((currency.getSymbol() + "{buy}"), buyReplacement).replace((currency.getSymbol() + "{sell}"), sellReplacement);
 
-                textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM, new Item(shop.getShopItem().getType().getKey().toString(),
-                        Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag)));
+            message = getPluginInstance().getManager().color(message.replace("{player}", player.getName()).replace("{item}", itemName)
+                    .replace("{buy}", buyReplacement).replace("{sell}", sellReplacement));
+
+            HoverEvent hoverEvent = null;
+            if (shop.getShopItem() != null) {
+                final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null : (getPluginInstance().getServerVersion() > 1_17
+                        ? shop.getShopItem().getItemMeta().getAsString() : shop.getShopItem().getItemMeta().toString()));
+                hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_ITEM, new Item(shop.getShopItem().getType().getKey().toString(),
+                        Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag));
             }
 
-            final String visitClickable = getPluginInstance().getLangConfig().getString("shop-advertisement.visit-clickable");
-            if (visitClickable != null && !visitClickable.isEmpty()) {
-                TextComponent visitClickableComponent = new TextComponent(getPluginInstance().getManager().color(visitClickable));
-                visitClickableComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
-                textComponent.addExtra(visitClickableComponent);
-            } else textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
+            TextComponent component = null;
+            if (message.contains("\\n")) {
+                String[] args = message.split("\\\\n");
+                for (int i = -1; ++i < args.length; ) {
+                    final String line = args[i];
+                    if (component == null) {
+                        component = new TextComponent(TextComponent.fromLegacyText("\n" + line));
+                        if (hoverEvent != null) component.setHoverEvent(hoverEvent);
+                    } else {
+                        TextComponent extra = new TextComponent(TextComponent.fromLegacyText("\n" + line));
+                        if (hoverEvent != null) extra.setHoverEvent(hoverEvent);
+                        component.addExtra(extra);
+                    }
+                }
+            } else {
+                component = new TextComponent(message);
+                if (hoverEvent != null) component.setHoverEvent(hoverEvent);
+            }
 
-            getPluginInstance().getServer().getOnlinePlayers().forEach(p -> p.spigot().sendMessage(textComponent));
+            final ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId()));
+            String visitClickable = getPluginInstance().getLangConfig().getString("shop-advertisement.visit-clickable");
+            if (visitClickable != null && !visitClickable.isEmpty()) {
+                visitClickable = getPluginInstance().getManager().color(visitClickable);
+                TextComponent visitClickableComponent = null;
+                if (visitClickable.contains("\\n")) {
+                    String[] args = visitClickable.split("\\\\n");
+                    for (int i = -1; ++i < args.length; ) {
+                        final String line = args[i];
+                        if (visitClickableComponent == null) {
+                            visitClickableComponent = new TextComponent("\n" + line);
+                            visitClickableComponent.setClickEvent(clickEvent);
+                        } else {
+                            TextComponent extra = new TextComponent(TextComponent.fromLegacyText("\n" + line));
+                            extra.setClickEvent(clickEvent);
+                            visitClickableComponent.addExtra(extra);
+                        }
+                    }
+                } else {
+                    visitClickableComponent = new TextComponent(message);
+                    visitClickableComponent.setClickEvent(clickEvent);
+                }
+
+                if (component != null) component.addExtra(visitClickableComponent);
+            } else if (component != null) component.setClickEvent(clickEvent);
+
+            if (component != null) {
+                final TextComponent finalComponent = component;
+                getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(p -> p.spigot().sendMessage(finalComponent));
+            }
         }
 
         dataPack.updateCooldown("advertise");

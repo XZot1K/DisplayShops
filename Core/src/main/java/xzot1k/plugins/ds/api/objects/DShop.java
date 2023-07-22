@@ -578,7 +578,8 @@ public class DShop implements Shop {
     }
 
     private boolean isBlockSafe(@NotNull Block block, @NotNull Block downBlock) {
-        return (block.getType().name().contains("AIR") && block.getRelative(BlockFace.UP).getType().name().contains("AIR")
+        return ((block.getType().name().contains("AIR") || block.getType().name().contains("SNOW"))
+                && block.getRelative(BlockFace.UP).getType().name().contains("AIR")
                 && block.getRelative(BlockFace.UP).getRelative(BlockFace.UP).getType().name().contains("AIR")
                 && (!downBlock.getType().name().contains("LAVA") && !downBlock.getType().name().contains("WATER") && !downBlock.getType().name().contains("AIR")
                 && !downBlock.getType().name().contains("WEB") && !downBlock.getType().name().contains("PISTON") && !downBlock.getType().name().contains("MAGMA")));
