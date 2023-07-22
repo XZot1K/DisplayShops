@@ -233,9 +233,7 @@ public class CustomItem {
                 try {
                     ItemFlag itemFlag = ItemFlag.valueOf(line);
                     itemMeta.addItemFlags(itemFlag);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                } catch (Exception ignored) {}
             }
             get().setItemMeta(itemMeta);
         }

@@ -2426,17 +2426,21 @@ public class DManager implements Manager {
 
     private boolean checkShopAgainstFilters(@NotNull Shop shop, @Nullable OfflinePlayer offlinePlayer, @Nullable String currentFilterType, @Nullable String filter) {
 
+        final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange()),
+                sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
+
+        final boolean failsBuyPriceCheck = (buyPrice >= 0 && (shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount())),
+                failsSellPriceCheck = (sellPrice >= 0 && (shop.getStoredBalance() <= 0 || shop.getStock() >= getMaxStock(shop)));
+
         if (shop.getBaseLocation() == null || (!getPluginInstance().getMenusConfig().getBoolean("shop-visit-menu.show-admin-shops") && shop.isAdminShop())
-                || shop.getShopItem() == null || ((shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount()) && shop.getSellPrice(shop.canDynamicPriceChange()) < 0))
-            return false;
+                || shop.getShopItem() == null) return false;
 
         if (currentFilterType != null && !currentFilterType.isEmpty()) {
-
             final String buyType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.buy-type"),
-                    sellType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.sell-type");
-
-            if ((currentFilterType.equals(buyType) && shop.getBuyPrice(false) < 0)
-                    || (currentFilterType.equals(sellType) && shop.getSellPrice(false) < 0)) return false;
+                    sellType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.sell-type"),
+                    bothType = getPluginInstance().getMenusConfig().getString("shop-visit-menu.type-item.both-type");
+            if ((currentFilterType.equals(buyType) && failsBuyPriceCheck) || (currentFilterType.equals(sellType) && failsSellPriceCheck)
+                    || (currentFilterType.equals(bothType) && (failsBuyPriceCheck && failsSellPriceCheck))) return false;
         }
 
         if (filter != null) {

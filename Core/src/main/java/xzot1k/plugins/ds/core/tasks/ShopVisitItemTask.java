@@ -71,7 +71,16 @@ public class ShopVisitItemTask extends BukkitRunnable {
 
         ItemMeta itemMeta = itemStack.getItemMeta();
         if (itemMeta != null) {
-            itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
+
+            String[] flagNames = {"HIDE_POTION_EFFECTS", "HIDE_DYE", "HIDE_ATTRIBUTES", "HIDE_UNBREAKABLE"};
+            for (int i = -1; ++i < flagNames.length; ) {
+                final String flagName = flagNames[i];
+                try {
+                    final ItemFlag flag = ItemFlag.valueOf(flagName);
+                    itemMeta.addItemFlags(flag);
+                } catch (Exception ignored) {}
+            }
+
             final String itemName = (shop.getShopItem() != null ? INSTANCE.getManager().getItemName(shop.getShopItem()) : ""),
                     tradeItemName = (!useVault ? ((!forceUse && shop.getTradeItem() != null) ? INSTANCE.getManager().getItemName(shop.getTradeItem())
                             : INSTANCE.getManager().getItemName(INSTANCE.getManager().buildShopCurrencyItem(1))) : "");

@@ -94,8 +94,8 @@
 
         <!-- API -->
         <dependency>
-            <groupId>com.github.XZot1K</groupId>
-            <artifactId>DisplayShopsAPI</artifactId>
+            <groupId>xzot1k.plugins.ds</groupId>
+            <artifactId>API</artifactId>
             <version>${api.version}</version>
             <scope>compile</scope>
         </dependency>

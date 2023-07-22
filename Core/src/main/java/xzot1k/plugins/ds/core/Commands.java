@@ -796,10 +796,12 @@ public class Commands implements CommandExecutor {
             final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange()),
                     sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
 
-            TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName())
+            TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName()))
                     .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
+                    .replace("${buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
+                    .replace("${sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)))
                     .replace("{buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
-                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)))));
+                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true))));
             if (shop.getShopItem() != null) {
                 final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
                         (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()

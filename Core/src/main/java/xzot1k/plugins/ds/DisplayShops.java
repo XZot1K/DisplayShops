@@ -677,8 +677,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) return;
 
-        System.out.println(rsp.getPlugin().getName());
-
         setVaultEconomy(rsp.getProvider());
     }
 
