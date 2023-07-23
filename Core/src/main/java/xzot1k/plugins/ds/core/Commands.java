@@ -936,8 +936,6 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-extended"))
                         .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-renew-cost"), true))
                         .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
-            else
-                getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("insufficient-funds"));
             return;
         }
 
@@ -950,8 +948,6 @@ public class Commands implements CommandExecutor {
             getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rented"))
                     .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-cost"), true))
                     .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
-        else
-            getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("insufficient-funds"));
     }
 
     private void runReset(CommandSender commandSender, String marketRegionId) {

@@ -107,6 +107,7 @@ public class MRegion implements MarketRegion {
 
     @Override
     public boolean rent(@NotNull Player player) {
+
         final EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
                 null, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ? getRenewCost() : getCost()));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;

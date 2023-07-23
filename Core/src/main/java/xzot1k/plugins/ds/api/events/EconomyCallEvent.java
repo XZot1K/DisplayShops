@@ -38,12 +38,15 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         setChargedInvestor(false);
         setTax(getPluginInstance().getConfig().getDouble("transaction-tax"));
 
-        AffordCheckEvent affordCheckEvent = new AffordCheckEvent(getPluginInstance(), investor, producer, true, true, getPrice(), getTaxedPrice(), this, shop);
+        AffordCheckEvent affordCheckEvent = new AffordCheckEvent(getPluginInstance(), investor, producer, true, true,
+                getPrice(), getTaxedPrice(), this, shop);
         getPluginInstance().getServer().getPluginManager().callEvent(affordCheckEvent);
         if (!affordCheckEvent.isCancelled()) {
-            final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault"), useOwnerSyncing = getPluginInstance().getConfig().getBoolean("sync-owner-balance");
-            final ItemStack currencyItem = useVault ? null : (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use") ? getPluginInstance().getManager().buildShopCurrencyItem(1)
-                    : (shop.getTradeItem() == null ? getPluginInstance().getManager().buildShopCurrencyItem(1) : shop.getTradeItem()));
+            final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault"),
+                    useOwnerSyncing = getPluginInstance().getConfig().getBoolean("sync-owner-balance");
+            final ItemStack currencyItem = useVault ? null : (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use")
+                    ? getPluginInstance().getManager().buildShopCurrencyItem(1) : (shop.getTradeItem() == null
+                    ? getPluginInstance().getManager().buildShopCurrencyItem(1) : shop.getTradeItem()));
 
             if (getEconomyCallType() == EconomyCallType.SELL) {
                 final boolean canSync = (useOwnerSyncing && getProducer() != null),
@@ -57,9 +60,11 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             }
 
             if (useVault)
-                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass") || getPluginInstance().getVaultEconomy().has(getInvestor(), getTaxedPrice()));
+                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass")
+                        || getPluginInstance().getVaultEconomy().has(getInvestor(), getTaxedPrice()));
             else
-                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass") || getPluginInstance().getManager().getItemAmount(getInvestor().getInventory(), currencyItem) >= getTaxedPrice());
+                setCanInvestorAfford(getInvestor().hasPermission("displayshops.bypass")
+                        || getPluginInstance().getManager().getItemAmount(getInvestor().getInventory(), currencyItem) >= getTaxedPrice());
         }
 
         setWillSucceed(canInvestorAfford() && canProducerAfford());
@@ -188,18 +193,20 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             final ItemStack currencyItem = (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use")
                     ? getPluginInstance().getManager().buildShopCurrencyItem(1)
                     : (shop.getTradeItem() == null ? getPluginInstance().getManager().buildShopCurrencyItem(1) : null));
-            if (getEconomyCallType() == EconomyCallType.SELL) {
-                getPluginInstance().getManager().removeItem(getInvestor().getInventory(), currencyItem, (int) getPrice());
+            if (currencyItem != null) {
+                if (getEconomyCallType() == EconomyCallType.SELL) {
+                    getPluginInstance().getManager().removeItem(getInvestor().getInventory(), currencyItem, (int) getPrice());
 
+                    if (!getShop().isAdminShop())
+                        getShop().setStoredBalance(Math.min(getPluginInstance().getConfig().getDouble("max-stored-currency"),
+                                (getShop().getStoredBalance() + getPrice())));
+                    return;
+                }
+
+                getPluginInstance().getManager().giveItemStacks(getInvestor(), currencyItem, (int) getTaxedPrice());
                 if (!getShop().isAdminShop())
-                    getShop().setStoredBalance(Math.min(getPluginInstance().getConfig().getDouble("max-stored-currency"),
-                            (getShop().getStoredBalance() + getPrice())));
-                return;
+                    getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - getPrice()), 0));
             }
-
-            getPluginInstance().getManager().giveItemStacks(getInvestor(), currencyItem, (int) getTaxedPrice());
-            if (!getShop().isAdminShop())
-                getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - getPrice()), 0));
         }
     }
 

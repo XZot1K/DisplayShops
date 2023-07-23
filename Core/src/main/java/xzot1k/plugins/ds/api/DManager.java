@@ -333,8 +333,8 @@ public class DManager implements Manager {
                     final boolean forceUseCurrency = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
                     final ItemStack forceCurrencyItem = getPluginInstance().getManager().buildShopCurrencyItem(1);
                     final String defaultName = getPluginInstance().getManager().getItemName(forceCurrencyItem);
-                    tradeItemName = (forceUseCurrency ? (forceCurrencyItem != null ? defaultName : "")
-                            : (shop.getTradeItem() != null ? getPluginInstance().getManager().getItemName(shop.getTradeItem()) : defaultName));
+                    tradeItemName = (forceUseCurrency ? defaultName : (shop.getTradeItem() != null)
+                            ? getPluginInstance().getManager().getItemName(shop.getTradeItem()) : defaultName);
                 }
 
                 final String message = getPluginInstance().getLangConfig().getString("insufficient-funds");
