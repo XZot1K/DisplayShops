@@ -848,7 +848,7 @@ public class Commands implements CommandExecutor {
                         }
                     }
                 } else {
-                    visitClickableComponent = new TextComponent(message);
+                    visitClickableComponent = new TextComponent(visitClickable);
                     visitClickableComponent.setClickEvent(clickEvent);
                 }
 

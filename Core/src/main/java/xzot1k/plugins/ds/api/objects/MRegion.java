@@ -160,29 +160,29 @@ public class MRegion implements MarketRegion {
 
         if (days > 0L) {
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.days"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(days, false)))
-                    .append((days > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(days, false))
+                    .replace("{plural}", (days > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : ""));
         }
 
         if (hours > 0L) {
             if (days > 0L) stringBuilder.append(" ");
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.hours"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(hours, false)))
-                    .append((hours > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(hours, false))
+                    .replace("{plural}", (hours > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : ""));
         }
 
         if (minutes > 0L) {
             if (hours > 0L || days > 0L) stringBuilder.append(" ");
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.minutes"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(minutes, false)))
-                    .append((minutes > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(minutes, false))
+                    .replace("{plural}", (minutes > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : ""));
         }
 
         if (seconds > 0L) {
             if (minutes > 0L || hours > 0L || days > 0L) stringBuilder.append(" ");
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.seconds"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(seconds, false)))
-                    .append((seconds > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(seconds, false))
+                    .replace("{plural}", (seconds > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : ""));
         }
 
         return stringBuilder.toString();
