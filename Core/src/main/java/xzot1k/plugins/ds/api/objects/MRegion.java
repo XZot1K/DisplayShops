@@ -7,6 +7,7 @@ package xzot1k.plugins.ds.api.objects;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
@@ -91,9 +92,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public boolean extendRent(Player player) {
-        if (player == null) return false;
-
+    public boolean extendRent(@NotNull Player player) {
         EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
                 null, null, EconomyCallType.RENT_RENEW, this.getPluginInstance().getConfig().getDouble("rent-renew-cost"));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;
@@ -107,9 +106,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public boolean rent(Player player) {
-        if (player == null) return false;
-
+    public boolean rent(@NotNull Player player) {
         final EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
                 null, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ? getRenewCost() : getCost()));
         if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;

@@ -72,7 +72,7 @@ public class DManager implements Manager {
      *
      * @param player The player to load the data pack for.
      */
-    public DataPack loadDataPack(Player player) {
+    public DataPack loadDataPack(@NotNull Player player) {
         DataPack dataPack = null;
         try (PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement(
                 "SELECT * FROM player_data WHERE uuid = '" + player.getUniqueId() + "';");
@@ -253,7 +253,7 @@ public class DManager implements Manager {
      * @param distance        The distance at which the ray should travel.
      * @return The found shop, returns NULL if NOT found.
      */
-    public Shop getShopRayTraced(String worldName, Vector eyeVector, Vector directionVector, double distance) {
+    public Shop getShopRayTraced(@NotNull String worldName, @NotNull Vector eyeVector, @NotNull Vector directionVector, double distance) {
         Shop[] shopList = getShopMap().values().toArray(new Shop[0]);
         for (int i = -1; ++i < distance; ) {
             final Vector newPositionVector = eyeVector.clone().add(directionVector.clone().multiply(i));
@@ -298,7 +298,7 @@ public class DManager implements Manager {
      * @param price           The price in use.
      * @return the economy call event
      */
-    public EconomyCallEvent initiateShopEconomyTransaction(Player investor, OfflinePlayer producer, Shop shop, EconomyCallType economyCallType, double price) {
+    public EconomyCallEvent initiateShopEconomyTransaction(Player investor, OfflinePlayer producer, Shop shop, @NotNull EconomyCallType economyCallType, double price) {
         if (investor == null) return null;
 
         final EconomyCallEvent economyCallEvent = new EconomyCallEvent(investor, producer, economyCallType, shop, price);
@@ -359,7 +359,7 @@ public class DManager implements Manager {
      * @param playerEntryValue The value/message the player entered.
      * @return Returns true if the interaction completes successfully; otherwise, the return is false.
      */
-    public boolean initiateChatInteractionOperation(Player player, ChatInteractionType chatInteractionType, String playerEntryValue) {
+    public boolean initiateChatInteractionOperation(@NotNull Player player, @NotNull ChatInteractionType chatInteractionType, @NotNull String playerEntryValue) {
         final DataPack dataPack = getDataPack(player);
 
         if (chatInteractionType == null) {
@@ -905,7 +905,7 @@ public class DManager implements Manager {
      * @param location The location to check.
      * @return The MarketRegion object found.
      */
-    public MarketRegion getMarketRegion(Location location) {
+    public MarketRegion getMarketRegion(@NotNull Location location) {
         if (getMarketRegions().size() <= 0) return null;
         for (int i = -1; ++i < getMarketRegions().size(); ) {
             MarketRegion marketRegion = getMarketRegions().get(i);
@@ -920,7 +920,7 @@ public class DManager implements Manager {
      * @param marketId The id to check for.
      * @return The MarketRegion object.
      */
-    public MarketRegion getMarketRegion(String marketId) {
+    public MarketRegion getMarketRegion(@NotNull String marketId) {
         if (getMarketRegions().size() <= 0) return null;
         for (int i = -1; ++i < getMarketRegions().size(); ) {
             MarketRegion marketRegion = getMarketRegions().get(i);
@@ -935,7 +935,7 @@ public class DManager implements Manager {
      * @param marketId The id to check.
      * @return The result as a boolean value.
      */
-    public boolean doesMarketRegionExist(String marketId) {
+    public boolean doesMarketRegionExist(@NotNull String marketId) {
         if (getMarketRegions().size() <= 0) return false;
         for (int i = -1; ++i < getMarketRegions().size(); ) {
             MarketRegion marketRegion = getMarketRegions().get(i);
@@ -951,7 +951,7 @@ public class DManager implements Manager {
      * @param location The location to check around.
      * @return The result as a boolean.
      */
-    public boolean isTooClose(Location location) {
+    public boolean isTooClose(@NotNull Location location) {
         if (location == null || location.getWorld() == null) return false;
         double distance = getPluginInstance().getConfig().getDouble("required-shop-distance");
 
@@ -970,7 +970,7 @@ public class DManager implements Manager {
      * @param itemStack The item to get the name of.
      * @return The item name.
      */
-    public String getItemName(ItemStack itemStack) {
+    public String getItemName(@NotNull ItemStack itemStack) {
         if (itemStack == null) return "";
         if (itemStack.hasItemMeta() && itemStack.getItemMeta() != null && itemStack.getItemMeta().hasDisplayName())
             return itemStack.getItemMeta().getDisplayName();//.replace("\"", "\\\"").replace("'", "\\'");
@@ -1020,7 +1020,7 @@ public class DManager implements Manager {
      * @param enchantment The enchantment to obtain the translation for.
      * @return The translated version.
      */
-    public String getTranslatedName(Enchantment enchantment) {
+    public String getTranslatedName(@NotNull Enchantment enchantment) {
         final boolean isNew = (Math.floor(getPluginInstance().getServerVersion()) > 1_12);
         ConfigurationSection cs = getPluginInstance().getLangConfig().getConfigurationSection("translated-enchantment-names");
         if (cs != null) {
@@ -1041,7 +1041,7 @@ public class DManager implements Manager {
      * @param potionType The potion type to obtain the translation for.
      * @return The translated version.
      */
-    public String getTranslatedName(PotionType potionType) {
+    public String getTranslatedName(@NotNull PotionType potionType) {
         ConfigurationSection cs = getPluginInstance().getLangConfig().getConfigurationSection("translated-potion-names");
         if (cs != null) {
             Collection<String> keys = cs.getKeys(false);
@@ -1061,7 +1061,7 @@ public class DManager implements Manager {
      * @param itemStack The item to get the enchants from.
      * @return The new formatted line.
      */
-    public String getEnchantmentLine(ItemStack itemStack) {
+    public String getEnchantmentLine(@NotNull ItemStack itemStack) {
         if (itemStack == null) return "";
         StringBuilder enchantLine = new StringBuilder();
 
@@ -1094,7 +1094,7 @@ public class DManager implements Manager {
      * @param itemStack The item to get the potion effects from.
      * @return The new formatted line.
      */
-    public String getPotionLine(ItemStack itemStack) {
+    public String getPotionLine(@NotNull ItemStack itemStack) {
         if (itemStack == null || !(itemStack.getItemMeta() instanceof PotionMeta)) return "";
         PotionMeta potionMeta = (PotionMeta) itemStack.getItemMeta();
         final int totalEffects = potionMeta.getCustomEffects().size();
@@ -1175,7 +1175,7 @@ public class DManager implements Manager {
      * @param message The message to translate.
      * @return The colored text.
      */
-    public String color(String message) {
+    public String color(@NotNull String message) {
         if (message == null || message.isEmpty()) return message;
         if (Math.floor(getPluginInstance().getServerVersion()) >= 1_16) {
             Matcher matcher = hexPattern.matcher(message);
@@ -1229,7 +1229,7 @@ public class DManager implements Manager {
      * @param isBuy     Whether it is buy or sell.
      * @return The found maximum.
      */
-    public double getMaterialMaxPrice(ItemStack itemStack, boolean isBuy) {
+    public double getMaterialMaxPrice(@NotNull ItemStack itemStack, boolean isBuy) {
         if (itemStack == null) return 0;
         ConfigurationSection maxSection = getPluginInstance().getConfig().getConfigurationSection("max-material-prices");
         if (maxSection != null) for (String keyName : maxSection.getKeys(false)) {
@@ -1249,7 +1249,7 @@ public class DManager implements Manager {
      * @param isBuy     Whether it is buy or sell.
      * @return The found minimum.
      */
-    public double getMaterialMinPrice(ItemStack itemStack, boolean isBuy) {
+    public double getMaterialMinPrice(@NotNull ItemStack itemStack, boolean isBuy) {
         if (itemStack == null) return 0;
         ConfigurationSection maxSection = getPluginInstance().getConfig().getConfigurationSection("min-material-prices");
         if (maxSection != null) for (String keyName : maxSection.getKeys(false))
@@ -1266,7 +1266,7 @@ public class DManager implements Manager {
      * @param shopId The id to check for.
      * @return Whether the id exists in true or false format.
      */
-    public boolean doesShopIdExist(UUID shopId) {
+    public boolean doesShopIdExist(@NotNull UUID shopId) {
         return getShopMap().containsKey(shopId);
     }
 
@@ -1286,7 +1286,7 @@ public class DManager implements Manager {
      * @param shop The shop to obtain the offsets for.
      * @return The array of X, Y, and Z offsets.
      */
-    public Double[] getBaseBlockOffsets(Shop shop) {
+    public Double[] getBaseBlockOffsets(@NotNull Shop shop) {
         if (shop.getStoredBaseBlockMaterial() != null) {
             List<String> offsets = getPluginInstance().getConfig().getStringList("material-based-offsets");
             for (int i = -1; ++i < offsets.size(); ) {
@@ -1313,7 +1313,7 @@ public class DManager implements Manager {
      * @param shopId The ID to get the shop from
      * @return the shop object. (Can return NULL if the object does not exist)
      */
-    public Shop getShopById(UUID shopId) {
+    public Shop getShopById(@NotNull UUID shopId) {
         if (getShopMap().containsKey(shopId)) return getShopMap().get(shopId);
         return null;
     }
@@ -1324,7 +1324,7 @@ public class DManager implements Manager {
      * @param location Chest location.
      * @return The shop if found.
      */
-    public Shop getShop(Location location) {
+    public Shop getShop(@NotNull Location location) {
 
         final Shop[] list = getShopMap().values().toArray(new Shop[0]);
         for (int i = -1; ++i < list.length; ) {
@@ -1347,7 +1347,7 @@ public class DManager implements Manager {
      * @param sendCreationMessage Whether to send the creation message.
      * @return The shop object.
      */
-    public Shop createShop(Player player, Block block, int shopItemAmount, boolean doCreationEffects, boolean sendCreationMessage) {
+    public Shop createShop(@NotNull Player player, @NotNull Block block, int shopItemAmount, boolean doCreationEffects, boolean sendCreationMessage) {
         DShop shop = new DShop(getPluginInstance().getManager().generateNewId(), player.getUniqueId(),
                 block.getLocation(), shopItemAmount, block.getType().name());
         shop.register();
@@ -1585,7 +1585,7 @@ public class DManager implements Manager {
      * @param material The material to check for.
      * @return The result.
      */
-    public boolean isBlockedMaterial(Material material) {
+    public boolean isBlockedMaterial(@NotNull Material material) {
         List<String> materialList = getPluginInstance().getConfig().getStringList("blocked-material-list");
         for (int i = -1; ++i < materialList.size(); ) {
             if (material.name().equalsIgnoreCase(materialList.get(i)
@@ -1787,7 +1787,7 @@ public class DManager implements Manager {
      * @param player The player to check for.
      * @return The list of shops the player owns.
      */
-    public List<Shop> getPlayerShops(Player player) {
+    public List<Shop> getPlayerShops(@NotNull Player player) {
         List<Shop> shopList = new ArrayList<>();
         for (Shop shop : getShopMap().values())
             if (shop.getOwnerUniqueId() != null && shop.getOwnerUniqueId().toString().equalsIgnoreCase(player.getUniqueId().toString()))
@@ -1802,7 +1802,7 @@ public class DManager implements Manager {
      * @param player The player to check.
      * @return Whether the player has exceeded their limit or not.
      */
-    public boolean exceededShopLimit(Player player) {
+    public boolean exceededShopLimit(@NotNull Player player) {
         if (player.hasPermission("displayshops.limit.*")) return false;
         final List<Shop> shopList = getPlayerShops(player);
         final int shopLimit = getShopLimit(player);
@@ -1815,7 +1815,7 @@ public class DManager implements Manager {
      * @param player The player to check for.
      * @return The limit they have on shops.
      */
-    public int getShopLimit(Player player) {
+    public int getShopLimit(@NotNull Player player) {
         if (player.hasPermission("displayshops.limit.*")) return -1;
         int shopLimit = getPluginInstance().getConfig().getInt("default-shop-limit");
         for (PermissionAttachmentInfo permissionAttachmentInfo : player.getEffectivePermissions()) {
@@ -1837,7 +1837,7 @@ public class DManager implements Manager {
      * @param player The player to check for.
      * @return The list of rented regions.
      */
-    public List<MarketRegion> getMarketRegions(Player player) {
+    public List<MarketRegion> getMarketRegions(@NotNull Player player) {
         List<MarketRegion> regionList = new ArrayList<>();
         for (MarketRegion marketRegion : getMarketRegions())
             if (marketRegion.getRenter() != null && marketRegion.getRenter().toString()
@@ -1852,7 +1852,7 @@ public class DManager implements Manager {
      * @param player The player to check.
      * @return Whether the player has exceeded their limit or not.
      */
-    public boolean exceededMarketRegionLimit(Player player) {
+    public boolean exceededMarketRegionLimit(@NotNull Player player) {
         if (player.hasPermission("displayshops.rlimit.*")) return false;
         final List<MarketRegion> regionList = getMarketRegions(player);
         final int regionLimit = getMarketRegionLimit(player);
@@ -1865,7 +1865,7 @@ public class DManager implements Manager {
      * @param player The player to check for.
      * @return The limit they have on rented regions.
      */
-    public int getMarketRegionLimit(Player player) {
+    public int getMarketRegionLimit(@NotNull Player player) {
         if (player.hasPermission("displayshops.rlimit.*")) return -1;
         int regionLimit = getPluginInstance().getConfig().getInt("default-region-limit");
         for (PermissionAttachmentInfo permissionAttachmentInfo : player.getEffectivePermissions()) {
@@ -1888,7 +1888,7 @@ public class DManager implements Manager {
      *             .max").
      * @return The obtained max stock (defaults to configuration value or max possible integer, if the shop is admin).
      */
-    public int getMaxStock(Shop shop) {
+    public int getMaxStock(@NotNull Shop shop) {
         int maxStock = ((shop.isAdminShop() && shop.getStock() <= -1)
                 ? Integer.MAX_VALUE : getPluginInstance().getConfig().getInt("max-shop-stock"));
         if (!shop.isAdminShop() && shop.getOwnerUniqueId() != null) {
@@ -1942,7 +1942,7 @@ public class DManager implements Manager {
      * @param itemStack The itemstack to check for.
      * @return The total available item amount space.
      */
-    public int getInventorySpaceForItem(Player player, ItemStack itemStack) {
+    public int getInventorySpaceForItem(@NotNull Player player, @NotNull ItemStack itemStack) {
         int availableSpace = 0;
 
         if (getPluginInstance().getServerVersion() >= 1_9) {
@@ -2025,7 +2025,7 @@ public class DManager implements Manager {
      * @param amount    The amount to remove.
      * @return Whether an item was removed or not.
      */
-    public boolean removeItem(Inventory inventory, ItemStack itemStack, int amount) {
+    public boolean removeItem(@NotNull Inventory inventory, @NotNull ItemStack itemStack, int amount) {
         int left = amount;
         boolean removedItems = false;
 
@@ -2061,7 +2061,7 @@ public class DManager implements Manager {
      * @param itemStack The item to check for.
      * @return The total amount.
      */
-    public int getItemAmount(Inventory inventory, ItemStack itemStack) {
+    public int getItemAmount(@NotNull Inventory inventory, @NotNull ItemStack itemStack) {
         int amount = 0;
 
         if (itemStack != null)
@@ -2081,7 +2081,7 @@ public class DManager implements Manager {
      * @param itemTwo The second item.
      * @return Whether the items are identical.
      */
-    public boolean isSimilar(ItemStack itemOne, ItemStack itemTwo) {
+    public boolean isSimilar(@NotNull ItemStack itemOne, @NotNull ItemStack itemTwo) {
         return itemOne.isSimilar(itemTwo);
     }
 
@@ -2091,7 +2091,7 @@ public class DManager implements Manager {
      * @param string The string to check.
      * @return Whether it is numerical or not.
      */
-    public boolean isNotNumeric(String string) {
+    public boolean isNotNumeric(@NotNull String string) {
         if (string == null || string.isEmpty()) return true;
 
         final char[] chars = string.toCharArray();
@@ -2114,7 +2114,7 @@ public class DManager implements Manager {
      * @param wordLineLimit The line size in terms of word count.
      * @return wraps the string to multiple lines
      */
-    public List<String> wrapString(String text, int wordLineLimit) {
+    public List<String> wrapString(@NotNull String text, int wordLineLimit) {
         List<String> result = new ArrayList<>();
 
         final int longWordCount = getPluginInstance().getConfig().getInt("description-long-word-wrap");
@@ -2359,7 +2359,7 @@ public class DManager implements Manager {
      * @param shop   The shop to use to get information from.
      * @return The complete GUI.
      */
-    public Inventory getBaseBlockSelectionMenu(Player player, Shop shop) {
+    public Inventory getBaseBlockSelectionMenu(@NotNull Player player, @NotNull Shop shop) {
         final String title = getPluginInstance().getMenusConfig().getString("base-block-menu.title");
         int size = getPluginInstance().getMenusConfig().getInt("base-block-menu.size");
         if (size < 18) size = 18;
@@ -2623,7 +2623,7 @@ public class DManager implements Manager {
      * @param player The player the edit menu needs to be built for.
      * @return The built inventory.
      */
-    public Inventory buildShopEditMenu(Player player) {
+    public Inventory buildShopEditMenu(@NotNull Player player) {
         final DataPack dataPack = getDataPack(player);
 
         Shop shop = dataPack.getSelectedShop();
@@ -2704,7 +2704,7 @@ public class DManager implements Manager {
      * @param player The player to personalize the menu for.
      * @param shop   The shop the interactions should be made for.
      */
-    public Inventory buildTransactionMenu(Player player, Shop shop) {
+    public Inventory buildTransactionMenu(@NotNull Player player, @NotNull Shop shop) {
         Inventory inventory;
         int inventorySize = getPluginInstance().getMenusConfig().getInt("shop-transaction-menu.size");
         if ((inventorySize > 5 && (inventorySize % 9 == 0) && inventorySize <= 54))
@@ -2739,7 +2739,7 @@ public class DManager implements Manager {
      * @param shop      The shop to use the information from.
      * @param player    The player to personalize the menu for.
      */
-    public void updateTransactionMenu(Inventory inventory, Player player, Shop shop, int unitCount) {
+    public void updateTransactionMenu(@NotNull Inventory inventory, @NotNull Player player, @NotNull Shop shop, int unitCount) {
         final String materialName = getPluginInstance().getMenusConfig().getString("shop-transaction-menu.unit-item.material");
         if (materialName == null || materialName.equalsIgnoreCase("")) return;
 
@@ -2936,7 +2936,7 @@ public class DManager implements Manager {
      * @param world The world to check for.
      * @return Whether the world is blocked or not.
      */
-    public boolean isBlockedWorld(World world) {
+    public boolean isBlockedWorld(@NotNull World world) {
         List<String> worldList = getPluginInstance().getConfig().getStringList("blocked-worlds");
         for (int i = -1; ++i < worldList.size(); )
             if (worldList.get(i).equalsIgnoreCase(world.getName())) return true;
@@ -2951,7 +2951,7 @@ public class DManager implements Manager {
      * @param useVault Whether to use Vault methods.
      * @return The found player balance amount.
      */
-    public double getCurrencyBalance(OfflinePlayer player, Shop shop, boolean useVault) {
+    public double getCurrencyBalance(@NotNull OfflinePlayer player, @NotNull Shop shop, boolean useVault) {
         if (player == null || shop == null) return 0;
         if (useVault) return getPluginInstance().getVaultEconomy().getBalance(player);
         else if (player.getPlayer() != null) {

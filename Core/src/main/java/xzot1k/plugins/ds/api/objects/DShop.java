@@ -130,7 +130,7 @@ public class DShop implements Shop {
      *
      * @param player The player to send the destroy packets to.
      */
-    public synchronized void kill(Player player) {
+    public synchronized void kill(@NotNull Player player) {
         DisplayPacket displayPacket = INSTANCE.getDisplayPacket(this, player);
         if (displayPacket != null) displayPacket.hide(player);
         INSTANCE.removeDisplayPacket(this, player);
@@ -153,7 +153,7 @@ public class DShop implements Shop {
      * @param player        The player to show the display to.
      * @param showHolograms Whether the hologram lines are shown or not.
      */
-    public synchronized void display(Player player, boolean showHolograms) {
+    public synchronized void display(@NotNull Player player, boolean showHolograms) {
         kill(player);
 
         if (getBaseLocation() == null) {
@@ -227,7 +227,7 @@ public class DShop implements Shop {
      * @param distance The distance between the player and the shop.
      * @return Whether the player is in range or not.
      */
-    public boolean isInRange(Player player, double distance) {
+    public boolean isInRange(@NotNull Player player, double distance) {
         return player != null && getBaseLocation() != null && getBaseLocation().getWorldName().equalsIgnoreCase(player.getWorld().getName())
                 && getBaseLocation().distance(player.getLocation(), true) < distance;
     }
@@ -382,7 +382,7 @@ public class DShop implements Shop {
      * @param player the player used inside the commands.
      * @param amount The amount for the {amount} placeholder.
      */
-    public void runCommands(Player player, int amount) {
+    public void runCommands(@NotNull Player player, int amount) {
         if (getCommands().size() > 0)
             for (int i = -1; ++i < getCommands().size(); ) {
                 String commandLine = getCommands().get(i), command = commandLine.replaceAll("(?i):PLAYER", "")
@@ -402,7 +402,7 @@ public class DShop implements Shop {
      * @param player The player to teleport.
      * @param charge Whether the player should be charged.
      */
-    public void visit(Player player, boolean charge) {
+    public void visit(@NotNull Player player, boolean charge) {
         if (getBaseLocation() == null) {
             String message = INSTANCE.getLangConfig().getString("shop-unsafe-location");
             if (message != null && !message.equalsIgnoreCase(""))
@@ -658,7 +658,7 @@ public class DShop implements Shop {
      * Updates the shop buy or sell time stamp (Used for the dynamic price changing system).
      * (Note: Only use BUY or SELL as the economy call type. Defaults to BUY if invalid or improper.)
      */
-    public void updateTransactionTimeStamp(EconomyCallType economyCallType) {
+    public void updateTransactionTimeStamp(@NotNull EconomyCallType economyCallType) {
         if (economyCallType == EconomyCallType.SELL) setLastSellTimeStamp(System.currentTimeMillis());
         else setLastBuyTimeStamp(System.currentTimeMillis());
     }
@@ -680,7 +680,7 @@ public class DShop implements Shop {
      * @param economyCallType The type to check readiness for (Note: ONLY use BUY or SELL, by default BUY will be used).
      * @return Whether it is ready.
      */
-    public boolean isReadyForDynamicReset(int resetDuration, EconomyCallType economyCallType) {
+    public boolean isReadyForDynamicReset(int resetDuration, @NotNull EconomyCallType economyCallType) {
         return ((economyCallType == EconomyCallType.BUY && TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - getLastBuyTimeStamp()) >= resetDuration)
                 || (economyCallType == EconomyCallType.SELL && TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - getLastSellTimeStamp()) >= resetDuration));
     }
@@ -729,7 +729,7 @@ public class DShop implements Shop {
      * @param player The player to check access for.
      * @return Whether the player can or can NOT edit the shop.
      */
-    public boolean canEdit(Player player) {
+    public boolean canEdit(@NotNull Player player) {
         return (player.hasPermission("displayshops.adminedit")
                 || (player.hasPermission("displayshops.edit") && ((getOwnerUniqueId() != null && getOwnerUniqueId().toString().equals(player.getUniqueId().toString()))
                 || (!getAssistants().isEmpty() && getAssistants().contains(player.getUniqueId())))));
@@ -919,7 +919,7 @@ public class DShop implements Shop {
         return shopId;
     }
 
-    public void setShopId(UUID shopId) {
+    public void setShopId(@NotNull UUID shopId) {
         this.shopId = shopId;
     }
 
