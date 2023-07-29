@@ -325,14 +325,13 @@ public class CustomItem {
     public CustomItem setItemFlags(List<String> itemFlags) {
         ItemMeta itemMeta = get().getItemMeta();
         if (itemMeta != null && itemFlags != null && !itemFlags.isEmpty()) {
-            for (int i = -1; ++i < itemFlags.size(); ) {
-                final String line = itemFlags.get(i);
+            String[] flagNames = {"HIDE_POTION_EFFECTS", "HIDE_DYE", "HIDE_ATTRIBUTES", "HIDE_UNBREAKABLE"};
+            for (int i = -1; ++i < flagNames.length; ) {
+                final String flagName = flagNames[i];
                 try {
-                    ItemFlag itemFlag = ItemFlag.valueOf(line);
-                    itemMeta.addItemFlags(itemFlag);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                    final ItemFlag flag = ItemFlag.valueOf(flagName);
+                    itemMeta.addItemFlags(flag);
+                } catch (Exception ignored) {}
             }
             get().setItemMeta(itemMeta);
         }

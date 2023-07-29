@@ -778,12 +778,19 @@ public class Commands implements CommandExecutor {
 
         String message = getPluginInstance().getLangConfig().getString("shop-advertise");
         if (message != null && !message.isEmpty()) {
-            TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName())
-                    .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
-                    .replace("{buy}", getPluginInstance().getManager().formatNumber(shop.getBuyPrice(true), true))
-                    .replace("{sell}", getPluginInstance().getManager().formatNumber(shop.getSellPrice(true), true))));
-            if (shop.getShopItem() != null) {
+            final String notApplicable = getPluginInstance().getLangConfig().getString("not-applicable");
+            final boolean naNotEmpty = (notApplicable != null && !notApplicable.isEmpty());
 
+            final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange()),
+                    sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
+
+            TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName()))
+                    .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
+                    .replace("${buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
+                    .replace("${sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)))
+                    .replace("{buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
+                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true))));
+            if (shop.getShopItem() != null) {
                 final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
                         (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
                                 : shop.getShopItem().getItemMeta().toString()));
@@ -791,7 +798,14 @@ public class Commands implements CommandExecutor {
                 textComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_ITEM, new Item(shop.getShopItem().getType().getKey().toString(),
                         Math.min(shop.getShopItemAmount(), shop.getShopItem().getType().getMaxStackSize()), itemTag)));
             }
-            textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/displayshops visit " + shop.getShopId()));
+
+            final String visitClickable = getPluginInstance().getLangConfig().getString("shop-advertisement.visit-clickable");
+            if (visitClickable != null && !visitClickable.isEmpty()) {
+                TextComponent visitClickableComponent = new TextComponent(getPluginInstance().getManager().color(visitClickable));
+                visitClickableComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
+                textComponent.addExtra(visitClickableComponent);
+            } else textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, ("/displayshops visit " + shop.getShopId())));
+
             getPluginInstance().getServer().getOnlinePlayers().forEach(p -> p.spigot().sendMessage(textComponent));
         }
 
@@ -910,8 +924,6 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-extended"))
                         .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-renew-cost"), true))
                         .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
-            else
-                getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("insufficient-funds"));
             return;
         }
 
@@ -924,8 +936,6 @@ public class Commands implements CommandExecutor {
             getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rented"))
                     .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-cost"), true))
                     .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
-        else
-            getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("insufficient-funds"));
     }
 
     private void runReset(CommandSender commandSender, String marketRegionId) {
@@ -1595,11 +1605,11 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        if (getPluginInstance().getManagementTask() != null) getPluginInstance().getManagementTask().cancel();
-        if (getPluginInstance().getInSightTask() != null) getPluginInstance().getInSightTask().cancel();
-        if (getPluginInstance().getCleanupTask() != null) getPluginInstance().getCleanupTask().cancel();
+        // cancel tasks and reload configs
+        getPluginInstance().cancelTasks();
         getPluginInstance().reloadConfigs();
 
+        // reset Vault handler
         if (getPluginInstance().getConfig().getBoolean("use-vault")) {
             getPluginInstance().setupVaultEconomy();
             if (getPluginInstance().getVaultEconomy() == null)
@@ -1609,11 +1619,19 @@ public class Commands implements CommandExecutor {
         // reload global variables
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
 
+        // reload menus
+        getPluginInstance().getMenuMap().clear();
+        getPluginInstance().loadMenus();
+
+        // reload market regions
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
             getPluginInstance().getManager().saveMarketRegions();
             getPluginInstance().getManager().getMarketRegions().clear();
             getPluginInstance().getManager().loadMarketRegions(false);
+        });
 
+        // reload shops
+        getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
             List<Shop> shopList = new ArrayList<>(getPluginInstance().getManager().getShopMap().values());
             for (Shop shop : shopList) {
                 if (getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId())) {
@@ -1625,6 +1643,8 @@ public class Commands implements CommandExecutor {
             getPluginInstance().getManager().getShopMap().clear();
             getPluginInstance().getManager().loadShops(true, false);
         });
+
+        // restart tasks
         getPluginInstance().setupTasks();
 
         String message = getPluginInstance().getLangConfig().getString("reload");

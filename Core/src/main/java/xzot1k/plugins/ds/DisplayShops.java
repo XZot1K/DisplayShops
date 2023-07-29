@@ -625,7 +625,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param itemStack The item to check the id for.
      * @return The id associated to the item in the blocked-items.yml (returns -1 if invalid).
      */
-    public long getBlockedItemId(ItemStack itemStack) {
+    public long getBlockedItemId(@NotNull ItemStack itemStack) {
         File file = new File(getPluginInstance().getDataFolder(), "blocked-items.yml");
         FileConfiguration yaml = YamlConfiguration.loadConfiguration(file);
 
@@ -675,7 +675,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      * @param level   Level of the message.
      * @param message The message to log.
      */
-    public void log(Level level, String message) {
+    public void log(@NotNull Level level, @NotNull String message) {
         getServer().getLogger().log(level, "[" + getDescription().getName() + "] " + message);
     }
 
@@ -691,7 +691,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      *
      * @param text The text to store on the next available line in the file.
      */
-    public void writeToLog(String text) {
+    public void writeToLog(@NotNull String text) {
         if (getLoggingFile() == null) setLoggingFile(new File(getDataFolder(), "log.txt"));
 
         long fileSize = (getLoggingFile().length() / 1048576),
@@ -735,10 +735,18 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
     }
 
+    /**
+     * Cancels all tasks, but doesn't restart them.
+     */
+    public void cancelTasks() {
+        if (getManagementTask() != null) getManagementTask().cancel();
+        if (getCleanupTask() != null) getCleanupTask().cancel();
+        if (getInSightTask() != null) getInSightTask().cancel();
+    }
+
     private boolean isOutdated() {
         try {
-            HttpURLConnection c = (HttpURLConnection) new URL(
-                    "https://api.spigotmc.org/legacy/update.php?resource=69766").openConnection();
+            HttpURLConnection c = (HttpURLConnection) new URL("https://api.spigotmc.org/legacy/update.php?resource=69766").openConnection();
             c.setRequestMethod("GET");
             String oldVersion = getDescription().getVersion(),
                     newVersion = new BufferedReader(new InputStreamReader(c.getInputStream())).readLine();
@@ -757,8 +765,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      */
     public String getLatestVersion() {
         try {
-            HttpURLConnection c = (HttpURLConnection) new URL(
-                    "https://api.spigotmc.org/legacy/update.php?resource=69766").openConnection();
+            HttpURLConnection c = (HttpURLConnection) new URL("https://api.spigotmc.org/legacy/update.php?resource=69766").openConnection();
             c.setRequestMethod("GET");
             return new BufferedReader(new InputStreamReader(c.getInputStream())).readLine();
         } catch (IOException ex) {
@@ -908,7 +915,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
     }
 
-    private void loadMenus() {
+    public void loadMenus() {
         final File dir = new File(getDataFolder(), "/menus");
         if (dir.exists() && dir.isDirectory()) {
 
@@ -1118,8 +1125,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         getDisplayPacketMap().put(player.getUniqueId(), packetMap);
     }
 
-    // NBT functions
-
     /**
      * Sends the entire display to the player. (NOTE: The 'showHolograms' parameter will be ignored if the 'always-display' is enabled)
      *
@@ -1212,16 +1217,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return displayPacketMap;
     }
 
-    private void setDisplayPacketMap(HashMap<UUID, HashMap<UUID, DisplayPacket>> displayPacketMap) {
-        this.displayPacketMap = displayPacketMap;
-    }
-
     public List<UUID> getTeleportingPlayers() {
         return teleportingPlayers;
-    }
-
-    private void setTeleportingPlayers(List<UUID> teleportingPlayers) {
-        this.teleportingPlayers = teleportingPlayers;
     }
 
     /**
@@ -1239,10 +1236,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     public HashMap<UUID, UUID> getShopMemory() {
         return shopMemory;
-    }
-
-    private void setShopMemory(HashMap<UUID, UUID> shopMemory) {
-        this.shopMemory = shopMemory;
     }
 
     /**
