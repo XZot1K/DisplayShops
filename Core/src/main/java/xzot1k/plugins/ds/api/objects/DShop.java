@@ -550,7 +550,8 @@ public class DShop implements Shop {
     }
 
     private boolean isBlockSafe(@NotNull Block block, @NotNull Block downBlock) {
-        return (block.getType().name().contains("AIR") && block.getRelative(BlockFace.UP).getType().name().contains("AIR")
+        return ((block.getType().name().contains("AIR") || block.getType().name().contains("SNOW"))
+                && block.getType().name().contains("AIR") && block.getRelative(BlockFace.UP).getType().name().contains("AIR")
                 && block.getRelative(BlockFace.UP).getRelative(BlockFace.UP).getType().name().contains("AIR")
                 && (!downBlock.getType().name().contains("LAVA") && !downBlock.getType().name().contains("WATER") && !downBlock.getType().name().contains("AIR")
                 && !downBlock.getType().name().contains("WEB") && !downBlock.getType().name().contains("PISTON") && !downBlock.getType().name().contains("MAGMA")));
@@ -562,11 +563,8 @@ public class DShop implements Shop {
      * @param async Whether the shop should be deleted on the main thread or not.
      */
     public synchronized void delete(boolean async) {
-        if (async)
-            INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE,
-                    (Runnable) this::delete);
-        else
-            delete();
+        if (async) INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, (Runnable) this::delete);
+        else delete();
     }
 
     private synchronized void delete() {

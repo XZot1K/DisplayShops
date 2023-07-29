@@ -594,23 +594,29 @@ public class Listeners implements Listener {
     }
 
     private void handlePistons(@NotNull BlockPistonEvent e, @NotNull List<Block> blocks) {
-        if (!getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method")) {
-            if (blocks.stream().parallel().anyMatch(block -> (getPluginInstance().getManager().getShop(block.getLocation()) != null)))
-                e.setCancelled(true);
-        } else {
-            for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
-                final Shop shop = entry.getValue();
-                if (shop == null || shop.getBaseLocation() == null) continue;
+        final boolean altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
+        for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
+            final Shop shop = entry.getValue();
+            if (shop == null || shop.getBaseLocation() == null) continue;
 
-                if (blocks.stream().parallel().noneMatch(block -> (((block.getX() != shop.getBaseLocation().getX()) && (block.getZ() != shop.getBaseLocation().getZ())
-                        && (Math.max(block.getZ(), shop.getBaseLocation().getZ()) - Math.min(block.getZ(), shop.getBaseLocation().getZ())) >= 12)
-                        || ((block.getZ() != shop.getBaseLocation().getZ()) && (block.getX() != shop.getBaseLocation().getX())
-                        && (Math.max(block.getX(), shop.getBaseLocation().getX()) - Math.min(block.getX(), shop.getBaseLocation().getX())) >= 12
-                        || (!(block.getY() != shop.getBaseLocation().getY()) && !(block.getX() != shop.getBaseLocation().getX())
-                        && !(block.getZ() != shop.getBaseLocation().getZ())
-                        && (Math.max(block.getY(), shop.getBaseLocation().getY()) - Math.min(block.getY(), shop.getBaseLocation().getY())) >= 12))))) continue;
+            if (altPistonCheck) {
+                final boolean yDiff = (e.getBlock().getY() != shop.getBaseLocation().getY()),
+                        xDiff = (e.getBlock().getX() != shop.getBaseLocation().getX()),
+                        zDiff = (e.getBlock().getZ() != shop.getBaseLocation().getZ());
 
-                e.setCancelled(true);
+                final double changeInX = (Math.max(e.getBlock().getX(), shop.getBaseLocation().getX()) - Math.min(e.getBlock().getX(), shop.getBaseLocation().getX())),
+                        changeInY = (Math.max(e.getBlock().getY(), shop.getBaseLocation().getY()) - Math.min(e.getBlock().getY(), shop.getBaseLocation().getY())),
+                        changeInZ = (Math.max(e.getBlock().getZ(), shop.getBaseLocation().getZ()) - Math.min(e.getBlock().getZ(), shop.getBaseLocation().getZ()));
+
+                if ((!xDiff && zDiff && changeInZ < 12) || (!zDiff && xDiff && changeInX < 12) || (yDiff && changeInY < 12 && !xDiff && !zDiff)) {
+                    e.setCancelled(true);
+                    break;
+                }
+            } else {
+                if (blocks.stream().parallel().anyMatch(block -> shop.getBaseLocation().isSame(block.getLocation()))) {
+                    e.setCancelled(true);
+                    break;
+                }
             }
         }
     }
@@ -632,23 +638,23 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void onCraft(CraftItemEvent e) {
-        if (!(e.getWhoClicked() instanceof Player) || !getPluginInstance().getConfig().getBoolean("shop-creation-item.craftable"))
+        if (!(e.getWhoClicked() instanceof Player) || !getPluginInstance().getConfig().getBoolean("shop-creation-item.craftable") || e.getCurrentItem() == null)
             return;
 
-        Player player = (Player) e.getWhoClicked();
-        if (Objects.requireNonNull(e.getCurrentItem()).getItemMeta() != null && e.getCurrentItem().getItemMeta().hasDisplayName()
-                && e.getCurrentItem().getItemMeta().getDisplayName().equals(getPluginInstance().getManager().color(getPluginInstance()
-                .getConfig().getString("shop-creation-item.display-name")))) {
+        final Player player = (Player) e.getWhoClicked();
+        if (e.getCurrentItem().getItemMeta() != null && e.getCurrentItem().getItemMeta().hasDisplayName()) {
+            final String creationName = getPluginInstance().getConfig().getString("shop-creation-item.display-name");
+            if (creationName != null && !creationName.isEmpty() && e.getCurrentItem().getItemMeta().getDisplayName().equals(creationName)) {
+                if (!player.hasPermission("displayshops.craft")) {
+                    e.setCancelled(true);
+                    String message = getPluginInstance().getLangConfig().getString("no-permission");
+                    if (message != null && !message.equalsIgnoreCase(""))
+                        getPluginInstance().getManager().sendMessage(player, message);
+                    return;
+                }
 
-            if (!player.hasPermission("displayshops.craft")) {
-                e.setCancelled(true);
-                String message = getPluginInstance().getLangConfig().getString("no-permission");
-                if (message != null && !message.equalsIgnoreCase(""))
-                    getPluginInstance().getManager().sendMessage(player, message);
-                return;
+                e.getInventory().setItem(e.getSlot(), getPluginInstance().getManager().buildShopCreationItem(player, 1));
             }
-
-            e.getInventory().setItem(e.getSlot(), getPluginInstance().getManager().buildShopCreationItem(player, 1));
         }
     }
 
@@ -843,7 +849,7 @@ public class Listeners implements Listener {
         String description = "";
 
         if (getPluginInstance().getConfig().getBoolean("enchantment-description-set") && shop.getShopItem() != null
-                && (shop.getShopItem().getEnchantments().size() > 0 || shop.getShopItem().getItemMeta() instanceof EnchantmentStorageMeta))
+                && (!shop.getShopItem().getEnchantments().isEmpty() || shop.getShopItem().getItemMeta() instanceof EnchantmentStorageMeta))
             description = description + getPluginInstance().getManager().getEnchantmentLine(shop.getShopItem());
         else if (getPluginInstance().getConfig().getBoolean("potion-description-set") && shop.getShopItem() != null
                 && shop.getShopItem().getItemMeta() instanceof PotionMeta)
@@ -916,9 +922,14 @@ public class Listeners implements Listener {
         return 4;
     }
 
+    public boolean isCreationItem(@NotNull ItemStack itemStack) {
+        final String nbtResult = getPluginInstance().getPacketManager().getNBT(itemStack, "DisplayShops");
+        return (nbtResult != null && nbtResult.equals("Creation Item"));
+    }
+
     public boolean shopCreationWorks(@NotNull Player player, @NotNull Block block, @NotNull ItemStack itemStack) {
 
-        if (!itemStack.isSimilar(creationItem)) {
+        if (!isCreationItem(itemStack)) {
            /* if(getPluginInstance().isItemAdderInstalled()) {
                 dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.byItemStack(itemStack);
             }*/
@@ -994,13 +1005,11 @@ public class Listeners implements Listener {
                     if (block instanceof Directional) try {
                         Method method = Block.class.getMethod("setData", Byte.class, Boolean.class);
                         method.invoke(block, oppositeDirectionByte(Direction.getYaw(player)), true);
-                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
-                    }
+                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {}
                     else try {
                         Method method = Block.class.getMethod("setData", Byte.class, Boolean.class);
                         method.invoke(block, (byte) creationItem.getDurability(), true);
-                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
-                    }
+                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {}
 
                     final BlockState blockState = block.getRelative(BlockFace.UP).getState();
                     blockState.setType(Material.AIR);
