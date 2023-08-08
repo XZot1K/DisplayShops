@@ -168,8 +168,7 @@ public class DPacket implements DisplayPacket {
             else hologramFormat = INSTANCE.getConfig().getStringList("invalid-item-format");
         }
 
-        boolean useVault = (INSTANCE.getConfig().getBoolean("use-vault") && INSTANCE.getVaultEconomy() != null),
-                forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
+        boolean forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
 
         String itemName, tradeItemName;
         itemName = tradeItemName = "";
@@ -177,7 +176,7 @@ public class DPacket implements DisplayPacket {
         if (shop.getShopItem() != null)
             itemName = INSTANCE.getManager().getItemName(shop.getShopItem());
 
-        if (!useVault)
+        if (shop.getCurrencyType().equals("item-for-item"))
             if (!forceUse && shop.getTradeItem() != null)
                 tradeItemName = INSTANCE.getManager().getItemName(shop.getTradeItem());
             else {

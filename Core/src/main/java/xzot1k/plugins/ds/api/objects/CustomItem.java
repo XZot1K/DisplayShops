@@ -162,7 +162,6 @@ public class CustomItem {
     }
 
     public CustomItem setDisplayName(@Nullable Player player, @Nullable Shop shop, @NotNull String displayName) {
-
         final String currencySymbol = getPluginInstance().getConfig().getString("currency-symbol");
         final double tax = getPluginInstance().getConfig().getDouble("transaction-tax"),
                 beforeBuyPrice = (shop != null ? (shop.getBuyPrice(true) * unitCount) : 0),

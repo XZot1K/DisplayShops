@@ -81,6 +81,14 @@
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
+        <repository>
+            <id>auxilor</id>
+            <url>https://repo.auxilor.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>rosewood-repo</id>
+            <url>https://repo.rosewooddev.io/repository/public/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -196,6 +204,20 @@
             <groupId>com.songoda</groupId>
             <artifactId>skyblock</artifactId>
             <version>2.3.30</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.willfp</groupId>
+            <artifactId>core-plugin</artifactId>
+            <version>1.8.3</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.black_ixx</groupId>
+            <artifactId>playerpoints</artifactId>
+            <version>3.2.6</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

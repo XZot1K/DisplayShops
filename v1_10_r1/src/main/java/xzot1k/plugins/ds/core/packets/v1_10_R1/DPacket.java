@@ -169,14 +169,13 @@ public class DPacket implements DisplayPacket {
                 : this.getPluginInstance().getConfig().getStringList("valid-item-format")) : (shop.getOwnerUniqueId() == null
                 ? this.getPluginInstance().getConfig().getStringList("admin-invalid-item-format")
                 : this.getPluginInstance().getConfig().getStringList("invalid-item-format"));
-        boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null);
         boolean forceUse = this.getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
         String tradeItemName = "";
         String itemName = "";
         if (shop.getShopItem() != null) {
             itemName = this.getPluginInstance().getManager().getItemName(shop.getShopItem());
         }
-        if (!useVault) {
+        if (shop.getCurrencyType().equals("item-for-item")) {
             if (!forceUse && shop.getTradeItem() != null) {
                 tradeItemName = this.getPluginInstance().getManager().getItemName(shop.getTradeItem());
             } else {

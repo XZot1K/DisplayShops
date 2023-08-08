@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.permissions.PermissionAttachmentInfo;
@@ -343,15 +344,14 @@ public class DManager implements Manager {
         if (!investor.hasPermission("displayshops.bypass")) {
             if (economyCallType != EconomyCallType.SELL && !economyCallEvent.canInvestorAfford()) {
                 investor.closeInventory();
-                String tradeItemName = "";
 
-                final boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null);
-                if (!useVault) {
+                String tradeItemName = "";
+                if (shop != null && shop.getCurrencyType().equals("item-for-item")) {
                     final boolean forceUseCurrency = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
                     final ItemStack forceCurrencyItem = getPluginInstance().getManager().buildShopCurrencyItem(1);
                     final String defaultName = getPluginInstance().getManager().getItemName(forceCurrencyItem);
-                    tradeItemName = forceUseCurrency ? defaultName : shop != null && shop.getTradeItem() != null
-                            ? getPluginInstance().getManager().getItemName(shop.getTradeItem()) : defaultName;
+                    tradeItemName = (forceUseCurrency ? defaultName : ((shop.getTradeItem() != null)
+                            ? getPluginInstance().getManager().getItemName(shop.getTradeItem()) : defaultName));
                 }
 
                 final String message = getPluginInstance().getLangConfig().getString("insufficient-funds");
@@ -376,7 +376,7 @@ public class DManager implements Manager {
      * @return The MarketRegion object found.
      */
     public MarketRegion getMarketRegion(@NotNull Location location) {
-        if (getMarketRegions().size() <= 0) return null;
+        if (getMarketRegions().isEmpty()) return null;
         for (int i = -1; ++i < getMarketRegions().size(); ) {
             MarketRegion marketRegion = getMarketRegions().get(i);
             if (marketRegion.isInRegion(location)) return marketRegion;
@@ -432,6 +432,58 @@ public class DManager implements Manager {
         }
 
         return false;
+    }
+
+    /**
+     * Finds the value a specific placeholder was replaced with given the original format, placeholder, and the ItemStack.
+     *
+     * @param itemStack   The ItemStack containing the formatted placeholder.
+     * @param textFormat  The format with the non-replaced placeholder.
+     * @param placeHolder The placeholder to get the value from.
+     * @return The value found in the placeholders place (can return NULL).
+     */
+    public String getValueFromPlaceholder(@NotNull ItemStack itemStack, @NotNull Object textFormat, @NotNull String placeHolder) {
+        final ItemMeta itemMeta = itemStack.getItemMeta();
+        if (itemMeta == null) return null;
+
+        if (textFormat instanceof String) { // displayName
+            final String format = (String) textFormat;
+            final String nFormat = ChatColor.stripColor(DisplayShops.getPluginInstance().getManager().color(format));
+            if (nFormat.contains("{type}")) {
+                String currentType = ChatColor.stripColor(itemMeta.getDisplayName());
+                String[] args = nFormat.split(placeHolder.replace("{", "\\{"));
+                if (args.length > 0) for (int i = -1; ++i < args.length; )
+                    currentType = currentType.replace(args[0], "");
+
+                if (!currentType.isEmpty()) return currentType;
+            }
+        } else if (textFormat instanceof List<?>) { // lore
+            final List<?> formatList = (List<?>) textFormat;
+
+            String lineWithPlaceholder = null;
+            for (int i = -1; ++i < formatList.size(); ) {
+                final Object cLine = formatList.get(i);
+                if (cLine instanceof String) {
+                    final String line = (String) cLine;
+                    if (line.contains(placeHolder.replace("{", "\\{"))) {
+                        lineWithPlaceholder = line;
+                        break;
+                    }
+                }
+            }
+
+            if (lineWithPlaceholder == null) return null;
+
+            final String format = ChatColor.stripColor(DisplayShops.getPluginInstance().getManager().color(lineWithPlaceholder));
+            if (format.contains("{search-text}")) {
+                String currentType = ChatColor.stripColor(itemMeta.getDisplayName());
+                String[] args = lineWithPlaceholder.split(placeHolder);
+                if (args.length > 0) for (int i = -1; ++i < args.length; )
+                    currentType = currentType.replace(args[0], "");
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -1358,39 +1410,6 @@ public class DManager implements Manager {
     }
 
     /**
-     * Obtains the passed shop's max stock based on owner permissions or administrator bypasses.
-     *
-     * @param shop The shop to get the max stock for (obtains owner for permissions, returns max possible integer if the shop is admin or the owner
-     *             has the "displayshops.stock.max").
-     * @return The obtained max stock (defaults to configuration value or max possible integer, if the shop is admin).
-     */
-    public int getMaxStock(Shop shop) {
-        int maxStock = ((shop.isAdminShop() && shop.getStock() <= -1)
-                ? Integer.MAX_VALUE : getPluginInstance().getConfig().getInt("max-shop-stock"));
-        if (!shop.isAdminShop() && shop.getOwnerUniqueId() != null) {
-            OfflinePlayer owner = getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId());
-            if (owner.getPlayer() != null) {
-                final Player player = owner.getPlayer();
-                for (PermissionAttachmentInfo permissionAttachmentInfo : player.getEffectivePermissions()) {
-                    if (permissionAttachmentInfo.getPermission().toLowerCase().startsWith("displayshops.stock.")) {
-                        String intValue = permissionAttachmentInfo.getPermission().toLowerCase()
-                                .replace("displayshops.stock.", "");
-
-                        if (intValue.equalsIgnoreCase("max")) return Integer.MAX_VALUE;
-                        else if (isNotNumeric(intValue)) continue;
-
-                        int tempValue = (int) Double.parseDouble(permissionAttachmentInfo.getPermission()
-                                .toLowerCase().replace("displayshops.stock.", ""));
-                        if (tempValue > maxStock) maxStock = tempValue;
-                    }
-                }
-            }
-        }
-
-        return maxStock;
-    }
-
-    /**
      * Gets the player specific shop promotion item modifier.
      *
      * @param player The player to check.
@@ -1626,7 +1645,6 @@ public class DManager implements Manager {
      * @return The shop creation physical item stack.
      */
     public ItemStack buildShopCreationItem(Player player, int amount) {
-
         final String materialName = getPluginInstance().getConfig().getString("shop-block-material");
         final boolean isEnchanted = getPluginInstance().getConfig().getBoolean("shop-creation-item.enchanted");
 
@@ -1644,7 +1662,6 @@ public class DManager implements Manager {
                             .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
                     if (isEnchanted) item.setEnchanted(true);
-
                     return getPluginInstance().getPacketManager().updateNBT(item.get(), "DisplayShops", "Creation Item");
                 }
             }
@@ -1657,7 +1674,6 @@ public class DManager implements Manager {
                     .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
             if (isEnchanted) item.setEnchanted(true);
-
             return getPluginInstance().getPacketManager().updateNBT(item.get(), "DisplayShops", "Creation Item");
         }
 
@@ -1703,25 +1719,6 @@ public class DManager implements Manager {
         for (int i = -1; ++i < worldList.size(); )
             if (worldList.get(i).equalsIgnoreCase(world.getName())) return true;
         return false;
-    }
-
-    /**
-     * Obtains the currency balance of the passed player.
-     *
-     * @param player   The player to get the balance of.
-     * @param shop     The shop to get the trade-item from.
-     * @param useVault Whether to use Vault methods.
-     * @return The found player balance amount.
-     */
-    public double getCurrencyBalance(@NotNull OfflinePlayer player, @NotNull Shop shop, boolean useVault) {
-        if (useVault) return getPluginInstance().getVaultEconomy().getBalance(player);
-        else if (player.getPlayer() != null) {
-            final ItemStack currencyItem =
-                    (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use") || shop.getTradeItem() == null) ?
-                            getPluginInstance().getManager().buildShopCurrencyItem(1) : shop.getTradeItem();
-            return getPluginInstance().getManager().getItemAmount(player.getPlayer().getInventory(), currencyItem);
-        }
-        return 0;
     }
 
     // getters & setters

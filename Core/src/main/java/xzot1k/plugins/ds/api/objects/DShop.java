@@ -10,6 +10,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
@@ -36,7 +37,7 @@ public class DShop implements Shop {
     private int stock, shopItemAmount, globalBuyCounter, globalSellCounter, playerBuyLimit,
             playerSellLimit, globalBuyLimit, globalSellLimit, dynamicBuyPriceCounter, dynamicSellPriceCounter;
     private long changeTimeStamp, lastBuyTimeStamp, lastSellTimeStamp;
-    private String description, storedBaseBlockMaterial;
+    private String description, storedBaseBlockMaterial, currencyType;
     private BigDecimal buyPrice, sellPrice, storedBalance;
     private boolean commandOnlyMode, dynamicPriceChange;
     private List<String> commands;
@@ -80,8 +81,7 @@ public class DShop implements Shop {
         setShopItemAmount(shopItemAmount);
     }
 
-    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, LocationClone baseLocation, int shopItemAmount,
-                 String storedBaseBlockMaterial) {
+    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, LocationClone baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
         this.INSTANCE = DisplayShops.getPluginInstance();
 
         reset();
@@ -122,7 +122,7 @@ public class DShop implements Shop {
      * @param player        The player to show the display to.
      * @param showHolograms Whether the hologram lines are shown or not.
      */
-    public synchronized void display(Player player, boolean showHolograms) {
+    public synchronized void display(@NotNull Player player, boolean showHolograms) {
         kill(player);
 
         if (getBaseLocation() == null) {
@@ -203,6 +203,34 @@ public class DShop implements Shop {
     }
 
     /**
+     * Obtains the passed shop's max stock based on owner permissions or administrator bypasses.
+     *
+     * @return The obtained max stock (defaults to configuration value or max possible integer, if the shop is admin).
+     */
+    public int getMaxStock() {
+        int maxStock = ((isAdminShop() && getStock() <= -1) ? Integer.MAX_VALUE : INSTANCE.getConfig().getInt("max-shop-stock"));
+        if (!isAdminShop() && getOwnerUniqueId() != null) {
+            OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
+            if (owner.getPlayer() != null) {
+                final Player player = owner.getPlayer();
+                for (PermissionAttachmentInfo permissionAttachmentInfo : player.getEffectivePermissions()) {
+                    if (permissionAttachmentInfo.getPermission().toLowerCase().startsWith("displayshops.stock.")) {
+                        String intValue = permissionAttachmentInfo.getPermission().toLowerCase().replace("displayshops.stock.", "");
+
+                        if (intValue.equalsIgnoreCase("max")) return Integer.MAX_VALUE;
+                        else if (INSTANCE.getManager().isNotNumeric(intValue)) continue;
+
+                        int tempValue = (int) Double.parseDouble(permissionAttachmentInfo.getPermission().toLowerCase().replace("displayshops.stock.", ""));
+                        if (tempValue > maxStock) maxStock = tempValue;
+                    }
+                }
+            }
+        }
+
+        return maxStock;
+    }
+
+    /**
      * Drops the shop's entire stock onto the ground after calculating stacks.
      */
     public void dropStock() {
@@ -216,10 +244,8 @@ public class DShop implements Shop {
                 return;
             }
 
-            INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () -> {
-                RecoveryData recoveryData = new RecoveryData(owner.getUniqueId());
-                RecoveryData.updateRecovery(owner.getUniqueId(), recoveryData);
-            });
+            INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
+                    INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this, getStock()));
         }
     }
 
@@ -238,7 +264,8 @@ public class DShop implements Shop {
             if (getStoredBalance() == 1) {
                 currencyItem.setAmount(1);
                 Location baseLocation = getBaseLocation().asBukkitLocation();
-                baseLocation.getWorld().dropItemNaturally(baseLocation, currencyItem);
+                final World world = baseLocation.getWorld();
+                if (world != null) world.dropItemNaturally(baseLocation, currencyItem);
                 setStoredBalance(0);
                 return;
             }
@@ -248,15 +275,13 @@ public class DShop implements Shop {
             if (playerToGive == null) return;
 
             if (!playerToGive.isOnline()) {
-                INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () -> {
-                    RecoveryData recoveryData = new RecoveryData(playerToGive.getUniqueId());
-                    RecoveryData.updateRecovery(playerToGive.getUniqueId(), recoveryData);
-                });
+                INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
+                        INSTANCE.getManagementTask().createRecovery(playerToGive.getUniqueId(), this, getShopItemAmount()));
                 return;
             }
 
             INSTANCE.getManager().giveItemStacks(playerToGive, currencyItem.clone(), (int) getStoredBalance());
-        } else INSTANCE.getVaultEconomy().depositPlayer(ownerPlayer, getStoredBalance());
+        } else if (ownerPlayer != null) INSTANCE.getEconomyHandler().deposit(ownerPlayer, this, getStoredBalance());
         setStoredBalance(0);
     }
 
@@ -392,7 +417,7 @@ public class DShop implements Shop {
                     isSyncing = (useOwnerSyncing && getOwnerUniqueId() != null),
                     useVault = INSTANCE.getConfig().getBoolean("use-vault");
             if (useVault) {
-                if (!INSTANCE.getVaultEconomy().has(player, shopVisitEvent.getChargeAmount())) {
+                if (!INSTANCE.getEconomyHandler().has(player, this, shopVisitEvent.getChargeAmount())) {
                     String message = INSTANCE.getLangConfig().getString("insufficient-funds");
                     if (message != null && !message.equalsIgnoreCase(""))
                         INSTANCE.getManager().sendMessage(player, message.replace("{price}",
@@ -400,11 +425,11 @@ public class DShop implements Shop {
                     return;
                 }
 
-                INSTANCE.getVaultEconomy().withdrawPlayer(player, shopVisitEvent.getChargeAmount());
+                INSTANCE.getEconomyHandler().withdraw(player, this, shopVisitEvent.getChargeAmount());
 
                 if (isSyncing) {
                     OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
-                    INSTANCE.getVaultEconomy().depositPlayer(owner, shopVisitEvent.getChargeAmount());
+                    INSTANCE.getEconomyHandler().deposit(owner, this, shopVisitEvent.getChargeAmount());
                 }
             } else {
 
@@ -762,6 +787,7 @@ public class DShop implements Shop {
      * Resets the shop entirely. The time stamp is also updated.
      */
     public void reset() {
+        setCurrencyType(INSTANCE.getConfig().getString("default-currency-type"));
         setStock(0);
         setStoredBalance(0);
         setShopItemAmount(1);
@@ -904,7 +930,7 @@ public class DShop implements Shop {
         return baseLocation;
     }
 
-    public void setBaseLocation(LocationClone baseLocation) {
+    public void setBaseLocation(@NotNull LocationClone baseLocation) {
         this.baseLocation = baseLocation;
     }
 
@@ -1053,5 +1079,9 @@ public class DShop implements Shop {
     public void setGlobalSellCounter(int globalSellCounter) {
         this.globalSellCounter = globalSellCounter;
     }
+
+    public String getCurrencyType() {return currencyType;}
+
+    public void setCurrencyType(@NotNull String currencyType) {this.currencyType = currencyType;}
 
 }

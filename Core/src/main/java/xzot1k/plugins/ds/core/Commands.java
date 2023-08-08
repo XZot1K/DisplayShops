@@ -475,7 +475,7 @@ public class Commands implements CommandExecutor {
         int amount = Math.max(1, Integer.parseInt(args[1]));
 
         String message;
-        final int maxStock = getPluginInstance().getManager().getMaxStock(shop);
+        final int maxStock = shop.getMaxStock();
         int totalItemCount = getPluginInstance().getManager().getItemAmount(player.getInventory(), shop.getShopItem());
         if (totalItemCount <= 0 || totalItemCount < amount) {
             message = getPluginInstance().getLangConfig().getString("insufficient-items");
@@ -1839,7 +1839,7 @@ public class Commands implements CommandExecutor {
         }
         enteredAmount = Integer.parseInt(args[1]);
 
-        if (enteredAmount > getPluginInstance().getManager().getMaxStock(shop)) {
+        if (enteredAmount > shop.getMaxStock()) {
             String message = getPluginInstance().getLangConfig().getString("invalid-stock");
             if (message != null && !message.equalsIgnoreCase(""))
                 getPluginInstance().getManager().sendMessage(player, message);

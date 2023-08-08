@@ -6,16 +6,26 @@ package xzot1k.plugins.ds.core.tasks;
 
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.eco.EcoHook;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.objects.DataPack;
 import xzot1k.plugins.ds.api.objects.MarketRegion;
-import xzot1k.plugins.ds.api.objects.RecoveryData;
 import xzot1k.plugins.ds.api.objects.Shop;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
@@ -23,8 +33,10 @@ import java.util.logging.Level;
 
 public class ManagementTask extends BukkitRunnable {
 
-    private final boolean dynamicPricesEnabled;
     private DisplayShops pluginInstance;
+    private FileConfiguration recoveryConfig;
+    private File recoveryFile;
+    private final boolean dynamicPricesEnabled;
     private int autoSaveCounter, mysqlDumpCounter;
     private int autoSaveInterval, dynamicResetDuration, mysqlDumpInterval;
 
@@ -36,6 +48,8 @@ public class ManagementTask extends BukkitRunnable {
         setMysqlDumpInterval(getPluginInstance().getConfig().getInt("mysql.dump-interval"));
         setDynamicResetDuration(getPluginInstance().getConfig().getInt("dynamic-price-change"));
         this.dynamicPricesEnabled = getPluginInstance().getConfig().getBoolean("dynamic-prices");
+
+        reloadRecoveryConfig();
     }
 
     @Override
@@ -73,7 +87,7 @@ public class ManagementTask extends BukkitRunnable {
                     getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> {
                         Player renter = getPluginInstance().getServer().getPlayer(marketRegion.getRenter());
                         if (renter != null)
-                            getPluginInstance().getManager().sendMessage(renter, getPluginInstance().getLangConfig().getString("rent-notification")
+                            getPluginInstance().getManager().sendMessage(renter, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-notification"))
                                     .replace("{id}", WordUtils.capitalize(marketRegion.getMarketId())).replace("{time}", marketRegion.formattedTimeUntilExpire()));
                     });
                 }
@@ -93,10 +107,7 @@ public class ManagementTask extends BukkitRunnable {
                 }
 
                 statement.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-                getPluginInstance().log(Level.WARNING, "There was an issue saving due to an SQL issue.");
-            }
+            } catch (SQLException e) {getPluginInstance().log(Level.WARNING, "There was an issue saving due to an SQL issue.");}
         }
 
         final String host = getPluginInstance().getConfig().getString("mysql.host");
@@ -106,43 +117,65 @@ public class ManagementTask extends BukkitRunnable {
             if (isDumpTime) {
                 try {
                     getPluginInstance().exportMySQLDatabase();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                } catch (IOException ignored) {}
                 setMysqlDumpCounter(0);
             }
         }
 
         for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
             if (player == null || !player.isOnline()) return;
+            handleRecovery(player);
+        }
+    }
 
-            RecoveryData recoveryData = RecoveryData.getRecoveryData(player.getUniqueId());
-            if (recoveryData == null) return;
+    public void handleRecovery(@NotNull Player player) {
+        final ConfigurationSection playerSection = recoveryConfig.getConfigurationSection(player.getUniqueId().toString());
+        if (playerSection == null) return;
 
-            if (recoveryData.getCurrency() > 0 && getPluginInstance().getVaultEconomy() != null) {
-                getPluginInstance().getVaultEconomy().depositPlayer(player, recoveryData.getCurrency());
-                recoveryData.setCurrency(0);
+        final String currencyType = playerSection.getString("currency-type");
+        if (currencyType != null) {
+            if (currencyType.equals("item-for-item")) {
+                ItemStack itemStack = playerSection.getItemStack("item");
+                if (itemStack == null || getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use"))
+                    itemStack = getPluginInstance().getManager().buildShopCurrencyItem(1);
+                getPluginInstance().getManager().giveItemStacks(player, itemStack, playerSection.getInt("amount"));
+            } else {
+                EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(currencyType);
+                if (ecoHook != null) ecoHook.deposit(player, playerSection.getDouble("amount"));
             }
+        }
 
-            int amount = 0;
-            if (recoveryData.getItemAmount() > 0) {
-                amount = recoveryData.getItemAmount();
-                recoveryData.setItemAmount(0);
-            }
+        clearRecovery(player);
+    }
 
-            if (recoveryData.getItem() != null) {
-                final int finalAmount = amount;
-                getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () ->
-                        getPluginInstance().getManager().giveItemStacks(player, recoveryData.getItem().clone(), finalAmount));
-                recoveryData.setItem(null);
-            }
+    private void clearRecovery(@NotNull Player player) {
+        try {
+            recoveryConfig.set(player.getUniqueId().toString(), null);
+            recoveryConfig.save(recoveryFile);
+        } catch (IOException ignored) {
+            getPluginInstance().log(Level.WARNING, "Failed to clear the recovery data of \"" + player.getName() + "\".");
+        }
+    }
 
-            if (recoveryData.getCurrency() <= 0 && recoveryData.getItemAmount() <= 0 && recoveryData.getItem() == null) {
-                RecoveryData.clearRecovery(player.getUniqueId());
-                return;
-            }
+    public void reloadRecoveryConfig() {
+        if (recoveryFile == null) recoveryFile = new File(getPluginInstance().getDataFolder(), "recovery.yml");
+        recoveryConfig = YamlConfiguration.loadConfiguration(recoveryFile);
+        try {
+            Reader defConfigStream = new InputStreamReader(Files.newInputStream(recoveryFile.toPath()), StandardCharsets.UTF_8);
+            YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
+            recoveryConfig.setDefaults(defConfig);
+            defConfigStream.close();
+        } catch (IOException e) {getPluginInstance().log(Level.WARNING, e.getMessage());}
+    }
 
-            RecoveryData.updateRecovery(player.getUniqueId(), recoveryData);
+    public void createRecovery(@NotNull UUID playerUniqueId, @NotNull Shop shop, double amount) {
+        try {
+            recoveryConfig.set((playerUniqueId + "." + shop.getCurrencyType()), amount);
+            if (shop.getCurrencyType().equals("item-for-item") && shop.getTradeItem() != null)
+                recoveryConfig.set((playerUniqueId + ".item"), shop.getTradeItem());
+            recoveryConfig.save(recoveryFile);
+        } catch (IOException ignored) {
+            getPluginInstance().log(Level.WARNING, "Failed to create the recovery data for \"" + playerUniqueId + "\".");
         }
     }
 

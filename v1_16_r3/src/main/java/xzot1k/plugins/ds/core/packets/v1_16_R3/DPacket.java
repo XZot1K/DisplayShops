@@ -129,27 +129,25 @@ public class DPacket implements DisplayPacket {
                 }
             }
         }
-        if (!showHolograms) {
-            return;
-        }
+
+        if (!showHolograms) return;
+
         List<String> hologramFormat = shop.getShopItem() != null ? (shop.getOwnerUniqueId() == null
                 ? this.getPluginInstance().getConfig().getStringList("admin-shop-format")
                 : this.getPluginInstance().getConfig().getStringList("valid-item-format"))
                 : (shop.getOwnerUniqueId() == null ? this.getPluginInstance().getConfig().getStringList("admin-invalid-item-format")
                 : this.getPluginInstance().getConfig().getStringList("invalid-item-format"));
-        boolean useVault = (getPluginInstance().getConfig().getBoolean("use-vault") && getPluginInstance().getVaultEconomy() != null);
         boolean forceUse = this.getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
         String tradeItemName = "";
         String itemName = "";
         if (shop.getShopItem() != null) itemName = this.getPluginInstance().getManager().getItemName(shop.getShopItem());
 
-        if (!useVault) {
+        if (shop.getCurrencyType().equals("item-for-item"))
             if (!forceUse && shop.getTradeItem() != null) tradeItemName = this.getPluginInstance().getManager().getItemName(shop.getTradeItem());
             else {
                 ItemStack currencyItem = this.getPluginInstance().getManager().buildShopCurrencyItem(1);
                 if (currencyItem != null) tradeItemName = this.getPluginInstance().getManager().getItemName(currencyItem);
             }
-        }
 
         final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
         String ownerName = shop.getOwnerUniqueId() == null ? "" : getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()).getName();

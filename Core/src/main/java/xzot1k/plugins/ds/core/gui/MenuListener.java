@@ -23,9 +23,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.eco.EcoHook;
 import xzot1k.plugins.ds.api.enums.Direction;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.enums.InteractionType;
+import xzot1k.plugins.ds.api.enums.ShopActionType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.events.ShopDeletionEvent;
 import xzot1k.plugins.ds.api.objects.*;
@@ -126,6 +128,9 @@ public class MenuListener implements Listener {
         } else if (menu.getMenuName().equals("visit")) {
             if (!checkInteractiveTouches(e)) return;
             operateVisitMenu(e, e.getClickedInventory(), menu, player);
+        } else if (menu.getMenuName().startsWith("deposit")) {
+            if (e.getSlot() >= (e.getInventory().getSize() - 9)) {if (!checkInteractiveTouches(e)) return;}
+            operateDepositMenu(e, e.getClickedInventory(), menu, player, (menu.getMenuName().contains("stock") ? DepositType.STOCK : DepositType.BALANCE));
         }
     }
 
@@ -150,7 +155,6 @@ public class MenuListener implements Listener {
                 isTradeItemSlot = (e.getSlot() == tradeItemSlot && tradeItemSlot >= 0 && tradeItemSlot < inventory.getSize());
 
         if (isSaleItemSlot || isTradeItemSlot) {
-
             if (inventory.getType() == InventoryType.PLAYER) return;
 
             final String changeItemMaterial = menu.getConfiguration().getString("item-change.material"),
@@ -189,8 +193,8 @@ public class MenuListener implements Listener {
 
             playClickSound(player);
             return;
-        } else if (inventory.getType() == InventoryType.PLAYER) {
 
+        } else if (inventory.getType() == InventoryType.PLAYER) {
             ItemStack selectedItem = e.getCurrentItem();
             if (selectedItem == null) return;
 
@@ -206,7 +210,6 @@ public class MenuListener implements Listener {
             }
 
             if (dataPack.getInteractionType() == InteractionType.SELECT_SALE_ITEM) {
-
                 if (shop.getStock() > 0) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-empty-required"));
                     return;
@@ -247,7 +250,7 @@ public class MenuListener implements Listener {
 
                 String description = "";
                 if (INSTANCE.getConfig().getBoolean("enchantment-description-set") && shop.getShopItem() != null
-                        && (shop.getShopItem().getEnchantments().size() > 0 || shop.getShopItem().getItemMeta() instanceof EnchantmentStorageMeta))
+                        && (!shop.getShopItem().getEnchantments().isEmpty() || shop.getShopItem().getItemMeta() instanceof EnchantmentStorageMeta))
                     description = description + INSTANCE.getManager().getEnchantmentLine(shop.getShopItem());
                 else if (INSTANCE.getConfig().getBoolean("potion-description-set") && shop.getShopItem() != null
                         && shop.getShopItem().getItemMeta() instanceof PotionMeta)
@@ -301,12 +304,10 @@ public class MenuListener implements Listener {
 
             case "description": {
                 final String title = menu.getConfiguration().getString("description-entry.title");
-
-                new AnvilGUI.Builder()
+                if (title != null) new AnvilGUI.Builder()
                         .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
                                 stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
                         .onClick((slot, stateSnapshot) -> {
-
                             if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
                             String filteredEntry = stateSnapshot.getText().substring(0, Math.min(stateSnapshot.getText().length(),
@@ -409,21 +410,62 @@ public class MenuListener implements Listener {
                 break;
             }
 
+            case "balance": {
+                final boolean useSelector = INSTANCE.getConfig().getBoolean("use-balance-amount-selectors");
+                if (!useSelector || shop.getTradeItem() != null) tempMenu = INSTANCE.getMenu("deposit-balance");
+                else {
+                    tempMenu = INSTANCE.getMenu("amount-selector");
+                    final InteractionType approxType = InteractionType.getApproxType(buttonName);
+
+                    dataPack.setInteractionType(approxType);
+                    dataPack.setInteractionValue(null);
+                }
+                break;
+            }
+
+            case "stock": {
+                final boolean useSelector = INSTANCE.getConfig().getBoolean("use-stock-amount-selectors");
+                if (!useSelector) tempMenu = INSTANCE.getMenu("deposit-stock");
+                else {
+                    tempMenu = INSTANCE.getMenu("amount-selector");
+                    final InteractionType approxType = InteractionType.getApproxType(buttonName);
+
+                    dataPack.setInteractionType(approxType);
+                    dataPack.setInteractionValue(null);
+                }
+                break;
+            }
+
             case "buy-price":
             case "sell-price":
-            case "balance":
             case "shop-item-amount":
             case "player-buy-limit":
             case "player-sell-limit":
             case "global-buy-limit":
-            case "global-sell-limit":
-            case "stock": {
+            case "global-sell-limit": {
                 tempMenu = INSTANCE.getMenu("amount-selector");
                 final InteractionType approxType = InteractionType.getApproxType(buttonName);
 
                 dataPack.setInteractionType(approxType);
                 dataPack.setInteractionValue(null);
                 break;
+            }
+
+            case "currency-type": {
+                final String nextCurrency = INSTANCE.getEconomyHandler().determineNextCurrencyCycle(player, shop);
+                final ItemStack itemStack = e.getCurrentItem();
+                final ItemMeta itemMeta = itemStack.getItemMeta();
+                if (itemMeta != null) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(nextCurrency);
+                    if (ecoHook != null) {
+                        shop.setCurrencyType(nextCurrency);
+                        shop.save(true);
+
+                        itemMeta.setDisplayName(itemMeta.getDisplayName().replace("{type}", ecoHook.getPluralName()));
+                        itemStack.setItemMeta(itemMeta);
+                        inventory.setItem(e.getSlot(), itemStack);
+                    }
+                }
             }
 
             default: {
@@ -449,8 +491,7 @@ public class MenuListener implements Listener {
             return;
         }
 
-        boolean useVault = (INSTANCE.getConfig().getBoolean("use-vault") && INSTANCE.getVaultEconomy() != null),
-                forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
+        boolean forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
         final int previewSlot = menu.getConfiguration().getInt("preview-slot");
 
         if (e.getSlot() == previewSlot) {
@@ -479,7 +520,7 @@ public class MenuListener implements Listener {
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-trade-item"));
             } else {
                 ItemStack previewItem = shop.getShopItem().clone();
-                if (!(INSTANCE.getConfig().getBoolean("use-vault") && INSTANCE.getVaultEconomy() != null)) {
+                if (shop.getCurrencyType().equals("item-for-item")) {
                     ItemMeta itemMeta = previewItem.getItemMeta();
                     if (itemMeta != null) {
                         List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()),
@@ -593,14 +634,7 @@ public class MenuListener implements Listener {
                     return;
                 }
 
-                double investorBalance, tax = INSTANCE.getConfig().getDouble("transaction-tax");
-                if (useVault) investorBalance = INSTANCE.getVaultEconomy().getBalance(player);
-                else {
-                    final ItemStack currencyItem = (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use")
-                            || shop.getTradeItem() == null) ? INSTANCE.getManager().buildShopCurrencyItem(1) : shop.getTradeItem();
-                    investorBalance = INSTANCE.getManager().getItemAmount(player.getInventory(), currencyItem);
-                }
-
+                double investorBalance = INSTANCE.getEconomyHandler().getBalance(player, shop), tax = INSTANCE.getConfig().getDouble("transaction-tax");
                 final double buyPrice = shop.getBuyPrice(true);
                 final int maxBuyAll = INSTANCE.getConfig().getInt("maximum-buy-all");
 
@@ -635,7 +669,7 @@ public class MenuListener implements Listener {
                     return;
                 }
 
-                if (shop.getCommands().size() > 0) {
+                if (!shop.getCommands().isEmpty()) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("commands-sell-fail"));
                     player.updateInventory();
                     return;
@@ -655,7 +689,7 @@ public class MenuListener implements Listener {
                     return;
                 }
 
-                final int maxStock = INSTANCE.getManager().getMaxStock(shop);
+                final int maxStock = shop.getMaxStock();
                 if ((!shop.isAdminShop() || (shop.isAdminShop() && shop.getStock() >= 0))
                         && (shop.getStock() + (shop.getShopItemAmount() * unitCount)) > maxStock) {
                     player.closeInventory();
@@ -697,8 +731,7 @@ public class MenuListener implements Listener {
                 }
 
                 if (!shop.isAdminShop() || shop.getStock() >= 0) {
-                    final long maxStock = INSTANCE.getManager().getMaxStock(shop),
-                            availableSpace = (maxStock - shop.getStock());
+                    final long maxStock = shop.getMaxStock(), availableSpace = (maxStock - shop.getStock());
                     totalSellableUnits = (int) Math.min((availableSpace / shop.getShopItemAmount()), totalSellableUnits);
                     if (totalSellableUnits <= 0) {
                         INSTANCE.getManager().sendMessage(player, Objects.requireNonNull(INSTANCE.getLangConfig().getString("shop-max-stock"))
@@ -901,7 +934,7 @@ public class MenuListener implements Listener {
 
                                 if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
-                                menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim());
+                                menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim(), null);
                                 menu.switchPage(inventory, player, dataPack.getCurrentPage());
 
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
@@ -1140,43 +1173,64 @@ public class MenuListener implements Listener {
             switch (buttonName) {
 
                 case "next": {
-
                     playClickSound(player);
-
-                    if (dataPack.hasNextPage())
-                        menu.switchPage(inventory, player, (dataPack.getCurrentPage() + 1));
+                    if (dataPack.hasNextPage()) menu.switchPage(inventory, player, (dataPack.getCurrentPage() + 1));
                     return;
                 }
 
                 case "previous": {
+                    playClickSound(player);
+                    if (dataPack.hasPreviousPage()) menu.switchPage(inventory, player, (dataPack.getCurrentPage() - 1));
+                    return;
+                }
 
+                case "type": {
                     playClickSound(player);
 
-                    if (dataPack.hasPreviousPage())
-                        menu.switchPage(inventory, player, (dataPack.getCurrentPage() - 1));
+                    final String typeButtonName = menu.getConfiguration().getString("buttons.type.name");
+                    if (typeButtonName == null) return;
+
+                    final ItemStack itemStack = e.getCurrentItem().clone();
+                    final ItemMeta itemMeta = e.getCurrentItem().getItemMeta();
+
+                    final ShopActionType currentType = ShopActionType.getTypeFromItem(e.getCurrentItem(), menu);
+                    if (currentType != null && itemMeta != null) {
+                        final ShopActionType nextType = currentType.getNext();
+
+                        itemMeta.setDisplayName(INSTANCE.getManager().color(typeButtonName.replace("{type}", nextType.getName(menu))));
+                        itemStack.setItemMeta(itemMeta);
+                        e.getClickedInventory().setItem(e.getSlot(), itemStack);
+
+                        final String currentSearchText = INSTANCE.getManager().getValueFromPlaceholder(e.getCurrentItem(),
+                                menu.getConfiguration().getStringList("buttons.search.lore"), "{search-text}");
+
+                        menu.loadPages(player, dataPack, null, currentSearchText, e.getCurrentItem());
+                        menu.switchPage(inventory, player, 1);
+                    }
                     return;
                 }
 
                 case "search": {
-
                     playClickSound(player);
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
-                    new AnvilGUI.Builder()
-                            .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
-                            .onClick((slot, stateSnapshot) -> {
+                    if (title != null && !title.isEmpty()) {
+                        new AnvilGUI.Builder()
+                                .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                        stateSnapshot.getPlayer().openInventory(inventory), 1))
+                                .onClick((slot, stateSnapshot) -> {
+                                    if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
-                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+                                    final ItemStack typeItem = inventory.getItem(menu.getConfiguration().getInt("buttons.type.slot"));
+                                    menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), typeItem);
+                                    menu.switchPage(inventory, player, dataPack.getCurrentPage());
 
-                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim());
-                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
-
-                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                            })
-                            .text(" ")
-                            .title(INSTANCE.getManager().color(title))
-                            .plugin(INSTANCE).open(player);
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                })
+                                .text("")
+                                .title(INSTANCE.getManager().color(title))
+                                .plugin(INSTANCE).open(player);
+                    }
                     return;
                 }
 
@@ -1275,8 +1329,7 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_BALANCE: {
-                        maxAmount = INSTANCE.getManager().getCurrencyBalance(player, shop,
-                                (INSTANCE.getVaultEconomy() != null && INSTANCE.getConfig().getBoolean("use-vault")));
+                        maxAmount = INSTANCE.getEconomyHandler().getBalance(player, shop);
                         break;
                     }
 
@@ -1424,12 +1477,11 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_BALANCE: {
-                        final boolean isRemoval = (amount < 0),
-                                useVault = (INSTANCE.getVaultEconomy() != null && INSTANCE.getConfig().getBoolean("use-vault"));
+                        final boolean isRemoval = (amount < 0);
 
                         String tradeItemName = null;
-                        ItemStack tradeItem = null;
-                        if (!useVault) {
+                        ItemStack tradeItem;
+                        if (shop.getCurrencyType().equals("item-for-item")) {
                             tradeItem = (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use")
                                     ? INSTANCE.getManager().buildShopCurrencyItem(1) : (shop.getTradeItem() != null
                                     ? shop.getTradeItem() : INSTANCE.getManager().buildShopCurrencyItem(1)));
@@ -1437,14 +1489,14 @@ public class MenuListener implements Listener {
                         }
 
                         if (isRemoval) {
-
                             if (-amount > shop.getStoredBalance()) {
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("balance-withdraw-fail"),
                                         ("{balance}:" + INSTANCE.getManager().formatNumber(shop.getStoredBalance(), true)));
                                 return;
                             }
 
-                            if (useVault) INSTANCE.getVaultEconomy().depositPlayer(player, -amount);
+                            INSTANCE.getEconomyHandler().deposit(player, shop, -amount);
+                           /* if (useVault) INSTANCE.getEconomyHandler().deposit(player, shop, -amount);
                             else if (tradeItem != null) {
                                 int stackCount = (int) (-amount / tradeItem.getType().getMaxStackSize()),
                                         remainder = (int) (-amount % tradeItem.getType().getMaxStackSize());
@@ -1461,11 +1513,10 @@ public class MenuListener implements Listener {
                                         player.getWorld().dropItemNaturally(player.getLocation(), tradeItem);
                                     else player.getInventory().addItem(tradeItem);
                                 }
-                            }
+                            }*/
                         } else {
 
-                            if (useVault ? !INSTANCE.getVaultEconomy().has(player, amount)
-                                    : INSTANCE.getManager().getItemAmount(player.getInventory(), Objects.requireNonNull(tradeItem)) < amount) {
+                            if (!INSTANCE.getEconomyHandler().has(player, shop, amount)) {
                                 dataPack.setInteractionValue(null);
                                 player.openInventory(menu.build(player));
 
@@ -1485,8 +1536,7 @@ public class MenuListener implements Listener {
                                 return;
                             }
 
-                            if (useVault) INSTANCE.getVaultEconomy().withdrawPlayer(player, amount);
-                            else INSTANCE.getManager().removeItem(player.getInventory(), tradeItem, (int) amount);
+                            INSTANCE.getEconomyHandler().withdraw(player, shop, amount);
                         }
 
                         shop.setStoredBalance(Math.max((shop.getStoredBalance() + amount), 0));
@@ -1501,7 +1551,6 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_STOCK: {
-
                         if (shop.isAdminShop() && shop.getStock() == -1) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-infinite-stock"));
                             return;
@@ -1540,7 +1589,7 @@ public class MenuListener implements Listener {
 
                         } else {
 
-                            final int difference = (int) amount, maxStock = INSTANCE.getManager().getMaxStock(shop);
+                            final int difference = (int) amount, maxStock = shop.getMaxStock();
                             int totalItemCount = INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem());
                             if (totalItemCount <= 0 || totalItemCount < difference) {
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("insufficient-items"));
@@ -1568,7 +1617,7 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_PLAYER_BUY_LIMIT: {
-                        if (amount > ((float) (INSTANCE.getManager().getMaxStock(shop)) / Math.max(1, shop.getShopItemAmount()))) {
+                        if (amount > ((float) (shop.getMaxStock()) / Math.max(1, shop.getShopItemAmount()))) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-limit"));
                             return;
                         }
@@ -1594,7 +1643,7 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_PLAYER_SELL_LIMIT: {
-                        if (amount > ((float) (INSTANCE.getManager().getMaxStock(shop)) / Math.max(1, shop.getShopItemAmount()))) {
+                        if (amount > ((float) shop.getMaxStock() / Math.max(1, shop.getShopItemAmount()))) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-limit"));
                             return;
                         }
@@ -1620,7 +1669,7 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_GLOBAL_BUY_LIMIT: {
-                        if (amount > ((float) (INSTANCE.getManager().getMaxStock(shop)) / Math.max(1, shop.getShopItemAmount()))) {
+                        if (amount > ((float) shop.getMaxStock() / Math.max(1, shop.getShopItemAmount()))) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-limit"));
                             return;
                         }
@@ -1646,7 +1695,7 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_GLOBAL_SELL_LIMIT: {
-                        if (amount > ((float) (INSTANCE.getManager().getMaxStock(shop)) / Math.max(1, shop.getShopItemAmount()))) {
+                        if (amount > ((float) shop.getMaxStock()) / Math.max(1, shop.getShopItemAmount())) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-limit"));
                             return;
                         }
@@ -1697,6 +1746,88 @@ public class MenuListener implements Listener {
             default: {
                 break;
             }
+        }
+    }
+
+    private void operateDepositMenu(@NotNull InventoryClickEvent e, @NotNull Inventory inventory, @NotNull Menu menu, @NotNull Player player, @NotNull DepositType depositType) {
+        if (e.getSlot() >= (inventory.getSize() - 9)) {
+            e.setCancelled(true);
+
+            final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
+            if (!inventoryCheck(player, dataPack)) return;
+
+            final Shop shop = dataPack.getSelectedShop();
+            if (shop == null || shop.getShopItem() == null) {
+                dataPack.resetEditData();
+                player.closeInventory();
+                return;
+            }
+
+            final String buttonName = menu.getButtonName(e.getSlot());
+            if (buttonName == null || buttonName.isEmpty()) return;
+
+            if (buttonName.equals("close")) {
+                playClickSound(player);
+                handleVanillaLikeDeposit(player, inventory, shop, depositType);
+            }
+        }
+    }
+
+    private void handleVanillaLikeDeposit(@NotNull Player player, @NotNull Inventory inventory, @NotNull Shop shop, @NotNull DepositType depositType) {
+        if (depositType == DepositType.STOCK) {
+            for (int i = -1; ++i < (inventory.getContents().length - 9); ) {
+                final ItemStack itemStack = inventory.getContents()[i];
+                if (itemStack == null || itemStack.getType().name().contains("AIR")) continue;
+
+                if (!INSTANCE.getManager().isSimilar(itemStack, shop.getShopItem())) {
+                    INSTANCE.getManager().giveItemStacks(player, itemStack, itemStack.getAmount());
+                    inventory.setItem(i, null);
+                    continue;
+                }
+
+                final int newStockTotal = (shop.getStock() + itemStack.getAmount());
+                if (newStockTotal > shop.getMaxStock()) {
+                    final int difference = (shop.getMaxStock() - newStockTotal);
+                    INSTANCE.getManager().giveItemStacks(player, itemStack, difference);
+                    inventory.setItem(i, null);
+                    continue;
+                }
+
+                shop.setStock(shop.getStock() + itemStack.getAmount());
+                inventory.setItem(i, null);
+            }
+
+            shop.save(true);
+            player.closeInventory();
+
+        } else if (depositType == DepositType.BALANCE) {
+
+            final long maxStoredBalance = INSTANCE.getConfig().getLong("max-stored-currency");
+
+            for (int i = -1; ++i < (inventory.getContents().length - 9); ) {
+                final ItemStack itemStack = inventory.getContents()[i];
+                if (itemStack == null || itemStack.getType().name().contains("AIR") || shop.getTradeItem() == null) continue;
+
+                if (!INSTANCE.getManager().isSimilar(itemStack, shop.getTradeItem())) {
+                    INSTANCE.getManager().giveItemStacks(player, itemStack, itemStack.getAmount());
+                    inventory.setItem(i, null);
+                    continue;
+                }
+
+                final long newBalanceTotal = (long) (shop.getStoredBalance() + itemStack.getAmount());
+                if (newBalanceTotal > maxStoredBalance) {
+                    final long difference = (long) (shop.getStoredBalance() - newBalanceTotal);
+                    INSTANCE.getManager().giveItemStacks(player, itemStack, (int) difference);
+                    inventory.setItem(i, null);
+                    continue;
+                }
+
+                shop.setStoredBalance(shop.getStoredBalance() + itemStack.getAmount());
+                inventory.setItem(i, null);
+            }
+
+            shop.save(true);
+            player.closeInventory();
         }
     }
 
@@ -1845,17 +1976,12 @@ public class MenuListener implements Listener {
     }
 
     private boolean inventoryCheck(Player player, DataPack dataPack) {
-        if (dataPack.getSelectedShop() == null) {
+        if (dataPack.getSelectedShop() != null) return true;
+        player.closeInventory();
 
-            player.closeInventory();
-
-            final String message = INSTANCE.getLangConfig().getString("shop-edit-invalid");
-            if (message != null && !message.equalsIgnoreCase(""))
-                INSTANCE.getManager().sendMessage(player, message);
-            return false;
-        }
-
-        return true;
+        final String message = INSTANCE.getLangConfig().getString("shop-edit-invalid");
+        if (message != null && !message.equalsIgnoreCase("")) INSTANCE.getManager().sendMessage(player, message);
+        return false;
     }
 
     private void setBlock(Block block, Material material, BlockFace blockFace) {
@@ -1927,8 +2053,7 @@ public class MenuListener implements Listener {
         if (shop.getOwnerUniqueId() != null)
             owner = INSTANCE.getServer().getOfflinePlayer(shop.getOwnerUniqueId());
 
-        final boolean useVault = (INSTANCE.getConfig().getBoolean("use-vault") && INSTANCE.getVaultEconomy() != null),
-                syncOwner = INSTANCE.getConfig().getBoolean("sync-owner-balance");
+        final boolean syncOwner = INSTANCE.getConfig().getBoolean("sync-owner-balance");
         final double totalShopBalance = (shop.getStoredBalance() + (unitCount * shop.getSellPrice(true)));
 
         if (economyCallType == EconomyCallType.SELL && !syncOwner && totalShopBalance >= INSTANCE.getConfig().getLong("max-stored-currency")) {
@@ -1948,7 +2073,7 @@ public class MenuListener implements Listener {
 
         final boolean isInfinite = (shop.isAdminShop() && shop.getStock() <= -1);
         if (economyCallEvent.getEconomyCallType() == EconomyCallType.SELL) {
-            final int maxStock = INSTANCE.getManager().getMaxStock(shop);
+            final int maxStock = shop.getMaxStock();
             int amountToRemove = (shop.getShopItemAmount() * unitCount);
             if (!isInfinite && ((shop.getStock() + amountToRemove) > maxStock))
                 amountToRemove = (amountToRemove - ((shop.getStock() + amountToRemove) - maxStock));
@@ -1983,7 +2108,7 @@ public class MenuListener implements Listener {
         shop.runCommands(player, (shop.getShopItemAmount() * unitCount));
 
         String tradeItemName = "";
-        if (!useVault) {
+        if (shop.getCurrencyType().equals("item-for-item")) {
             final boolean forceUseCurrency = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
             final ItemStack forceCurrencyItem = INSTANCE.getManager().buildShopCurrencyItem(1);
             final String defaultName = INSTANCE.getManager().getItemName(forceCurrencyItem);
@@ -2025,5 +2150,6 @@ public class MenuListener implements Listener {
         INSTANCE.runEventCommands("shop-" + ecoType, player);
     }
 
+    private enum DepositType {STOCK, BALANCE}
 
 }

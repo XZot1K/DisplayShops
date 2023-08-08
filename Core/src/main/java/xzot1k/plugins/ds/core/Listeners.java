@@ -367,8 +367,8 @@ public class Listeners implements Listener {
                     getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
                     if (shopEditEvent.isCancelled()) return;
 
-                    final int maxStock = getPluginInstance().getManager().getMaxStock(shop), newTotalStock = (shop.getStock() + itemInHand.getAmount()), remainderInHand =
-                            (newTotalStock - maxStock);
+                    final int maxStock = shop.getMaxStock(), newTotalStock = (shop.getStock() + itemInHand.getAmount()),
+                            remainderInHand = (newTotalStock - maxStock);
 
                     if (shop.isAdminShop() && shop.getStock() < 0) {
                         String message = getPluginInstance().getLangConfig().getString("shop-infinite-stock");

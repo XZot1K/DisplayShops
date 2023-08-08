@@ -5,7 +5,6 @@
 package xzot1k.plugins.ds;
 
 import me.arcaniax.hdb.api.HeadDatabaseAPI;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
@@ -16,7 +15,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -68,10 +66,12 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private HashMap<UUID, HashMap<UUID, DisplayPacket>> displayPacketMap;
     private List<UUID> teleportingPlayers;
 
-    // hook handlers
+    // listeners
     private Listeners listeners;
     private MenuListener menuListener;
-    private Economy vaultEconomy;
+
+    // hook handlers
+    private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
     private boolean isItemAdderInstalled;
@@ -124,14 +124,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                 setPaperSpigot(true);
             }
 
+        this.economyHandler = new EconomyHandler(this);
         this.townyInstalled = (getServer().getPluginManager().getPlugin("Towny") != null);
         this.isItemAdderInstalled = (getServer().getPluginManager().getPlugin("ItemsAdder") != null);
         setPrismaInstalled(getServer().getPluginManager().getPlugin("Prisma") != null);
-
-        setupVaultEconomy();
-        if (getConfig().getBoolean("use-vault") && getVaultEconomy() == null) {
-            log(Level.WARNING, "Vault is either missing or has no economy counterpart. Now using integrated economy solution.");
-        }
 
         new WorldGuardHandler(this);
         registerWorldEditEvents();
@@ -709,15 +705,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
     }
 
-    public void setupVaultEconomy() {
-        if (getServer().getPluginManager().getPlugin("Vault") == null)
-            return;
-        RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null)
-            return;
-        setVaultEconomy(rsp.getProvider());
-    }
-
     /**
      * Sets up all tasks; however, it doesn't cancel or stop existing tasks.
      */
@@ -1093,7 +1080,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      *
      * @param player The player to remove the packets for.
      */
-    public void clearDisplayPackets(Player player) {
+    public void clearDisplayPackets(@NotNull Player player) {
 
         if (player.isOnline() && getDisplayPacketMap().containsKey(player.getUniqueId()))
             for (Map.Entry<UUID, DisplayPacket> entry : getDisplayPacketMap().get(player.getUniqueId()).entrySet()) {
@@ -1166,19 +1153,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     private void setServerVersion(double serverVersion) {
         this.serverVersion = serverVersion;
-    }
-
-    /**
-     * Returns the vault economy hook.
-     *
-     * @return Economy class.
-     */
-    public Economy getVaultEconomy() {
-        return vaultEconomy;
-    }
-
-    public void setVaultEconomy(Economy vaultEconomy) {
-        this.vaultEconomy = vaultEconomy;
     }
 
     public Connection getDatabaseConnection() {
@@ -1302,4 +1276,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public HashMap<String, Menu> getMenuMap() {
         return menuMap;
     }
+
+    public EconomyHandler getEconomyHandler() {return economyHandler;}
+
 }
