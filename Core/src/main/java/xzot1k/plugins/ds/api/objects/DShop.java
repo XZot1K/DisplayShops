@@ -14,11 +14,14 @@ import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.eco.EcoHook;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
+import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.events.ShopVisitEvent;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
-import xzot1k.plugins.ds.exceptions.DisplayFailException;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -140,52 +143,10 @@ public class DShop implements Shop {
         if (!world.isChunkLoaded(((int) getBaseLocation().getX() >> 4), ((int) getBaseLocation().getZ() >> 4))) return;
 
         try {
-            DisplayPacket displayPacket;
-            if (INSTANCE.getServerVersion() == 1_20.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_20_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_19.3)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_19_R3.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_19.2)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_19_R2.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_19.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_19_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_18.2)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_18_R2.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_18.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_18_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_17.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_17_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_16.3)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_16_R3.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_16.2)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_16_R2.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_16.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_16_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_15.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_15_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_14.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_14_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_13.2)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_13_R2.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_13.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_13_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_12.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_12_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_11.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_11_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_10.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_10_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_9.2)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_9_R2.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_9.1)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_9_R1.DPacket(INSTANCE, player, this, showHolograms);
-            else if (INSTANCE.getServerVersion() == 1_8.3)
-                displayPacket = new xzot1k.plugins.ds.core.packets.v1_8_R3.DPacket(INSTANCE, player, this, showHolograms);
-            else throw new DisplayFailException((Math.floor(INSTANCE.getServerVersion()) / 100)
-                        + " packets were unable to be found. This spigot/bukkit version is NOT supported.");
-
+            Constructor<?> constructor = INSTANCE.displayPacketClass.getDeclaredConstructor(DisplayShops.class, Player.class, Shop.class, boolean.class);
+            DisplayPacket displayPacket = (DisplayPacket) constructor.newInstance(INSTANCE, player, this, showHolograms);
             INSTANCE.updateDisplayPacket(this, player, displayPacket);
-        } catch (DisplayFailException e) {
+        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             INSTANCE.log(Level.WARNING, e.getMessage());
         }
     }
@@ -286,6 +247,19 @@ public class DShop implements Shop {
     }
 
     /**
+     * Gets the name of the shop's trade currency item (if NULL or "force-use" is enabled in the config.yml, the name of the default currency item will be used).
+     *
+     * @return The shop's currency itemstack name.
+     */
+    public String getTradeItemName() {
+        if (!getCurrencyType().equals("item-for-item")) return "";
+
+        final String defaultName = INSTANCE.getManager().getItemName(INSTANCE.getManager().defaultCurrencyItem);
+        return (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? defaultName
+                : ((getTradeItem() != null) ? INSTANCE.getManager().getItemName(getTradeItem()) : defaultName));
+    }
+
+    /**
      * Saves the shop to the database.
      *
      * @param async Whether it should be saved on the main thread or not.
@@ -325,18 +299,18 @@ public class DShop implements Shop {
             if (getShopItem() != null || getTradeItem() != null) {
                 if (getShopItem() != null) {
                     final ItemStack cloneItem = getShopItem().clone();
-                    shopItem = INSTANCE.getPacketManager().toString(cloneItem);
+                    shopItem = INSTANCE.toString(cloneItem);
                 }
 
                 if (getTradeItem() != null) {
                     final ItemStack cloneItem = getTradeItem().clone();
-                    tradeItem = INSTANCE.getPacketManager().toString(cloneItem);
+                    tradeItem = INSTANCE.toString(cloneItem);
                 }
             }
 
             final String host = INSTANCE.getConfig().getString("mysql.host"), commandString = commands.toString().replace("'", "\\'").replace("\"",
                     "\\\""), extraDataLine = (canDynamicPriceChange() + ";" + getLastBuyTimeStamp() + ":" + getDynamicBuyCounter() + ";" + getLastSellTimeStamp()
-                    + ":" + getDynamicSellCounter()), syntax,
+                    + ":" + getDynamicSellCounter() + ";" + getCurrencyType()), syntax,
 
                     valuesString = (getShopId().toString() + "', '" + getBaseLocation().toString() + "',"
                             + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', '" + assistants + "', " + getBuyPrice(false)
@@ -367,10 +341,7 @@ public class DShop implements Shop {
             Statement statement = INSTANCE.getDatabaseConnection().createStatement();
             statement.executeUpdate(syntax);
             statement.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() + ").");
-        }
+        } catch (Exception e) {INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() + ").");}
     }
 
     /**
@@ -380,17 +351,18 @@ public class DShop implements Shop {
      * @param amount The amount for the {amount} placeholder.
      */
     public void runCommands(@NotNull Player player, int amount) {
-        if (getCommands().size() > 0)
-            for (int i = -1; ++i < getCommands().size(); ) {
-                String commandLine = getCommands().get(i), command = commandLine.replaceAll("(?i):PLAYER", "")
-                        .replaceAll("(?i):CONSOLE", "");
-                if (commandLine.toUpperCase().endsWith(":PLAYER"))
-                    INSTANCE.getServer().dispatchCommand(player, command.replace("{player}", player.getName())
-                            .replace("{amount}", String.valueOf(amount)));
-                else
-                    INSTANCE.getServer().dispatchCommand(INSTANCE.getServer().getConsoleSender(),
-                            command.replace("{player}", player.getName()).replace("{amount}", String.valueOf(amount)));
-            }
+        if (getCommands().isEmpty()) return;
+
+        for (int i = -1; ++i < getCommands().size(); ) {
+            String commandLine = getCommands().get(i), command = commandLine.replaceAll("(?i):PLAYER", "")
+                    .replaceAll("(?i):CONSOLE", "");
+            if (commandLine.toUpperCase().endsWith(":PLAYER"))
+                INSTANCE.getServer().dispatchCommand(player, command.replace("{player}", player.getName())
+                        .replace("{amount}", String.valueOf(amount)));
+            else
+                INSTANCE.getServer().dispatchCommand(INSTANCE.getServer().getConsoleSender(),
+                        command.replace("{player}", player.getName()).replace("{amount}", String.valueOf(amount)));
+        }
     }
 
     /**
@@ -407,55 +379,23 @@ public class DShop implements Shop {
             return;
         }
 
-        ShopVisitEvent shopVisitEvent = new ShopVisitEvent(player, this, (!player.hasPermission("displayshops.admin") && !charge)
+        final ShopVisitEvent shopVisitEvent = new ShopVisitEvent(player, this, (!player.hasPermission("displayshops.admin") && !charge)
                 ? INSTANCE.getConfig().getDouble("visit-charge") : 0);
         INSTANCE.getServer().getPluginManager().callEvent(shopVisitEvent);
         if (shopVisitEvent.isCancelled()) return;
 
         if (shopVisitEvent.getChargeAmount() > 0) {
-            final boolean useOwnerSyncing = INSTANCE.getConfig().getBoolean("sync-owner-balance"),
-                    isSyncing = (useOwnerSyncing && getOwnerUniqueId() != null),
-                    useVault = INSTANCE.getConfig().getBoolean("use-vault");
-            if (useVault) {
-                if (!INSTANCE.getEconomyHandler().has(player, this, shopVisitEvent.getChargeAmount())) {
-                    String message = INSTANCE.getLangConfig().getString("insufficient-funds");
-                    if (message != null && !message.equalsIgnoreCase(""))
-                        INSTANCE.getManager().sendMessage(player, message.replace("{price}",
-                                INSTANCE.getManager().formatNumber(shopVisitEvent.getChargeAmount(), true)));
-                    return;
-                }
-
-                INSTANCE.getEconomyHandler().withdraw(player, this, shopVisitEvent.getChargeAmount());
-
-                if (isSyncing) {
-                    OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
-                    INSTANCE.getEconomyHandler().deposit(owner, this, shopVisitEvent.getChargeAmount());
-                }
-            } else {
-
-                final ItemStack currencyItem = (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use")
-                        ? INSTANCE.getManager().buildShopCurrencyItem(1)
-                        : (getTradeItem() == null ? INSTANCE.getManager().buildShopCurrencyItem(1) : getTradeItem()));
-
-                final int totalCurrencyItems = INSTANCE.getManager().getItemAmount(player.getInventory(), currencyItem);
-                if (totalCurrencyItems < shopVisitEvent.getChargeAmount()) {
-                    String message = INSTANCE.getLangConfig().getString("insufficient-funds");
-                    if (message != null && !message.equalsIgnoreCase(""))
-                        INSTANCE.getManager().sendMessage(player, message.replace("{price}",
-                                INSTANCE.getManager().formatNumber(shopVisitEvent.getChargeAmount(), true)));
-                    return;
-                }
-
-                INSTANCE.getManager().removeItem(player.getInventory(), currencyItem, (int) shopVisitEvent.getChargeAmount());
+            final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, this, EconomyCallType.VISIT, shopVisitEvent.getChargeAmount());
+            if (economyCallEvent.failed()) {
+                player.closeInventory();
+                INSTANCE.getManager().getDataPack(player).resetEditData();
+                return;
             }
-
-            if (!isSyncing) setStoredBalance(Math.min(INSTANCE.getConfig().getDouble("max-stored-currency"),
-                    (getStoredBalance() + shopVisitEvent.getChargeAmount())));
 
             String message = INSTANCE.getLangConfig().getString("shop-visit-charge");
             if (message != null && !message.equalsIgnoreCase(""))
                 INSTANCE.getManager().sendMessage(player, message.replace("{charge}",
-                        INSTANCE.getManager().formatNumber(shopVisitEvent.getChargeAmount(), true)));
+                        INSTANCE.getEconomyHandler().format(this, getCurrencyType(), shopVisitEvent.getChargeAmount())));
         }
 
         Location safeLocation = null, baseLocation = getBaseLocation().asBukkitLocation();
@@ -544,14 +484,14 @@ public class DShop implements Shop {
                 player.getWorld().playSound(player.getLocation().add(0, 1, 0), Sound.valueOf(soundName), 1, 1);
 
             if (particleName != null && !particleName.equalsIgnoreCase(""))
-                INSTANCE.getPacketManager().getParticleHandler().displayParticle(player, particleName,
-                        player.getLocation().add(0, 1, 0), 1, 1, 1, 0, 10);
+                INSTANCE.displayParticle(player, particleName, player.getLocation().add(0, 1, 0),
+                        1, 1, 1, 0, 10);
 
             player.teleport(finalSafeLocation.add(0.5, 1, 0.5));
 
             if (particleName != null && !particleName.equalsIgnoreCase(""))
-                INSTANCE.getPacketManager().getParticleHandler().displayParticle(player, particleName,
-                        player.getLocation().add(0, 1, 0), 1, 1, 1, 0, 10);
+                INSTANCE.displayParticle(player, particleName, player.getLocation().add(0, 1, 0),
+                        1, 1, 1, 0, 10);
 
             if (soundName != null && !soundName.equalsIgnoreCase(""))
                 player.getWorld().playSound(player.getLocation().add(0, 1, 0), Sound.valueOf(soundName), 1, 1);
@@ -597,10 +537,7 @@ public class DShop implements Shop {
             Statement statement = INSTANCE.getDatabaseConnection().createStatement();
             statement.executeUpdate("delete from shops where id = '" + getShopId() + "'");
             statement.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            INSTANCE.log(Level.WARNING, "There was an issue deleting the shop " + getShopId() + " from the database (" + e.getMessage() + ").");
-        }
+        } catch (SQLException e) {INSTANCE.log(Level.WARNING, "There was an issue deleting the shop " + getShopId() + " from the database (" + e.getMessage() + ").");}
     }
 
     /**
@@ -680,17 +617,13 @@ public class DShop implements Shop {
     public void purge(@Nullable Player player, boolean async) {
         unRegister();
 
-        final String invName = (player != null ? INSTANCE.getMenuListener().getInventoryName(player.getOpenInventory()
-                .getTopInventory(), player.getOpenInventory()) : null);
-        if (invName != null && !invName.isEmpty())
-
-            for (Player p : INSTANCE.getServer().getOnlinePlayers()) {
+        final String invName = (player != null ? INSTANCE.getMenuListener().getInventoryName(player.getOpenInventory().getTopInventory(), player.getOpenInventory()) : null);
+        if (invName != null && !invName.isEmpty()) {
+            INSTANCE.getServer().getOnlinePlayers().parallelStream().forEach(p -> {
                 kill(p);
-
-                if (invName != null && p.getOpenInventory().getType() != InventoryType.CRAFTING
-                        && INSTANCE.matchesAnyMenu(invName)) p.closeInventory();
-            }
-
+                if (INSTANCE.matchesAnyMenu(invName)) p.closeInventory();
+            });
+        }
 
         getBaseLocation().asBukkitLocation().getBlock().setType(Material.AIR);
         dropStock();
@@ -711,8 +644,8 @@ public class DShop implements Shop {
 
             String particleString = INSTANCE.getConfig().getString("immersion-section.shop-delete-particle");
             if (particleString != null && !particleString.equalsIgnoreCase(""))
-                INSTANCE.getPacketManager().getParticleHandler().displayParticle(player, particleString.toUpperCase()
-                        .replace(" ", "_").replace("-", "_"), location.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 8);
+                INSTANCE.displayParticle(player, particleString.toUpperCase().replace(" ", "_")
+                        .replace("-", "_"), location.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 8);
 
             String message = INSTANCE.getLangConfig().getString("shop-deleted");
             if (message != null && !message.equalsIgnoreCase(""))
@@ -787,7 +720,8 @@ public class DShop implements Shop {
      * Resets the shop entirely. The time stamp is also updated.
      */
     public void reset() {
-        setCurrencyType(INSTANCE.getConfig().getString("default-currency-type"));
+        checkCurrencyType(null);
+
         setStock(0);
         setStoredBalance(0);
         setShopItemAmount(1);
@@ -816,6 +750,26 @@ public class DShop implements Shop {
         updateTimeStamp();
 
         if (INSTANCE.getInSightTask() != null) INSTANCE.getInSightTask().refreshShop(this);
+    }
+
+    public void checkCurrencyType(@Nullable Player player) {
+        if (getCurrencyType() != null) {
+            EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(getCurrencyType());
+            if (ecoHook != null && (player == null || INSTANCE.getEconomyHandler().canUseCurrency(player, getCurrencyType()))) return;
+        }
+
+        String defaultEcoCurrency = INSTANCE.getConfig().getString("default-currency-type");
+        if (defaultEcoCurrency != null) {
+            EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(defaultEcoCurrency);
+            if (ecoHook != null) {
+                setCurrencyType(defaultEcoCurrency);
+                save(true);
+                return;
+            }
+        }
+
+        setCurrencyType("item-for-item");
+        save(true);
     }
 
     // integer list getters & setters.

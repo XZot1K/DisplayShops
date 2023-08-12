@@ -162,7 +162,6 @@ public class CustomItem {
     }
 
     public CustomItem setDisplayName(@Nullable Player player, @Nullable Shop shop, @NotNull String displayName) {
-        final String currencySymbol = getPluginInstance().getConfig().getString("currency-symbol");
         final double tax = getPluginInstance().getConfig().getDouble("transaction-tax"),
                 beforeBuyPrice = (shop != null ? (shop.getBuyPrice(true) * unitCount) : 0),
                 calculatedSellPrice = (shop != null ? (shop.getSellPrice(true) * unitCount) : 0),
@@ -170,15 +169,11 @@ public class CustomItem {
 
         final String newName = displayName
                 .replace("{assistant-count}", String.valueOf((shop != null ? shop.getAssistants().size() : 0)))
-                .replace("{currency-symbol}", (currencySymbol != null ? currencySymbol : ""))
-                .replace("{base-buy-price}", getPluginInstance().getManager()
-                        .formatNumber((shop != null ? (shop.getBuyPrice(false) * unitCount) : 0), true))
-                .replace("{base-sell-price}", getPluginInstance().getManager()
-                        .formatNumber((shop != null ? (shop.getSellPrice(false) * unitCount) : 0), true))
-                .replace("{buy-price}", getPluginInstance().getManager().formatNumber(calculatedBuyPrice, true))
-                .replace("{sell-price}", getPluginInstance().getManager().formatNumber(calculatedSellPrice, true))
                 .replace("{stock}", ((shop != null) ? getPluginInstance().getManager().formatNumber(shop.getStock(), false) : "0"))
-                .replace("{balance}", (shop != null ? getPluginInstance().getManager().formatNumber(shop.getStoredBalance(), true) : "0"))
+                .replace("{base-buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), beforeBuyPrice) : "0"))
+                .replace("{buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : "0"))
+                .replace("{sell-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : "0"))
+                .replace("{balance}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()) : "0"))
                 .replace("{shop-item-amount}", ((shop != null && shop.getShopItem() != null) ? getPluginInstance().getManager()
                         .formatNumber(shop.getShopItemAmount(), false) : "0"))
                 .replace("{unit-count}", ((shop != null && shop.getShopItem() != null)
@@ -234,12 +229,13 @@ public class CustomItem {
 
                             add(getPluginInstance().getManager().color(line.replace("{no-vault}", "")
                                     .replace("{assistant-count}", String.valueOf((shop != null ? shop.getAssistants().size() : 0)))
-                                    .replace("{base-buy-price}", getPluginInstance().getManager()
-                                            .formatNumber((shop != null ? (shop.getBuyPrice(false) * unitCount) : 0), true))
-                                    .replace("{base-sell-price}", getPluginInstance().getManager()
-                                            .formatNumber((shop != null ? (shop.getSellPrice(false) * unitCount) : 0), true))
-                                    .replace("{buy-price}", getPluginInstance().getManager().formatNumber(calculatedBuyPrice, true))
-                                    .replace("{sell-price}", getPluginInstance().getManager().formatNumber(calculatedSellPrice, true))
+                                    .replace("{base-buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), beforeBuyPrice) :
+                                            "0"))
+                                    .replace("{buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : "0"))
+                                    .replace("{sell-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) :
+                                            "0"))
+                                    .replace("{balance}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()) :
+                                            "0"))
                                     .replace("{stock}", getPluginInstance().getManager().formatNumber(shop.getStock(), false))
                                     .replace("{global-buy-limit}", getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false))
                                     .replace("{global-buy-counter}", getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false))

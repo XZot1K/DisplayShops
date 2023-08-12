@@ -78,9 +78,9 @@ public class MRegion implements MarketRegion {
 
     @Override
     public boolean extendRent(@NotNull Player player) {
-        EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
-                null, null, EconomyCallType.RENT_RENEW, this.getPluginInstance().getConfig().getDouble("rent-renew-cost"));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.RENT_RENEW,
+                getPluginInstance().getConfig().getDouble("rent-renew-cost"));
+        if (economyCallEvent.failed()) return false;
 
         MarketRegionRentEvent rentEvent = new MarketRegionRentEvent(player, this, true);
         this.getPluginInstance().getServer().getPluginManager().callEvent(rentEvent);
@@ -92,9 +92,8 @@ public class MRegion implements MarketRegion {
 
     @Override
     public boolean rent(@NotNull Player player) {
-        final EconomyCallEvent economyCallEvent = this.getPluginInstance().getManager().initiateShopEconomyTransaction(player,
-                null, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ? getRenewCost() : getCost()));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return false;
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ? getRenewCost() : getCost()));
+        if (economyCallEvent.failed()) return false;
 
         MarketRegionRentEvent rentEvent = new MarketRegionRentEvent(player, this, false);
         this.getPluginInstance().getServer().getPluginManager().callEvent(rentEvent);

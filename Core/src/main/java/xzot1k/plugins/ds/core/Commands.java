@@ -9,7 +9,6 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.ItemTag;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Item;
-import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
@@ -277,7 +276,7 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        double amount = (isAll ? (isWithdraw ? shop.getStoredBalance() : getPluginInstance().getVaultEconomy().getBalance(player))
+        double amount = (isAll ? (isWithdraw ? shop.getStoredBalance() : getPluginInstance().getEconomyHandler().getBalance(player, shop))
                 : Double.parseDouble(args[2].replace(",", ".")));
         if (amount < 0) {
             getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("negative-entry"));
@@ -297,30 +296,34 @@ public class Commands implements CommandExecutor {
             if ((shop.getStoredBalance() - amount) < 0 && shop.getStoredBalance() != amount) {
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("balance-withdraw-fail"))
                         .replace("{trade-item}", tradeItemName)
-                        .replace("{balance}", getPluginInstance().getManager().formatNumber(shop.getStoredBalance(), true)));
+                        .replace("{balance}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance())));
                 return;
             }
         } else {
-            if (useVault ? !getPluginInstance().getVaultEconomy().has(player, amount) : getPluginInstance().getManager().getItemAmount(player.getInventory(), tradeItem) < amount) {
+            if (!getPluginInstance().getEconomyHandler().has(player, shop, amount)) {
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("insufficient-funds"))
-                        .replace("{trade-item}", tradeItemName).replace("{price}", getPluginInstance().getManager().formatNumber(amount, true)));
+                        .replace("{trade-item}", tradeItemName)
+                        .replace("{price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
                 return;
             }
         }
 
         if (isDeposit && (shop.getStoredBalance() + amount) >= getPluginInstance().getConfig().getLong("max-stored-currency")) {
             getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("max-stored-currency"))
-                    .replace("{trade-item}", tradeItemName).replace("{amount}", getPluginInstance().getManager().formatNumber(amount, true)));
+                    .replace("{trade-item}", tradeItemName)
+                    .replace("{amount}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
             return;
         }
 
-        EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.balance"));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, (isWithdraw ? EconomyCallType.WITHDRAW_BALANCE : EconomyCallType.DEPOSIT_BALANCE),
+                getPluginInstance().getConfig().getDouble("prices.balance"));
+        if (economyCallEvent.failed()) return;
 
-        if (useVault) {
-            if (isWithdraw) getPluginInstance().getVaultEconomy().depositPlayer(player, amount);
-            else getPluginInstance().getVaultEconomy().withdrawPlayer(player, amount);
+        if (isWithdraw) getPluginInstance().getEconomyHandler().deposit(player, shop, amount);
+        else getPluginInstance().getEconomyHandler().withdraw(player, shop, amount);
+        /*if (useVault) {
+            if (isWithdraw) getPluginInstance().getEconomyHandler().deposit(player, shop, amount);
+            else getPluginInstance().getEconomyHandler().withdraw(player, shop, amount);
         } else {
             if (isWithdraw) {
                 if (tradeItem != null) {
@@ -341,13 +344,13 @@ public class Commands implements CommandExecutor {
                     }
                 }
             } else getPluginInstance().getManager().removeItem(player.getInventory(), tradeItem, (int) amount);
-        }
+        }*/
 
         shop.setStoredBalance(shop.getStoredBalance() + (isWithdraw ? -amount : amount));
         shop.updateTimeStamp();
         getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("balance-"
                         + (isWithdraw ? "withdrawn" : "deposited"))).replace("{trade-item}", tradeItemName)
-                .replace("{amount}", getPluginInstance().getManager().formatNumber(amount, true)));
+                .replace("{amount}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
     }
 
     private void runWithdraw(CommandSender commandSender, String[] args) {
@@ -413,9 +416,9 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.withdraw-stock"));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
+                getPluginInstance().getConfig().getDouble("prices.withdraw-stock"));
+        if (economyCallEvent.failed()) return;
 
         shop.setStock(shop.getStock() - amount);
         shop.updateTimeStamp();
@@ -484,10 +487,6 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.deposit-stock"));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
-
         int difference = (maxStock - shop.getStock()), amountToRemove = (difference > 0 && difference >= amount ? amount : Math.max(difference, 0));
         if (amountToRemove == 0 || shop.getStock() >= maxStock) {
             message = getPluginInstance().getLangConfig().getString("stock-deposit-fail");
@@ -496,6 +495,10 @@ public class Commands implements CommandExecutor {
                         .replace("{amount}", getPluginInstance().getManager().formatNumber(amount, false)));
             return;
         }
+
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
+                getPluginInstance().getConfig().getDouble("prices.deposit-stock"));
+        if (economyCallEvent.failed()) return;
 
         getPluginInstance().getManager().removeItem(player.getInventory(), shop.getShopItem(), amountToRemove);
         shop.setStock(shop.getStock() + amountToRemove);
@@ -566,9 +569,9 @@ public class Commands implements CommandExecutor {
             }
         }
 
-        EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.sale-item-change"));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
+                getPluginInstance().getConfig().getDouble("prices.sale-item-change"));
+        if (economyCallEvent.failed()) return;
 
         shop.setSellPrice(price);
         shop.updateTimeStamp();
@@ -577,10 +580,10 @@ public class Commands implements CommandExecutor {
         getPluginInstance().getInSightTask().refreshShop(shop);
 
         String message;
-        if (price <= -1) message = getPluginInstance().getLangConfig().getString("selling-disabled");
+        if (price == -1) message = getPluginInstance().getLangConfig().getString("selling-disabled");
         else message = getPluginInstance().getLangConfig().getString("sell-price-set");
         getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(message)
-                .replace("{price}", getPluginInstance().getManager().formatNumber(price, true)));
+                .replace("{price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), price)));
         getPluginInstance().runEventCommands("shop-sell-price", player);
     }
 
@@ -640,9 +643,9 @@ public class Commands implements CommandExecutor {
             }
         }
 
-        EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player, null, shop,
-                EconomyCallType.EDIT_ACTION, getPluginInstance().getConfig().getDouble("prices.buy-price"));
-        if (economyCallEvent == null || !economyCallEvent.willSucceed()) return;
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
+                getPluginInstance().getConfig().getDouble("prices.buy-price"));
+        if (economyCallEvent.failed()) return;
 
         shop.setBuyPrice(price);
         shop.updateTimeStamp();
@@ -654,7 +657,7 @@ public class Commands implements CommandExecutor {
         if (price == -1) message = getPluginInstance().getLangConfig().getString("buying-disabled");
         else message = getPluginInstance().getLangConfig().getString("buy-price-set");
         getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(message)
-                .replace("{price}", getPluginInstance().getManager().formatNumber(price, true)));
+                .replace("{price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), price)));
         getPluginInstance().runEventCommands("shop-buy-price", player);
     }
 
@@ -705,7 +708,7 @@ public class Commands implements CommandExecutor {
             long id = 0;
             ConfigurationSection cs = yaml.getConfigurationSection("");
             if (cs != null) for (String key : cs.getKeys(false)) if (Long.parseLong(key) == id) id++;
-            yaml.set(String.valueOf(id), getPluginInstance().getPacketManager().toString(handItem));
+            yaml.set(String.valueOf(id), getPluginInstance().toString(handItem));
             yaml.save(file);
         } catch (IOException e) {
             e.printStackTrace();
@@ -743,7 +746,7 @@ public class Commands implements CommandExecutor {
         File file = new File(getPluginInstance().getDataFolder(), "blocked-items.yml");
         FileConfiguration yaml = YamlConfiguration.loadConfiguration(file);
         try {
-            yaml.set(String.valueOf(foundId), getPluginInstance().getPacketManager().toString(handItem));
+            yaml.set(String.valueOf(foundId), getPluginInstance().toString(handItem));
             yaml.save(file);
         } catch (IOException e) {
             e.printStackTrace();
@@ -785,8 +788,8 @@ public class Commands implements CommandExecutor {
 
         final double amount = getPluginInstance().getConfig().getDouble("shop-advertise-cost");
         if (amount > 0) {
-            EconomyCallEvent economyCallEvent = new EconomyCallEvent(player, null, EconomyCallType.EDIT_ACTION, shop, amount);
-            if (economyCallEvent.isCancelled() || !economyCallEvent.willSucceed()) {
+            final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.ADVERTISE, amount);
+            if (economyCallEvent.failed()) {
                 dataPack.resetEditData();
                 return;
             }
@@ -802,10 +805,10 @@ public class Commands implements CommandExecutor {
 
             TextComponent textComponent = new TextComponent(getPluginInstance().getManager().color(message.replace("{player}", player.getName()))
                     .replace("{item}", getPluginInstance().getManager().getItemName(shop.getShopItem()))
-                    .replace("${buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
-                    .replace("${sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true)))
-                    .replace("{buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(buyPrice, true)))
-                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getManager().formatNumber(sellPrice, true))));
+                    //.replace("${buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getEconomyHandler().format(shop.getCurrencyType(), buyPrice)))
+                    //.replace("${sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getEconomyHandler().format(shop.getCurrencyType(), sellPrice)))
+                    .replace("{buy}", ((buyPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice)))
+                    .replace("{sell}", ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), sellPrice))));
             if (shop.getShopItem() != null) {
                 final ItemTag itemTag = ItemTag.ofNbt(shop.getShopItem().getItemMeta() == null ? null :
                         (getPluginInstance().getServerVersion() > 1_17 ? shop.getShopItem().getItemMeta().getAsString()
@@ -885,25 +888,26 @@ public class Commands implements CommandExecutor {
         MarketRegion marketRegion = ((marketRegionId != null && !marketRegionId.isEmpty()) ? getPluginInstance().getManager().getMarketRegion(marketRegionId)
                 : getPluginInstance().getManager().getMarketRegion(player.getLocation()));
         if (marketRegion == null) {
-            getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("region-invalid")
+            getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("region-invalid"))
                     .replace("{id}", (marketRegionId != null ? marketRegionId : "<invalid-id>")));
             return;
         }
 
         if (marketRegion.getRenter() != null && marketRegion.timeUntilExpire() > 0) {
             if (!marketRegion.getRenter().toString().equals(player.getUniqueId().toString()) && !player.hasPermission("displayshops.rentadmin")) {
-                getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("not-the-renter")
+                getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("not-the-renter"))
                         .replace("{id}", marketRegion.getMarketId()));
                 return;
             }
 
-            getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("rent-time")
-                    .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-renew-cost"), true))
+            getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-time"))
+                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(),
+                            getPluginInstance().getConfig().getDouble("rent-renew-cost")))
                     .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
             return;
         }
 
-        getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("region-rent-invalid")
+        getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("region-rent-invalid"))
                 .replace("{id}", marketRegion.getMarketId()));
     }
 
@@ -938,7 +942,8 @@ public class Commands implements CommandExecutor {
 
             if (marketRegion.extendRent(player))
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-extended"))
-                        .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-renew-cost"), true))
+                        .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(),
+                                getPluginInstance().getConfig().getDouble("rent-renew-cost")))
                         .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
             return;
         }
@@ -950,7 +955,8 @@ public class Commands implements CommandExecutor {
 
         if (marketRegion.rent(player))
             getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rented"))
-                    .replace("{cost}", getPluginInstance().getManager().formatNumber(getPluginInstance().getConfig().getDouble("rent-cost"), true))
+                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(),
+                            getPluginInstance().getConfig().getDouble("rent-cost")))
                     .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
     }
 
@@ -1015,7 +1021,7 @@ public class Commands implements CommandExecutor {
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
             List<Shop> shopList = new ArrayList<>(getPluginInstance().getManager().getShopMap().values());
             for (Shop shop : shopList) {
-                if (shop != null || shop.getBaseLocation() == null || !shop.getBaseLocation().getWorldName().equalsIgnoreCase(worldName))
+                if (shop == null || shop.getBaseLocation() == null || !shop.getBaseLocation().getWorldName().equalsIgnoreCase(worldName))
                     continue;
                 try {
                     shop.delete(false);
@@ -1029,9 +1035,7 @@ public class Commands implements CommandExecutor {
                                 getPluginInstance().getShopMemory().remove(player.getUniqueId());
                         }
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                } catch (Exception ignored) {}
             }
         });
         String message = getPluginInstance().getLangConfig().getString("world-cleared");
@@ -1115,7 +1119,8 @@ public class Commands implements CommandExecutor {
         }
 
         String fixedCommand = enteredCommand.toString().replaceAll("(?i):PLAYER", "").replaceAll("(?i):CONSOLE", "");
-        getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("command-added").replace("{command}", fixedCommand));
+        getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("command-added"))
+                .replace("{command}", fixedCommand));
     }
 
     private void runRemoveCommand(CommandSender commandSender, String[] args) {
@@ -1253,9 +1258,11 @@ public class Commands implements CommandExecutor {
 
         // reload configs
         getPluginInstance().reloadConfigs();
+        getPluginInstance().loadMenus();
 
         // reload global variables
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
+        getPluginInstance().getManager().defaultCurrencyItem = getPluginInstance().getManager().buildShopCurrencyItem(1);
 
         // handle market regions
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
@@ -1625,12 +1632,8 @@ public class Commands implements CommandExecutor {
         getPluginInstance().cancelTasks();
         getPluginInstance().reloadConfigs();
 
-        // reset Vault handler
-        if (getPluginInstance().getConfig().getBoolean("use-vault")) {
-            getPluginInstance().setupVaultEconomy();
-            if (getPluginInstance().getVaultEconomy() == null)
-                getPluginInstance().log(Level.WARNING, "Vault is either missing or has no economy counterpart. Now using integrated economy solution.");
-        } else getPluginInstance().setVaultEconomy(null);
+        // reset EconomyHandler
+        getPluginInstance().getEconomyHandler().reset();
 
         // reload global variables
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
@@ -1697,32 +1700,24 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        final ItemStack itemStack = getPluginInstance().getManager().buildShopCreationItem(player, amount);
-        if (amount <= 0) amount = 1;
+        final ItemStack itemStack = getPluginInstance().getManager().buildShopCreationItem(player, 1);
+        if (amount == 0) amount = 1;
         else if (amount >= itemStack.getType().getMaxStackSize())
             amount = itemStack.getType().getMaxStackSize();
 
-        if (getPluginInstance().getVaultEconomy() != null) {
-            double price = getPluginInstance().getConfig().getDouble("creation-item-price");
-            EconomyResponse economyResponse = getPluginInstance().getVaultEconomy().withdrawPlayer(player, (price * amount));
-            if (!economyResponse.transactionSuccess()) {
-                String message = getPluginInstance().getLangConfig().getString("insufficient-funds");
-                if (message != null && !message.equalsIgnoreCase(""))
-                    getPluginInstance().getManager().sendMessage(player, message.replace("{price}",
-                            getPluginInstance().getManager().formatNumber(price, true)));
-                return;
-            } else {
-                String message = getPluginInstance().getLangConfig().getString("purchased-creation-item");
-                if (message != null && !message.equalsIgnoreCase(""))
-                    getPluginInstance().getManager().sendMessage(player, message
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(amount, false))
-                            .replace("{price}", getPluginInstance().getManager().formatNumber((price * amount), true)));
-            }
-        }
+        final double price = (getPluginInstance().getConfig().getDouble("creation-item-price") * amount);
 
-        if (player.getInventory().firstEmpty() == -1)
-            player.getWorld().dropItemNaturally(player.getLocation(), itemStack);
-        else player.getInventory().addItem(itemStack);
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.CREATION_ITEM_COMMAND,
+                getPluginInstance().getConfig().getDouble("prices.balance"));
+        if (economyCallEvent.failed()) return;
+
+        getPluginInstance().getManager().giveItemStacks(player, itemStack, amount);
+
+        String message = getPluginInstance().getLangConfig().getString("purchased-creation-item");
+        if (message != null && !message.equalsIgnoreCase(""))
+            getPluginInstance().getManager().sendMessage(player, message
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(amount, false))
+                    .replace("{price}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(), price)));
     }
 
     private void runDelete(CommandSender commandSender) {
@@ -1889,21 +1884,10 @@ public class Commands implements CommandExecutor {
             try {
                 Shop shop = getPluginInstance().getManager().getShopById(UUID.fromString(id));
                 if (shop != null) {
-                    DDataPack dataPack = (DDataPack) getPluginInstance().getManager().getDataPack(player);
-                    double visitCost = getPluginInstance().getConfig().getDouble("visit-charge");
-                    EconomyCallEvent economyCallEvent = getPluginInstance().getManager().initiateShopEconomyTransaction(player,
-                            null, shop, EconomyCallType.VISIT, visitCost);
-                    if (economyCallEvent == null || economyCallEvent.isCancelled() || !economyCallEvent.willSucceed()) {
-                        dataPack.resetEditData();
-                        player.closeInventory();
-                        return;
-                    }
-
                     shop.visit(player, true);
                     return;
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
 
         Menu visitMenu = getPluginInstance().getMenu("visit");

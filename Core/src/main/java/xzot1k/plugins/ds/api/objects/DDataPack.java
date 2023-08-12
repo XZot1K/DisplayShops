@@ -202,12 +202,7 @@ public class DDataPack implements DataPack {
 
     @Override
     public void resetEditData() {
-
-        if (getSelectedShop() != null) {
-            getSelectedShop().setCurrentEditor(null);
-            getSelectedShop().setCurrentEditor(null);
-        }
-
+        if (getSelectedShop() != null) getSelectedShop().setCurrentEditor(null);
         setSelectedShop(null);
         setInteractionType(null);
         //setLongTermInteractionValue(null);

@@ -5,10 +5,12 @@
 package xzot1k.plugins.ds;
 
 import me.arcaniax.hdb.api.HeadDatabaseAPI;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -19,7 +21,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.api.DManager;
-import xzot1k.plugins.ds.api.PacketManager;
+import xzot1k.plugins.ds.api.VersionUtil;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
 import xzot1k.plugins.ds.api.objects.DataPack;
 import xzot1k.plugins.ds.api.objects.Menu;
@@ -35,6 +37,7 @@ import xzot1k.plugins.ds.core.tasks.ManagementTask;
 import xzot1k.plugins.ds.core.tasks.VisualTask;
 
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
@@ -55,11 +58,12 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private static DisplayShops pluginInstance;
     private DManager manager;
     private SimpleDateFormat dateFormat;
-    private PacketManager packetManager;
 
-    // Version handlers
+    public Class<?> craftPlayerClass, packetOpenWindowClass, displayPacketClass;
     private double serverVersion;
-    private boolean paperSpigot, prismaInstalled, townyInstalled;
+    // Version handlers
+    private String versionPackageName;
+    private VersionUtil versionUtil;
 
     // Virtual data handlers
     private HashMap<UUID, UUID> shopMemory;
@@ -69,8 +73,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     // listeners
     private Listeners listeners;
     private MenuListener menuListener;
-
     // hook handlers
+    private boolean paperSpigot, prismaInstalled, townyInstalled;
     private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
@@ -101,9 +105,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         saveDefaultConfigs();
         saveDefaultMenuConfigs();
 
-        setServerVersion(Double.parseDouble(getServer().getClass().getPackage().getName()
-                .replace(".", ",").split(",")[3]
+        final String packageName = getServer().getClass().getPackage().getName();
+        setServerVersion(Double.parseDouble(packageName.replace(".", ",").split(",")[3]
                 .replace("_R", ".").replaceAll("[rvV_]*", "")));
+        versionPackageName = packageName.substring(packageName.lastIndexOf('.') + 1);
 
         fixConfig();
 
@@ -113,7 +118,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         teleportingPlayers = new ArrayList<>();
 
         this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
-        this.packetManager = new xzot1k.plugins.ds.core.PacketManager(this);
+        try {
+            setup();
+        } catch (ClassNotFoundException e) {e.printStackTrace();}
 
         setPaperSpigot(false);
         Method[] methods = World.class.getMethods();
@@ -571,30 +578,30 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     public void exportMySQLDatabase() throws IOException {
         File dir = new File(getDataFolder(), "/mysql-backups");
-        dir.mkdirs();
+        if (dir.mkdirs()) {
+            File[] files = dir.listFiles();
+            if (files == null || files.length < 18) {
+                File saveFile = new File(getDataFolder(), "/mysql-backups/backup-" + dateFormat.format(new Date()) + ".sql");
+                if (!saveFile.exists()) {
+                    try {
 
-        File[] files = dir.listFiles();
-        if (files == null || files.length < 18) {
-            File saveFile = new File(getDataFolder(), "/mysql-backups/backup-" + dateFormat.format(new Date()) + ".sql");
-            if (!saveFile.exists()) {
-                try {
+                        PreparedStatement statement = getDatabaseConnection().prepareStatement("BACKUP DATABASE shops TO DISK "
+                                + "= '/mysql-backups/shops-" + dateFormat.format(new Date()) + ".sql';");
+                        statement.executeUpdate();
+                        statement.close();
 
-                    PreparedStatement statement = getDatabaseConnection().prepareStatement("BACKUP DATABASE shops TO DISK "
-                            + "= '/mysql-backups/shops-" + dateFormat.format(new Date()) + ".sql';");
-                    statement.executeUpdate();
-                    statement.close();
+                        statement = getDatabaseConnection().prepareStatement("BACKUP DATABASE market_regions TO DISK = "
+                                + "'/mysql-backups/market-regions-" + dateFormat.format(new Date()) + ".sql';");
+                        statement.executeUpdate();
+                        statement.close();
 
-                    statement = getDatabaseConnection().prepareStatement("BACKUP DATABASE market_regions TO DISK = "
-                            + "'/mysql-backups/market-regions-" + dateFormat.format(new Date()) + ".sql';");
-                    statement.executeUpdate();
-                    statement.close();
+                        statement = getDatabaseConnection().prepareStatement("BACKUP DATABASE player_data TO DISK = "
+                                + "'/mysql-backups/player-data-" + dateFormat.format(new Date()) + ".sql';");
+                        statement.executeUpdate();
+                        statement.close();
 
-                    statement = getDatabaseConnection().prepareStatement("BACKUP DATABASE player_data TO DISK = "
-                            + "'/mysql-backups/player-data-" + dateFormat.format(new Date()) + ".sql';");
-                    statement.executeUpdate();
-                    statement.close();
-
-                } catch (SQLException ignored) {
+                    } catch (SQLException ignored) {
+                    }
                 }
             }
         }
@@ -627,7 +634,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         ConfigurationSection cs = yaml.getConfigurationSection("");
         if (cs != null) for (String key : cs.getKeys(false)) {
-            ItemStack foundItem = getPacketManager().toItem(Objects.requireNonNull(cs.getString(key)));
+            ItemStack foundItem = toItem(Objects.requireNonNull(cs.getString(key)));
             if (foundItem != null && foundItem.isSimilar(itemStack)) return Long.parseLong(key);
         }
 
@@ -760,7 +767,105 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
     }
 
-    // custom configurations
+    // version-based methods
+    private void setup() throws ClassNotFoundException {
+        try {
+            Class<?> vUtilClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".VUtil");
+            versionUtil = (VersionUtil) vUtilClass.getDeclaredConstructor().newInstance();
+
+            displayPacketClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".DPacket");
+        } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
+            this.versionUtil = new xzot1k.plugins.ds.nms.v1_20_R1.VUtil();
+            displayPacketClass = xzot1k.plugins.ds.nms.v1_20_R1.DPacket.class;
+        }
+
+        // this.craftPlayerClass = Class.forName("org.bukkit.craftbukkit." + getVersionPackageName() + ".entity.CraftPlayer");
+        // this.packetOpenWindowClass = Class.forName("net.minecraft.server." + getVersionPackageName() + ".PacketPlayOutOpenWindow");
+    }
+
+    public String toString(@NotNull ItemStack itemStack) {
+        YamlConfiguration itemConfig = new YamlConfiguration();
+        itemConfig.set("item", itemStack);
+        return itemConfig.saveToString().replace("'", "[sq]").replace("\"", "[dq]");
+    }
+
+    public ItemStack toItem(@NotNull String itemString) {
+
+        /*
+        if (!itemString.contains("item:")) {
+            try {
+                final ByteArrayInputStream inputStream = new ByteArrayInputStream(new BigInteger(itemString, 32).toByteArray());
+                final DataInputStream dataInputStream = new DataInputStream(inputStream);
+                final NBTTagCompound tag = NBTCompressedStreamTools.a(dataInputStream, NBTReadLimiter.a); // read() and UNLIMITED
+
+                dataInputStream.close();
+                inputStream.close();
+
+                Constructor<?> constructor = net.minecraft.world.item.ItemStack.class.getDeclaredConstructor(NBTTagCompound.class);
+                constructor.setAccessible(true);
+
+                return CraftItemStack.asBukkitCopy((net.minecraft.world.item.ItemStack) constructor.newInstance(tag));
+            } catch (IOException | NoSuchMethodException | InstantiationException
+                     | IllegalAccessException | InvocationTargetException e) {e.printStackTrace();}
+        }
+         */
+
+        YamlConfiguration restoreConfig = new YamlConfiguration();
+        try {
+            restoreConfig.loadFromString(itemString.replace("[sq]", "'").replace("[dq]", "\""));
+        } catch (InvalidConfigurationException e) {e.printStackTrace();}
+        return restoreConfig.getItemStack("item");
+    }
+
+    public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {return getVersionUtil().getNBT(itemStack, nbtTag);}
+
+    public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {return getVersionUtil().updateNBT(itemStack, nbtTag, value);}
+
+    public void displayParticle(@NotNull Player player, @NotNull String particleName, @NotNull Location location,
+                                double offsetX, double offsetY, double offsetZ, int speed, int amount) {
+        getVersionUtil().displayParticle(player, particleName, location, offsetX, offsetY, offsetZ, speed, amount);
+    }
+
+    public void sendActionBar(@NotNull Player player, @NotNull String message) {getVersionUtil().sendActionBar(player, message);}
+
+    // menu methods
+
+    public void loadMenus() {
+        final File dir = new File(getDataFolder(), "/menus");
+        if (dir.exists() && dir.isDirectory()) {
+
+            final File[] files = dir.listFiles();
+            if (files != null && files.length > 0) for (int i = -1; ++i < files.length; ) {
+                final File file = files[i];
+                getMenuMap().put(file.getName().toLowerCase().replace(".yml", ""), new BackendMenu(file));
+            }
+        }
+    }
+
+    @Override
+    public Menu getMenu(@NotNull String name) {
+        final Menu menu = getMenuMap().getOrDefault(name.toLowerCase(), null);
+        if (menu != null) return menu;
+
+        Map.Entry<String, Menu> menuEntry = getMenuMap().entrySet().parallelStream()
+                .filter(entry -> entry.getValue().matches(name))
+                .findFirst().orElse(null);
+        return ((menuEntry != null) ? menuEntry.getValue() : null);
+    }
+
+    @Override
+    public boolean matchesAnyMenu(@NotNull String name) {
+        return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));
+    }
+
+    @Override
+    public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {
+        final Menu menu = getMenuMap().getOrDefault(menuName, null);
+        return (menu != null && menu.matches(inventoryName));
+    }
+
+    // config methods
+
     public FileConfiguration getConfigFromJar(@NotNull String configPath) {
         try (InputStream inputStream = getResource(configPath)) {
             if (inputStream == null) return null;
@@ -874,66 +979,32 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private void saveDefaultMenuConfigs() {
         try {
             final File menusDir = new File(getDataFolder(), "menus");
-            menusDir.mkdirs();
+            if (menusDir.mkdirs()) {
+                final URL dir = getClass().getResource("/menus");
+                if (dir != null) {
+                    final FileSystem fileSystem = FileSystems.newFileSystem(dir.toURI(), Collections.emptyMap());
+                    final Path path = fileSystem.getPath("/menus");
 
-            final URL dir = getClass().getResource("/menus");
-            if (dir != null) {
-                final FileSystem fileSystem = FileSystems.newFileSystem(dir.toURI(), Collections.emptyMap());
-                final Path path = fileSystem.getPath("/menus");
+                    Stream<Path> walk = Files.walk(path);
+                    walk.parallel().filter(p -> !p.getFileName().toString().equals("menus")).forEach(source -> {
+                        final Path newPath = Paths.get(getDataFolder().getPath(), "menus", source.getFileName().toString());
+                        File file = new File(newPath.toUri());
+                        if (file.exists()) return;
 
-                Stream<Path> walk = Files.walk(path);
-                walk.parallel().filter(p -> !p.getFileName().toString().equals("menus")).forEach(source -> {
-                    final Path newPath = Paths.get(getDataFolder().getPath(), "menus", source.getFileName().toString());
-                    File file = new File(newPath.toUri());
-                    if (file.exists()) return;
+                        try {
+                            Files.copy(source, newPath);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
 
-                    try {
-                        Files.copy(source, newPath);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-
-                walk.close();
-                fileSystem.close();
+                    walk.close();
+                    fileSystem.close();
+                }
             }
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
         }
-    }
-
-    public void loadMenus() {
-        final File dir = new File(getDataFolder(), "/menus");
-        if (dir.exists() && dir.isDirectory()) {
-
-            final File[] files = dir.listFiles();
-            if (files != null && files.length > 0) for (int i = -1; ++i < files.length; ) {
-                final File file = files[i];
-                getMenuMap().put(file.getName().toLowerCase().replace(".yml", ""), new BackendMenu(file));
-            }
-        }
-    }
-
-    @Override
-    public Menu getMenu(@NotNull String name) {
-        final Menu menu = getMenuMap().getOrDefault(name.toLowerCase(), null);
-        if (menu != null) return menu;
-
-        Map.Entry<String, Menu> menuEntry = getMenuMap().entrySet().parallelStream()
-                .filter(entry -> entry.getValue().matches(name))
-                .findFirst().orElse(null);
-        return ((menuEntry != null) ? menuEntry.getValue() : null);
-    }
-
-    @Override
-    public boolean matchesAnyMenu(@NotNull String name) {
-        return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));
-    }
-
-    @Override
-    public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {
-        final Menu menu = getMenuMap().getOrDefault(menuName, null);
-        return (menu != null && menu.matches(inventoryName));
     }
 
     /**
@@ -991,7 +1062,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
     }
 
-    // packet functions
+    // display methods
 
     /**
      * Schedules a general thread-safe refresh for the shop's display.
@@ -1147,13 +1218,11 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     /**
      * @return Server version in the format XXX.X where the decimal digit is the 'R' version.
      */
-    public double getServerVersion() {
-        return serverVersion;
-    }
+    public double getServerVersion() {return serverVersion;}
 
-    private void setServerVersion(double serverVersion) {
-        this.serverVersion = serverVersion;
-    }
+    private void setServerVersion(double serverVersion) {this.serverVersion = serverVersion;}
+
+    public String getVersionPackageName() {return versionPackageName;}
 
     public Connection getDatabaseConnection() {
         return databaseConnection;
@@ -1265,10 +1334,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return menuListener;
     }
 
-    public PacketManager getPacketManager() {
-        return packetManager;
-    }
-
     public boolean isItemAdderInstalled() {
         return isItemAdderInstalled;
     }
@@ -1278,5 +1343,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     public EconomyHandler getEconomyHandler() {return economyHandler;}
+
+    public VersionUtil getVersionUtil() {return versionUtil;}
 
 }

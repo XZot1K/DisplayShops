@@ -37,6 +37,7 @@ import org.bukkit.metadata.MetadataValue;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.Direction;
+import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.enums.EditType;
 import xzot1k.plugins.ds.api.enums.ItemType;
 import xzot1k.plugins.ds.api.events.*;
@@ -380,7 +381,8 @@ public class Listeners implements Listener {
                     if (shop.getStock() >= maxStock) {
                         String message = getPluginInstance().getLangConfig().getString("shop-max-stock");
                         if (message != null && !message.equalsIgnoreCase(""))
-                            getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{max}", getPluginInstance().getManager().formatNumber(maxStock, false)));
+                            getPluginInstance().getManager().sendMessage(e.getPlayer(),
+                                    message.replace("{max}", getPluginInstance().getManager().formatNumber(maxStock, false)));
                         return;
                     }
 
@@ -390,8 +392,7 @@ public class Listeners implements Listener {
                         shop.setStock(maxStock);
                         if (message != null && !message.equalsIgnoreCase(""))
                             getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{amount}",
-                                    getPluginInstance().getManager().formatNumber(itemInHand.getAmount() - remainderInHand
-                                            , false)));
+                                    getPluginInstance().getManager().formatNumber((itemInHand.getAmount() - remainderInHand), false)));
                     } else {
                         if (message != null && !message.equalsIgnoreCase(""))
                             getPluginInstance().getManager().sendMessage(e.getPlayer(), message.replace("{amount}",
@@ -516,47 +517,26 @@ public class Listeners implements Listener {
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
     public void onEconomyCall(EconomyCallEvent e) {
-        if (e.willSucceed() && e.getInvestor() != null) {
-            StringBuilder stringBuilder = new StringBuilder();
+        if (!e.willSucceed()) return;
+        StringBuilder stringBuilder = new StringBuilder();
 
-            int unitCount;
-            switch (e.getEconomyCallType()) {
-                case SELL:
-                    unitCount = (int) (e.getPrice() / e.getShop().getSellPrice(true));
-                    stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
-                            .append(e.getInvestor().getName()).append(" sold to the" +
-                                    " shop '").append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
-                            .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY()).append(" Z: ").append(e.getShop().getBaseLocation().getZ()).append(") and received '").append(e.getPrice()).append("' currency. (Estimated Unit Count: ").append(getPluginInstance().getManager().formatNumber(unitCount, false)).append(")");
-                    break;
+        stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
+                .append("Action: ").append(e.getEconomyCallType().name()).append(" | Cost: ")
+                .append(getPluginInstance().getEconomyHandler().format(e.getShop(), e.getShop().getCurrencyType(), e.getAmount()))
+                .append(" --- performed by ").append(e.getPlayer().getName()).append(" performed the shop '")
+                .append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
+                .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY())
+                .append(" Z: ").append(e.getShop().getBaseLocation().getZ()).append(")");
 
-                case BUY:
-                    unitCount = (int) (e.getPrice() / e.getShop().getBuyPrice(true));
-                    stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
-                            .append(e.getInvestor().getName()).append(" purchased " +
-                                    "from the shop '").append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
-                            .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY())
-                            .append(" Z: ").append(e.getShop().getBaseLocation().getZ()).append(") and used '").append(e.getPrice())
-                            .append("' currency. (Estimated Unit Count: ").append(getPluginInstance().getManager().formatNumber(unitCount, false)).append(")");
-                    break;
-
-                case EDIT_ACTION:
-                    unitCount = (int) (e.getPrice() / e.getShop().getBuyPrice(true));
-                    stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
-                            .append(e.getInvestor().getName()).append(" edited the " +
-                                    "shop '").append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
-                            .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY())
-                            .append(" Z: ").append(e.getShop().getBaseLocation().getZ()).append(") and used '").append(e.getPrice())
-                            .append("' currency. (Estimated Unit Count: ").append(getPluginInstance().getManager().formatNumber(unitCount, false)).append(")");
-                    break;
-
-                default:
-                    return;
-            }
-
-            if (stringBuilder.length() > 0)
-                getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(),
-                        () -> getPluginInstance().writeToLog(stringBuilder.toString()));
+        if (e.getEconomyCallType() == EconomyCallType.BUY || e.getEconomyCallType() == EconomyCallType.SELL
+                || e.getEconomyCallType() == EconomyCallType.EDIT_ACTION) {
+            final int unitCount = (int) (e.getRawAmount() / e.getShop().getSellPrice(true));
+            stringBuilder.append(" (Estimated Unit Count: ").append(getPluginInstance().getManager().formatNumber(unitCount, false)).append(")");
         }
+
+        if (stringBuilder.length() > 0)
+            getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () ->
+                    getPluginInstance().writeToLog(stringBuilder.toString()));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -923,7 +903,7 @@ public class Listeners implements Listener {
     }
 
     public boolean isCreationItem(@NotNull ItemStack itemStack) {
-        final String nbtResult = getPluginInstance().getPacketManager().getNBT(itemStack, "DisplayShops");
+        final String nbtResult = getPluginInstance().getNBT(itemStack, "DisplayShops");
         return (nbtResult != null && nbtResult.equals("Creation Item"));
     }
 

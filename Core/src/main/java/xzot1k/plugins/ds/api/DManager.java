@@ -28,8 +28,6 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
-import xzot1k.plugins.ds.api.enums.EconomyCallType;
-import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.objects.*;
 
 import java.io.File;
@@ -53,6 +51,7 @@ public class DManager implements Manager {
     private List<MarketRegion> marketRegions;
     private final Pattern hexPattern;
     private HashMap<UUID, DataPack> dataPackMap;
+    public ItemStack defaultCurrencyItem;
 
     public DManager(DisplayShops pluginInstance) {
         setPluginInstance(pluginInstance);
@@ -60,6 +59,7 @@ public class DManager implements Manager {
         setDataPackMap(new HashMap<>());
         setMarketRegions(new ArrayList<>());
         hexPattern = Pattern.compile("#[a-fA-F\\d]{6}");
+        defaultCurrencyItem = buildShopCurrencyItem(1);
     }
 
     /**
@@ -280,7 +280,7 @@ public class DManager implements Manager {
 
         final String replacedMessage = applyPlaceholders(player, message, placeholders);
         if (!message.toLowerCase().startsWith("{bar}")) player.sendMessage(color(replacedMessage));
-        else getPluginInstance().getPacketManager().sendActionBar(player, replacedMessage.substring(5));
+        else getPluginInstance().sendActionBar(player, replacedMessage.substring(5));
     }
 
     @Override
@@ -303,70 +303,6 @@ public class DManager implements Manager {
     public String applyPlaceholders(@NotNull Player player, @Nullable String text, @Nullable String... placeholders) {
         if (text == null || text.isEmpty()) return text;
         return applyPlaceholders(getPluginInstance().papiText(player, text), placeholders);
-    }
-
-    /**
-     * Initiates a withdrawal/deposit transaction directed at an investor and owner automating messages, taxing, and more (The stopInTacks() method
-     * must be called still).
-     *
-     * @param investor        The buyer.
-     * @param producer        The seller.
-     * @param shop            The shop in use.
-     * @param economyCallType The economy type being processed Buy, Sell, etc.
-     * @param price           The price in use.
-     * @return the economy call event
-     */
-    public EconomyCallEvent initiateShopEconomyTransaction(@NotNull Player investor, @Nullable OfflinePlayer producer, @Nullable Shop shop,
-                                                           @NotNull EconomyCallType economyCallType, double price) {
-
-        final EconomyCallEvent economyCallEvent = new EconomyCallEvent(investor, producer, economyCallType, shop, price);
-        getPluginInstance().getServer().getPluginManager().callEvent(economyCallEvent);
-        if (economyCallEvent.isCancelled()) {
-            if (price <= 0) {
-                economyCallEvent.setCanProducerAfford(true);
-                economyCallEvent.setCanInvestorAfford(true);
-                economyCallEvent.setWillSucceed(true);
-            }
-
-            return economyCallEvent;
-        } else if (price <= 0) {
-            economyCallEvent.setCanProducerAfford(true);
-            economyCallEvent.setCanInvestorAfford(true);
-            economyCallEvent.setWillSucceed(true);
-            return economyCallEvent;
-        }
-
-        if (producer != null && !economyCallEvent.canProducerAfford()) {
-            String message = getPluginInstance().getLangConfig().getString("owner-insufficient-funds");
-            if (message != null && !message.equalsIgnoreCase("")) sendMessage(investor, message);
-        }
-
-        if (!investor.hasPermission("displayshops.bypass")) {
-            if (economyCallType != EconomyCallType.SELL && !economyCallEvent.canInvestorAfford()) {
-                investor.closeInventory();
-
-                String tradeItemName = "";
-                if (shop != null && shop.getCurrencyType().equals("item-for-item")) {
-                    final boolean forceUseCurrency = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
-                    final ItemStack forceCurrencyItem = getPluginInstance().getManager().buildShopCurrencyItem(1);
-                    final String defaultName = getPluginInstance().getManager().getItemName(forceCurrencyItem);
-                    tradeItemName = (forceUseCurrency ? defaultName : ((shop.getTradeItem() != null)
-                            ? getPluginInstance().getManager().getItemName(shop.getTradeItem()) : defaultName));
-                }
-
-                final String message = getPluginInstance().getLangConfig().getString("insufficient-funds");
-                if (message != null && !message.equalsIgnoreCase(""))
-                    sendMessage(investor, message.replace("{trade-item}", tradeItemName)
-                            .replace("{price}", getPluginInstance().getManager().formatNumber(economyCallEvent.getTaxedPrice(), true)));
-                return economyCallEvent;
-            }
-
-            if (economyCallEvent.willSucceed()) economyCallEvent.performCurrencyTransfer(true);
-            return economyCallEvent;
-        }
-
-        if (economyCallEvent.willSucceed()) economyCallEvent.performCurrencyTransfer(false);
-        return economyCallEvent;
     }
 
     /**
@@ -733,7 +669,7 @@ public class DManager implements Manager {
                 .replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted));
     }
 
-    private String format(long value, boolean useUKFormatting) {
+    public String format(long value, boolean useUKFormatting) {
         String[] arr = {"", "K", "M", "B", "T", "Q", "E"};
         int index = 0;
         while ((value / 1000) >= 1) {
@@ -878,7 +814,7 @@ public class DManager implements Manager {
 
             String particleString = getPluginInstance().getConfig().getString("immersion-section.shop-creation-particle");
             if (particleString != null && !particleString.equalsIgnoreCase(""))
-                getPluginInstance().getPacketManager().getParticleHandler().displayParticle(player, particleString.toUpperCase()
+                getPluginInstance().displayParticle(player, particleString.toUpperCase()
                                 .replace(" ", "_").replace("-", "_"),
                         block.getLocation().add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 12);
         }
@@ -939,13 +875,10 @@ public class DManager implements Manager {
                     final int cleanInactiveTime = getPluginInstance().getConfig().getInt("clean-inactive-duration");
                     if (cleanInactiveTime >= 0 && ownerId != null) {
                         OfflinePlayer offlinePlayer = getPluginInstance().getServer().getOfflinePlayer(ownerId);
-                        if (offlinePlayer != null) {
-                            final long lastOnline = (((System.currentTimeMillis() - offlinePlayer.getLastPlayed()) / 1000) % 60);
-
-                            if (lastOnline >= cleanInactiveTime) {
-                                shopsToDelete.add(shopIdString);
-                                continue;
-                            }
+                        final long lastOnline = (((System.currentTimeMillis() - offlinePlayer.getLastPlayed()) / 1000) % 60);
+                        if (lastOnline >= cleanInactiveTime) {
+                            shopsToDelete.add(shopIdString);
+                            continue;
                         }
                     }
 
@@ -986,10 +919,10 @@ public class DManager implements Manager {
                     shopItem = tradeItem = null;
 
                     if (shopItemString != null && !shopItemString.equalsIgnoreCase(""))
-                        shopItem = getPluginInstance().getPacketManager().toItem(shopItemString);
+                        shopItem = getPluginInstance().toItem(shopItemString);
 
                     if (tradeItemString != null && !tradeItemString.equalsIgnoreCase(""))
-                        tradeItem = getPluginInstance().getPacketManager().toItem(tradeItemString);
+                        tradeItem = getPluginInstance().toItem(tradeItemString);
 
                     DShop shop = new DShop(shopId, ownerId, shopItem, baseLocation,
                             resultSet.getInt("shop_item_amount"), storedBaseBlockMaterialLine);
@@ -1039,6 +972,12 @@ public class DManager implements Manager {
                             final String[] extraDataArgs = extraDataLine.split(";");
 
                             shop.setDynamicPriceChange(Boolean.parseBoolean(extraDataArgs[0]));
+
+                            if (extraDataArgs.length > 3) {
+                                shop.setCurrencyType(extraDataArgs[3]);
+                                shop.checkCurrencyType(null);
+                            } else if (shop.getTradeItem() != null) shop.setCurrencyType("item-for-item");
+
                             if (extraDataArgs.length > 2 && extraDataLine.contains(":")) {
                                 String[] buySplit = extraDataArgs[1].split(":"), sellSplit = extraDataArgs[2].split(":");
 
@@ -1047,7 +986,7 @@ public class DManager implements Manager {
                                     shop.setLastBuyTimeStamp(Long.parseLong(lastBuyStamp));
                                 shop.setDynamicBuyCounter(Integer.parseInt(buySplit[1]));
 
-                                String lastSellStamp = buySplit[0];
+                                String lastSellStamp = sellSplit[0];
                                 if (lastSellStamp != null && changeStamp != null && !changeStamp.contains("."))
                                     shop.setLastSellTimeStamp(Long.parseLong(lastSellStamp));
                                 shop.setDynamicSellCounter(Integer.parseInt(sellSplit[1]));
@@ -1069,7 +1008,6 @@ public class DManager implements Manager {
                         getPluginInstance().log(Level.INFO, "Loading shops " + current + "/" + shopCount
                                 + " (" + Math.min(100, (int) (((double) current / (double) shopCount) * 100)) + "%)...");
                 } catch (Exception e) {
-                    e.printStackTrace();
                     getPluginInstance().log(Level.WARNING, "The shop '"
                             + resultSet.getString("id") + "' failed to load(" + e.getMessage() + ").");
                 }
@@ -1078,7 +1016,6 @@ public class DManager implements Manager {
             resultSet.close();
             statement.close();
         } catch (SQLException e) {
-            e.printStackTrace();
             getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
         }
 
@@ -1090,7 +1027,6 @@ public class DManager implements Manager {
                     statement.executeUpdate();
                     statement.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
                     getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
                 }
             }
@@ -1662,7 +1598,7 @@ public class DManager implements Manager {
                             .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
                     if (isEnchanted) item.setEnchanted(true);
-                    return getPluginInstance().getPacketManager().updateNBT(item.get(), "DisplayShops", "Creation Item");
+                    return getPluginInstance().updateNBT(item.get(), "DisplayShops", "Creation Item");
                 }
             }
 
@@ -1674,7 +1610,7 @@ public class DManager implements Manager {
                     .setModelData(getPluginInstance().getConfig().getInt("shop-creation-item.model-data"));
 
             if (isEnchanted) item.setEnchanted(true);
-            return getPluginInstance().getPacketManager().updateNBT(item.get(), "DisplayShops", "Creation Item");
+            return getPluginInstance().updateNBT(item.get(), "DisplayShops", "Creation Item");
         }
 
         return null;

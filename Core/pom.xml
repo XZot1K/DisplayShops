@@ -229,7 +229,7 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>
-            <version>1.20.1-R0.1-SNAPSHOT</version>
+            <version>${server.version}</version>
             <scope>provided</scope>
         </dependency>
 

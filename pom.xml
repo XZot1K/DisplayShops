@@ -36,6 +36,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
+        <server.version>1.20.1-R0.1-SNAPSHOT</server.version>
         <api.version>2.0</api.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -204,6 +205,13 @@
             <groupId>com.songoda</groupId>
             <artifactId>skyblock</artifactId>
             <version>2.3.30</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.willfp</groupId>
+            <artifactId>eco</artifactId>
+            <version>6.60.0</version>
             <scope>provided</scope>
         </dependency>
 
