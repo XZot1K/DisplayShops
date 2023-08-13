@@ -835,10 +835,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public void loadMenus() {
         final File dir = new File(getDataFolder(), "/menus");
         if (dir.exists() && dir.isDirectory()) {
-
             final File[] files = dir.listFiles();
             if (files != null && files.length > 0) for (int i = -1; ++i < files.length; ) {
                 final File file = files[i];
+                if (file.getName().contains("deposit-balance") || file.getName().contains("deposit-stock")) continue; // TODO REMOVE LATER
                 getMenuMap().put(file.getName().toLowerCase().replace(".yml", ""), new BackendMenu(file));
             }
         }
