@@ -414,8 +414,10 @@ public class DManager implements Manager {
             if (format.contains("{search-text}")) {
                 String currentType = ChatColor.stripColor(itemMeta.getDisplayName());
                 String[] args = lineWithPlaceholder.split(placeHolder);
-                if (args.length > 0) for (int i = -1; ++i < args.length; )
-                    currentType = currentType.replace(args[0], "");
+                if (args.length > 0)
+                    for (int i = -1; ++i < args.length; ) {
+                        currentType = currentType.replace(args[0], "");
+                    }
             }
         }
 

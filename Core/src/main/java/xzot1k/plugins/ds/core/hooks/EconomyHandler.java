@@ -376,7 +376,7 @@ public class EconomyHandler implements EcoHandler {
      */
     public int getItemForItemBalance(@NotNull OfflinePlayer player, @NotNull Shop shop, @Nullable EconomyCallType... economyCallType) {
         if (shop.getCurrencyType().equals("item-for-item") && player.getPlayer() != null) {
-            if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL)
+            if (economyCallType != null && economyCallType.length > 0 && (economyCallType[0] == EconomyCallType.SELL))
                 return INSTANCE.getManager().getItemAmount(player.getPlayer().getInventory(), shop.getShopItem());
 
             final ItemStack currencyItem = (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") || shop.getTradeItem() == null) ?

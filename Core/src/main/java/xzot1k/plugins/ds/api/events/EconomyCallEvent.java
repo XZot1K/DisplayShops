@@ -24,6 +24,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     private boolean cancelled, playerHasEnough, willSucceed, performedCurrencyTransfer, chargedPlayer;
     private Shop shop;
     private EconomyCallType economyCallType;
+    private String errorMessage;
 
     public EconomyCallEvent(@NotNull Player player, @NotNull EconomyCallType economyCallType, @Nullable Shop shop, double amount) {
         this.INSTANCE = DisplayShops.getPluginInstance();
@@ -35,9 +36,57 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         setChargedPlayer(false);
         setTax(INSTANCE.getConfig().getDouble("transaction-tax"));
 
-        final boolean isSell = (economyCallType == EconomyCallType.SELL);
-        setPlayerHasEnough(getPlayer().hasPermission("displayshops.bypass")
-                || INSTANCE.getEconomyHandler().has(getPlayer(), getShop(), ((!isSell || shop == null) ? getAmount() : shop.getShopItemAmount()), economyCallType));
+        if (getShop() != null && !getShop().isAdminShop()) {
+
+            if (getEconomyCallType() == EconomyCallType.WITHDRAW_BALANCE) {
+                final boolean canShopAfford = (getShop().getStoredBalance() >= getAmount());
+
+                if (getShop().getCurrencyType().equals("item-for-item")) {
+                    int totalSpace = INSTANCE.getManager().getInventorySpaceForItem(player, (getShop().getTradeItem() != null
+                            ? getShop().getTradeItem() : INSTANCE.getManager().defaultCurrencyItem));
+                    if (getAmount() > totalSpace) setAmount(totalSpace);
+                    setPlayerHasEnough(totalSpace >= getAmount());
+                    setWillSucceed(playerHasEnough() && canShopAfford);
+
+                    if (!playerHasEnough) setErrorMessage(INSTANCE.getLangConfig().getString("insufficient-space"));
+                    if (!canShopAfford) setErrorMessage(INSTANCE.getLangConfig().getString("owner-insufficient-funds"));
+                    return;
+                }
+
+                setPlayerHasEnough(true);
+                setWillSucceed(playerHasEnough() && canShopAfford);
+                if (!canShopAfford) setErrorMessage(INSTANCE.getLangConfig().getString("owner-insufficient-funds"));
+                return;
+            } else if (getEconomyCallType() == EconomyCallType.DEPOSIT_BALANCE) {
+                if (getShop().getCurrencyType().equals("item-for-item")) {
+                    final int currentBalance = INSTANCE.getEconomyHandler().getItemForItemBalance(player, getShop());
+                    setPlayerHasEnough(currentBalance >= amount);
+                    setWillSucceed(playerHasEnough());
+                    if (!playerHasEnough()) {
+                        final String message = INSTANCE.getLangConfig().getString("insufficient-funds");
+                        if (message != null && !message.isEmpty()) setErrorMessage(message
+                                .replace("{price}", INSTANCE.getEconomyHandler().format(getShop(), getShop().getCurrencyType(), getAmount())));
+                    }
+                    return;
+                }
+
+                final boolean doesNotMeetMax = ((getShop().getStoredBalance() + getAmount()) < INSTANCE.getConfig().getLong("max-stored-currency"));
+                setPlayerHasEnough(INSTANCE.getEconomyHandler().has(getPlayer(), getShop(), getAmount()));
+                setWillSucceed(playerHasEnough() && doesNotMeetMax);
+                if (!doesNotMeetMax) setErrorMessage(INSTANCE.getLangConfig().getString("max-stored-currency"));
+                if (!playerHasEnough()) {
+                    final String message = INSTANCE.getLangConfig().getString("insufficient-funds");
+                    if (message != null && !message.isEmpty()) setErrorMessage(message
+                            .replace("{price}", INSTANCE.getEconomyHandler().format(getShop(), getShop().getCurrencyType(), getAmount())));
+                }
+                return;
+            }
+
+        }
+
+        final boolean isSell = (getEconomyCallType() == EconomyCallType.SELL);
+        setPlayerHasEnough(getPlayer().hasPermission("displayshops.bypass") || INSTANCE.getEconomyHandler().has(getPlayer(), getShop(),
+                ((!isSell || shop == null) ? getAmount() : shop.getShopItemAmount()), economyCallType));
 
         if (isSell && getShop() != null && !getShop().isAdminShop()) {
             final boolean useOwnerSyncing = INSTANCE.getConfig().getBoolean("sync-owner-balance");
@@ -97,6 +146,8 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         }
 
         if (economyCallEvent.willSucceed()) economyCallEvent.performCurrencyTransfer(canBypass);
+        else if (economyCallEvent.getErrorMessage() != null)
+            DisplayShops.getPluginInstance().getManager().sendMessage(player, economyCallEvent.getErrorMessage());
         return economyCallEvent;
     }
 
@@ -108,6 +159,27 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     public void performCurrencyTransfer(boolean chargeInvestor) {
         if (performedCurrencyTransfer()) return;
         setPerformedCurrencyTransfer(true);
+
+        switch (getEconomyCallType()) {
+
+            case WITHDRAW_BALANCE: {
+                INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount());
+                getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - getAmount()), 0));
+                shop.updateTimeStamp();
+                shop.save(true);
+                return;
+            }
+
+            case DEPOSIT_BALANCE: {
+                INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount());
+                getShop().setStoredBalance(Math.max((getShop().getStoredBalance() + getAmount()), 0));
+                shop.updateTimeStamp();
+                shop.save(true);
+                return;
+            }
+
+            default: {break;}
+        }
 
         if (getEconomyCallType() == EconomyCallType.SELL) {
             INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount());
@@ -237,5 +309,9 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     public boolean hasChargedPlayer() {return chargedPlayer;}
 
     public void setChargedPlayer(boolean chargedPlayer) {this.chargedPlayer = chargedPlayer;}
+
+    public String getErrorMessage() {return errorMessage;}
+
+    public void setErrorMessage(@Nullable String message) {this.errorMessage = message;}
 
 }

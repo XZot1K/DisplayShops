@@ -5,7 +5,7 @@ api-version: 1.13
 author: XZot1K
 description: Create immersive simplistic shops with animations, efficient transaction handling, and much more!
 softdepend: [ Vault, HeadDatabase, Prisma, PlaceholderAPI, PlotSquared, BentoBox, BSkyBlock, Oneblock, CMI, MultiWorld, Multiverse-Core,
-              ASkyBlock, USkyBlock, FabledSkyBlock, PlayerWorldsPro, WorldGuard, WorldEdit, ItemsAdder, PlayerPoints, eco, EcoBits ]
+              ASkyBlock, USkyBlock, FabledSkyBlock, PlayerWorldsPro, WorldGuard, WorldEdit, ItemsAdder, PlayerPoints, eco, EcoBits, Geyser-Spigot ]
 loadbefore: [ GriefPrevention, JetsMinions ]
 load: POSTWORLD
 

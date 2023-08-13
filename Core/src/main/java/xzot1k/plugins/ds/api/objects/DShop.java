@@ -206,7 +206,7 @@ public class DShop implements Shop {
             }
 
             INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
-                    INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this, getStock()));
+                    INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this));
         }
     }
 
@@ -237,7 +237,7 @@ public class DShop implements Shop {
 
             if (!playerToGive.isOnline()) {
                 INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
-                        INSTANCE.getManagementTask().createRecovery(playerToGive.getUniqueId(), this, getShopItemAmount()));
+                        INSTANCE.getManagementTask().createRecovery(playerToGive.getUniqueId(), this));
                 return;
             }
 
@@ -516,10 +516,11 @@ public class DShop implements Shop {
 
     private boolean isBlockSafe(@NotNull Block block, @NotNull Block downBlock) {
         return ((block.getType().name().contains("AIR") || block.getType().name().contains("SNOW"))
-                && block.getType().name().contains("AIR") && block.getRelative(BlockFace.UP).getType().name().contains("AIR")
+                && (block.getType().name().contains("AIR") || block.getType().name().contains("SNOW"))
+                && block.getRelative(BlockFace.UP).getType().name().contains("AIR")
                 && block.getRelative(BlockFace.UP).getRelative(BlockFace.UP).getType().name().contains("AIR")
-                && (!downBlock.getType().name().contains("LAVA") && !downBlock.getType().name().contains("WATER") && !downBlock.getType().name().contains("AIR")
-                && !downBlock.getType().name().contains("WEB") && !downBlock.getType().name().contains("PISTON") && !downBlock.getType().name().contains("MAGMA")));
+                && !(downBlock.getType().name().contains("LAVA") && downBlock.getType().name().contains("WATER") && downBlock.getType().name().contains("AIR")
+                && downBlock.getType().name().contains("WEB") && downBlock.getType().name().contains("PISTON") && downBlock.getType().name().contains("MAGMA")));
     }
 
     /**
@@ -617,12 +618,10 @@ public class DShop implements Shop {
     public void purge(@Nullable Player player, boolean async) {
         unRegister();
 
-        final String invName = (player != null ? INSTANCE.getMenuListener().getInventoryName(player.getOpenInventory().getTopInventory(), player.getOpenInventory()) : null);
-        if (invName != null && !invName.isEmpty()) {
-            INSTANCE.getServer().getOnlinePlayers().parallelStream().forEach(p -> {
-                kill(p);
-                if (INSTANCE.matchesAnyMenu(invName)) p.closeInventory();
-            });
+        for (Player p : INSTANCE.getServer().getOnlinePlayers()) {
+            kill(p);
+            final String invName = INSTANCE.getMenuListener().getInventoryName(p.getOpenInventory().getTopInventory(), p.getOpenInventory());
+            if (invName != null && !invName.isEmpty() && INSTANCE.matchesAnyMenu(invName)) p.closeInventory();
         }
 
         getBaseLocation().asBukkitLocation().getBlock().setType(Material.AIR);

@@ -22,10 +22,6 @@ import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
@@ -132,16 +128,26 @@ public class ManagementTask extends BukkitRunnable {
         final ConfigurationSection playerSection = recoveryConfig.getConfigurationSection(player.getUniqueId().toString());
         if (playerSection == null) return;
 
-        final String currencyType = playerSection.getString("currency-type");
-        if (currencyType != null) {
-            if (currencyType.equals("item-for-item")) {
-                ItemStack itemStack = playerSection.getItemStack("item");
-                if (itemStack == null || getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use"))
-                    itemStack = getPluginInstance().getManager().buildShopCurrencyItem(1);
-                getPluginInstance().getManager().giveItemStacks(player, itemStack, playerSection.getInt("amount"));
-            } else {
-                EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(currencyType);
-                if (ecoHook != null) ecoHook.deposit(player, playerSection.getDouble("amount"));
+        for (String shopId : playerSection.getKeys(false)) {
+            if (playerSection.contains(shopId + ".shop-item")) {
+                ItemStack itemStack = playerSection.getItemStack(shopId + ".shop-item.data");
+                if (itemStack == null) itemStack = getPluginInstance().getManager().buildShopCurrencyItem(1);
+                getPluginInstance().getManager().giveItemStacks(player, itemStack, playerSection.getInt(shopId + ".shop-item.amount"));
+            }
+
+            if (playerSection.contains(shopId + ".currency")) {
+                final String currencyType = playerSection.getString(shopId + ".currency.type");
+                if (currencyType != null) {
+                    if (currencyType.equals("item-for-item")) {
+                        ItemStack itemStack = playerSection.getItemStack(shopId + ".currency.data");
+                        if (itemStack == null || getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use"))
+                            itemStack = getPluginInstance().getManager().buildShopCurrencyItem(1);
+                        getPluginInstance().getManager().giveItemStacks(player, itemStack, playerSection.getInt(shopId + ".currency.amount"));
+                    } else {
+                        EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(currencyType);
+                        if (ecoHook != null) ecoHook.deposit(player, playerSection.getDouble(shopId + ".currency.amount"));
+                    }
+                }
             }
         }
 
@@ -160,23 +166,40 @@ public class ManagementTask extends BukkitRunnable {
     public void reloadRecoveryConfig() {
         if (recoveryFile == null) recoveryFile = new File(getPluginInstance().getDataFolder(), "recovery.yml");
         recoveryConfig = YamlConfiguration.loadConfiguration(recoveryFile);
-        try {
-            Reader defConfigStream = new InputStreamReader(Files.newInputStream(recoveryFile.toPath()), StandardCharsets.UTF_8);
-            YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
-            recoveryConfig.setDefaults(defConfig);
-            defConfigStream.close();
-        } catch (IOException e) {getPluginInstance().log(Level.WARNING, e.getMessage());}
     }
 
-    public void createRecovery(@NotNull UUID playerUniqueId, @NotNull Shop shop, double amount) {
+    public void createRecovery(@NotNull UUID playerUniqueId, @NotNull Shop shop) {
         try {
-            recoveryConfig.set((playerUniqueId + "." + shop.getCurrencyType()), amount);
-            if (shop.getCurrencyType().equals("item-for-item") && shop.getTradeItem() != null)
-                recoveryConfig.set((playerUniqueId + ".item"), shop.getTradeItem());
+            final ConfigurationSection playerSection = recoveryConfig.getConfigurationSection(playerUniqueId.toString());
+            if (playerSection == null) return;
+
+            int existingShopItemAmount = 0, existingCurrencyAmount = 0;
+            if (playerSection.contains(shop.getShopId().toString())) {
+                if (playerSection.contains(shop.getShopId().toString() + ".shop-item"))
+                    existingShopItemAmount = playerSection.getInt(shop.getShopId().toString() + ".shop-item.amount");
+                if (playerSection.contains(shop.getShopId().toString() + ".currency.amount"))
+                    existingCurrencyAmount = playerSection.getInt(shop.getShopId().toString() + ".currency.amount");
+            }
+
+            if (shop.getStock() > 0 && shop.getShopItem() != null) {
+                recoveryConfig.set((playerUniqueId + "." + shop.getShopId() + ".shop-item.data"), shop.getShopItem());
+                recoveryConfig.set((playerUniqueId + "." + shop.getShopId() + ".shop-item.amount"), (existingShopItemAmount + shop.getStock()));
+            }
+
+            if (shop.getCurrencyType() != null && shop.getStoredBalance() > 0) {
+                recoveryConfig.set((playerUniqueId + "." + shop.getShopId() + ".currency.type"), shop.getCurrencyType());
+                if (shop.getCurrencyType().equals("item-for-item"))
+                    recoveryConfig.set((playerUniqueId + "." + shop.getShopId() + ".currency.data"),
+                            ((shop.getTradeItem() != null) ? shop.getTradeItem() : getPluginInstance().getManager().defaultCurrencyItem));
+                recoveryConfig.set((playerUniqueId + "." + shop.getShopId() + ".currency.amount"), (existingCurrencyAmount + shop.getStoredBalance()));
+            }
+
             recoveryConfig.save(recoveryFile);
-        } catch (IOException ignored) {
+        } catch (
+                IOException ignored) {
             getPluginInstance().log(Level.WARNING, "Failed to create the recovery data for \"" + playerUniqueId + "\".");
         }
+
     }
 
     // getters & setters

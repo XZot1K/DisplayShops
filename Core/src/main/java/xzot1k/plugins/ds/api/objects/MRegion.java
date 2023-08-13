@@ -8,6 +8,7 @@ import org.apache.commons.lang.WordUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
@@ -120,9 +121,7 @@ public class MRegion implements MarketRegion {
                 Date currentDate = new Date(System.currentTimeMillis());
                 timeLeft = (int) ((long) (this.getPluginInstance().getConfig().getInt("rent-expire-duration")
                         + this.getExtendedDuration()) - (currentDate.getTime() - rentedTime.getTime()) / 1000L);
-            } catch (Exception exception) {
-                // empty catch block
-            }
+            } catch (Exception ignored) {}
         }
         return timeLeft;
     }
@@ -253,9 +252,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public void setRenter(UUID renter) {
-        this.renter = renter;
-    }
+    public void setRenter(@Nullable UUID renter) {this.renter = renter;}
 
     @Override
     public String getRentedTimeStamp() {
@@ -263,7 +260,7 @@ public class MRegion implements MarketRegion {
     }
 
     @Override
-    public void setRentedTimeStamp(String rentedTimeStamp) {
+    public void setRentedTimeStamp(@Nullable String rentedTimeStamp) {
         this.rentedTimeStamp = rentedTimeStamp;
     }
 

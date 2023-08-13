@@ -22,6 +22,11 @@
       <option name="url" value="https://nexus.iridiumdevelopment.net/repository/maven-releases/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="opencollab-snapshot" />
+      <option name="name" value="opencollab-snapshot" />
+      <option name="url" value="https://repo.opencollab.dev/main/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="savagelabs" />
       <option name="name" value="savagelabs" />
       <option name="url" value="https://nexus.savagelabs.net" />

@@ -223,9 +223,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     }
 
     @Override
-    public boolean matches(@Nullable String title) {
-        return (title != null && !title.isEmpty() && ChatColor.stripColor(getTitle()).equals(ChatColor.stripColor(title)));
-    }
+    public boolean matches(@Nullable String title) {return ChatColor.stripColor(getTitle()).equals(ChatColor.stripColor(title));}
 
     /**
      * Gets the location of the button being looked for.
@@ -250,11 +248,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 : INSTANCE.getServer().createInventory(null, getSize(), getTitle()));
 
         ArrayList<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
-
         buildButtons(player, inventory, emptySlots, stitchSearchText(searchText));
 
         if (getMenuName().contains("amount-selector")) {
-
             final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
             final Shop shop = dataPack.getSelectedShop();
             double finalAmount = 0;
@@ -274,11 +270,11 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         finalAmount = shop.getBuyPrice(false);
                     } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_SELL_PRICE) {
                         finalAmount = shop.getSellPrice(false);
-                    }/* else if (dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK) {
+                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK) {
                         finalAmount = shop.getStock();
                     } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE) {
                         finalAmount = shop.getStoredBalance();
-                    }*/ else if (dataPack.getInteractionType() == InteractionType.SHOP_ITEM_AMOUNT) {
+                    } else if (dataPack.getInteractionType() == InteractionType.SHOP_ITEM_AMOUNT) {
                         finalAmount = shop.getShopItemAmount();
                     } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_PLAYER_BUY_LIMIT) {
                         finalAmount = shop.getPlayerBuyLimit();
@@ -293,13 +289,19 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                 final String name = getString("buttons.amount.name");
                 if (name != null) {
-                    final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE") || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE);
+                    String disabled = INSTANCE.getLangConfig().getString("disabled");
+                    if (disabled == null) disabled = "";
+
+                    final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE") || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE),
+                            isLimit = dataPack.getInteractionType().name().contains("LIMIT");
                     if (!isDecimal) amountItem.setAmount((int) Math.max(1, Math.min(finalAmount, amountItem.getType().getMaxStackSize())));
                     itemMeta.setDisplayName(INSTANCE.getManager().color(name
-                            .replace("{amount}", (isDecimal ? INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalAmount)
-                                    : INSTANCE.getManager().formatNumber(finalAmount, false)))));
+                            .replace("{amount}", (!isLimit ? (isDecimal ? INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalAmount)
+                                    : INSTANCE.getManager().formatNumber(finalAmount, false))
+                                    : ((finalAmount < 0) ? disabled : INSTANCE.getManager().formatNumber(finalAmount, false))))));
                 }
 
+                amountItem.setAmount((int) Math.min(amountItem.getType().getMaxStackSize(), Math.max(1, finalAmount)));
                 amountItem.setItemMeta(itemMeta);
                 inventory.setItem(amountSlot, INSTANCE.updateNBT(amountItem, "ds-amount", String.valueOf(finalAmount)));
             }
@@ -330,22 +332,11 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     } else inventory.setItem(tradeSlot, null);
                 }
 
-                final int currencyTypeSlot = getInt("buttons.currency-type.slot");
-                if (currencyTypeSlot >= 0 && currencyTypeSlot < inventory.getSize()) {
-                    final ItemStack currencyTypeItem = inventory.getItem(currencyTypeSlot);
-                    if (currencyTypeItem != null && currencyTypeItem.getItemMeta() != null) {
-                        final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                        if (ecoHook != null) {
-                            final ItemMeta itemMeta = currencyTypeItem.getItemMeta();
-                            itemMeta.setDisplayName(itemMeta.getDisplayName()
-                                    .replace("{type}", (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
-                            currencyTypeItem.setItemMeta(itemMeta);
-                            inventory.setItem(currencyTypeSlot, currencyTypeItem);
-                        }
-                    }
-                }
-
+                final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
+                if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
+                        shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
                 return inventory;
+
             } else if (getMenuName().contains("transaction")) {
                 ItemStack previewItem = dataPack.getSelectedShop().getShopItem().clone();
                 if (dataPack.getSelectedShop().getCurrencyType().equals("item-for-item")) {
@@ -370,35 +361,33 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         }
 
         if (getMenuName().contains("visit")) {
-            final int typeItemSlot = getInt("buttons.type.slot");
-            if (typeItemSlot >= 0 && typeItemSlot < inventory.getSize()) {
-                final ItemStack typeItem = inventory.getItem(typeItemSlot);
-                if (typeItem != null && typeItem.getItemMeta() != null) {
-                    final String buyType = getString("visit-types.both");
-                    if (buyType != null) {
-                        final ItemMeta itemMeta = typeItem.getItemMeta();
-                        itemMeta.setDisplayName(itemMeta.getDisplayName().replace("{type}", buyType));
-                        typeItem.setItemMeta(itemMeta);
-                        inventory.setItem(typeItemSlot, typeItem);
-                    }
-                }
-            }
+            final String buyType = getString("visit-types.both");
+            updateButton(player, inventory, getConfiguration().getInt("buttons.type.slot"), shop, null, ("{type}:" + buyType));
+
+            updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
+                    shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
 
             if (!dataPack.getPageMap().isEmpty()) switchPage(inventory, player, dataPack.getCurrentPage());
+
         } else if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
+            updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
+                    shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
+
             if (!dataPack.getPageMap().isEmpty()) switchPage(inventory, player, dataPack.getCurrentPage());
         }
 
         return inventory;
     }
 
-    public void updateButton(@NotNull Player player, @NotNull Inventory inventory, int slot, @Nullable Shop shop, @Nullable List<Integer> emptySlots) {
+    public void updateButton(@NotNull Player player, @NotNull Inventory inventory, int slot, @Nullable Shop shop,
+                             @Nullable List<Integer> emptySlots, @Nullable String... extraPlaceHolders) {
         ConfigurationSection mainSection = getConfigurationSection("buttons");
         if (mainSection == null) return;
-        buildButton(mainSection, getButtonName(slot), player, inventory, shop, emptySlots);
+        buildButton(mainSection, getButtonName(slot), player, inventory, shop, emptySlots, extraPlaceHolders);
     }
 
-    private void updatePageButtons(@NotNull Player player, @NotNull Inventory inventory, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable List<Integer> emptySlots) {
+    private void updatePageButtons(@NotNull Player player, @NotNull Inventory inventory, @NotNull DataPack dataPack,
+                                   @Nullable Shop shop, @Nullable List<Integer> emptySlots) {
         ConfigurationSection mainSection = getConfigurationSection("buttons");
         if (mainSection != null) {
             if (dataPack.hasNextPage()) {
@@ -430,7 +419,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     // checks whether to add the next and/or previous buttons for page menus
                     if (isPageMenu && (buttonAction.equals("next") && !dataPack.hasNextPage()
                             || buttonAction.equals("previous") && !dataPack.hasPreviousPage())
-                            || (!shouldShowTradeContent(shop) && buttonAction.contains("trade"))) return;
+                            || (!shouldShowTradeContent(shop) && buttonAction.contains("trade"))
+                            /* || (buttonAction.equals("custom-amount") && INSTANCE.isGeyserInstalled()
+                            && org.geysermc.geyser.api.GeyserApi.api().isBedrockPlayer(player.getUniqueId()))*/) return;
 
                     buildButton(mainSection, buttonAction, player, inventory, shop, emptySlots);
                 });
@@ -439,7 +430,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     }
 
     public void buildButton(@NotNull ConfigurationSection mainSection, @NotNull String buttonAction, @NotNull Player player,
-                            @NotNull Inventory inventory, @Nullable Shop shop, @Nullable List<Integer> emptySlots) {
+                            @NotNull Inventory inventory, @Nullable Shop shop, @Nullable List<Integer> emptySlots, @Nullable String... extraPlaceHolders) {
         final int slot = (mainSection.contains(buttonAction + ".slot") ? mainSection.getInt(buttonAction + ".slot") : 0);
 
         if (slot < 0 || slot >= inventory.getSize()) return;
@@ -457,10 +448,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     : new CustomItem(materialName, amount, durability));
 
             final String name = mainSection.getString(buttonAction + ".name");
-            if (name != null && !name.isEmpty()) item.setDisplayName(null, shop, name);
+            if (name != null && !name.isEmpty()) item.setDisplayName(null, shop, name, extraPlaceHolders);
 
             final List<String> lore = mainSection.getStringList(buttonAction + ".lore");
-            if (!lore.isEmpty()) item.setLore(null, lore);
+            if (!lore.isEmpty()) item.setLore(null, lore, extraPlaceHolders);
 
             final int customModelData = (mainSection.contains(buttonAction + ".custom-model-data")
                     ? mainSection.getInt(buttonAction + ".custom-model-data") : 0);
@@ -703,33 +694,39 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
             case "appearance": {
                 if (shop != null) {
-                    String storedMaterialLine = shop.getStoredBaseBlockMaterial();
-                    if (storedMaterialLine == null || storedMaterialLine.isEmpty())
-                        storedMaterialLine = INSTANCE.getConfig().getString("shop-block-material");
-
-                    Material currentMaterial = Material.CHEST;
+                    String currentMaterial = (shop.getStoredBaseBlockMaterial() != null ? shop.getStoredBaseBlockMaterial()
+                            : INSTANCE.getConfig().getString("shop-block-material"));
                     int currentDurability = -1;
 
-                    if (storedMaterialLine != null) {
-                        if (storedMaterialLine.contains(":")) {
-                            String[] args = storedMaterialLine.split(":");
-                            currentMaterial = Material.getMaterial(args[0].toUpperCase()
-                                    .replace(" ", "_").replace("-", "_"));
+                    if (currentMaterial != null) {
+                        if (currentMaterial.contains(":")) {
+                            String[] args = currentMaterial.split(":");
+                            Material newMat = Material.getMaterial(args[0].toUpperCase().replace(" ", "_").replace("-", "_"));
+                            if (newMat != null) currentMaterial = newMat.name();
+                            else if (INSTANCE.isItemAdderInstalled()) {
+                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
+                                if (customBlock != null) currentMaterial = customBlock.getId();
+                            }
+
                             currentDurability = Integer.parseInt(args[1]);
-                        } else currentMaterial = Material.getMaterial(storedMaterialLine.toUpperCase()
-                                .replace(" ", "_").replace("-", "_"));
+                        } else {
+                            Material newMat = Material.getMaterial(currentMaterial.toUpperCase().replace(" ", "_").replace("-", "_"));
+                            if (newMat != null) currentMaterial = newMat.name();
+                            else if (INSTANCE.isItemAdderInstalled()) {
+                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(currentMaterial);
+                                if (customBlock != null) currentMaterial = customBlock.getId();
+                            }
+                        }
                     }
 
-                    final String selectedName = getString("selected-format.name"),
-                            unlockedName = getString("unlocked-format.name"),
+                    String selectedName = getString("selected-format.name");
+                    final String unlockedName = getString("unlocked-format.name"),
                             lockedName = getString("locked-format.name");
 
                     final List<String> appearances = getStringList("appearances"),
                             selectedLore = getStringList("selected-format.lore"),
                             unlockedLore = getStringList("unlocked-format.lore"),
                             lockedLore = getStringList("locked-format.lore");
-
-                    final boolean hasStarPerm = player.hasPermission("displayshops.bbm.*");
 
                     if (getBoolean("sort-alphabetically")) Collections.sort(appearances); // sort appearances alphabetically
 
@@ -738,49 +735,55 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         ItemStack itemStack = null;
                         double foundPrice = 0;
 
-                        Material material;
-                        String unlockId = appearance, typeId = "";
+                        String material = null, unlockId = appearance;
                         if (appearance.contains(":")) {
                             String[] args = appearance.split(":");
                             unlockId = (args[0] + ":" + args[1]);
 
-                            material = Material.getMaterial(args[0]);
-                            if (material == null) {
-                                if (INSTANCE.isItemAdderInstalled()) {
-                                    dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
-                                    if (customBlock != null) {
-                                        typeId = customBlock.getId();
-                                        itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", typeId);
-                                    }
-                                }
-                            } else {
+                            Material mat = Material.getMaterial(args[0]);
+                            if (mat != null) {
+                                material = mat.name();
                                 int durability = Integer.parseInt(args[1]);
-                                itemStack = new ItemStack(material, 1, (byte) (Math.max(durability, 0)));
-                                itemStack = INSTANCE.updateNBT(itemStack, "ds-type", material.name());
+                                itemStack = new ItemStack(mat, 1, (byte) (Math.max(durability, 0)));
+                                itemStack = INSTANCE.updateNBT(itemStack, "ds-type", material);
+                            } else if (INSTANCE.isItemAdderInstalled()) {
+                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
+                                if (customBlock != null) {
+                                    material = customBlock.getId();
+                                    itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", material);
+                                }
                             }
 
                             if (args.length >= 3 && !INSTANCE.getManager().isNotNumeric(args[2])) foundPrice = Double.parseDouble(args[2]);
                         } else {
-                            material = Material.getMaterial(appearance);
-                            if (material == null) {
-                                if (INSTANCE.isItemAdderInstalled()) {
-                                    dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(appearance);
-                                    if (customBlock != null) {
-                                        typeId = customBlock.getId();
-                                        itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", typeId);
-                                    }
+                            Material mat = Material.getMaterial(appearance);
+                            if (mat != null) {
+                                material = mat.name();
+                                itemStack = INSTANCE.updateNBT(new ItemStack(mat), "ds-type", material);
+                            } else if (INSTANCE.isItemAdderInstalled()) {
+                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(appearance);
+                                if (customBlock != null) {
+                                    material = customBlock.getId();
+                                    itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", material);
                                 }
-                            } else itemStack = INSTANCE.updateNBT(new ItemStack(material), "ds-type", material.name());
+                            }
                         }
 
                         if (itemStack == null) continue;
 
                         final ItemMeta itemMeta = itemStack.getItemMeta();
                         if (itemMeta != null) {
-                            if ((typeId.equalsIgnoreCase(material.name()) || (currentMaterial != null && material.name().equalsIgnoreCase(currentMaterial.name()))
+                            if ((material != null && material.equalsIgnoreCase(currentMaterial)
                                     && (currentDurability == itemStack.getDurability() || currentDurability <= -1))) {
-                                itemMeta.setDisplayName(INSTANCE.getManager().color(Objects.requireNonNull(selectedName)
-                                        .replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()))));
+
+                                if (selectedName != null) {
+                                    if (INSTANCE.isItemAdderInstalled()) {
+                                        dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(material);
+                                        if (customBlock != null) selectedName = selectedName.replace("{material}", customBlock.getDisplayName());
+                                        else selectedName = selectedName.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
+                                    } else selectedName = selectedName.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
+                                    itemMeta.setDisplayName(INSTANCE.getManager().color(selectedName));
+                                }
                                 itemMeta.setLore(new ArrayList<String>() {{
                                     for (int i = -1; ++i < selectedLore.size(); )
                                         add(INSTANCE.getManager().color(selectedLore.get(i)));
@@ -799,14 +802,12 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                                 itemStack.setItemMeta(itemMeta);
                             } else {
-
                                 final boolean isUnlocked = dataPack.hasUnlockedBBM(unlockId);
                                 String name = getString((isUnlocked ? "unlocked" : "locked") + "-format.name");
-
                                 if (name != null) {
                                     if (INSTANCE.isItemAdderInstalled()) {
-                                        dev.lone.itemsadder.api.CustomStack customStack = dev.lone.itemsadder.api.CustomStack.getInstance(typeId);
-                                        if (customStack != null) name = name.replace("{material}", customStack.getDisplayName());
+                                        dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(material);
+                                        if (customBlock != null) name = name.replace("{material}", customBlock.getDisplayName());
                                         else name = name.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
                                     } else name = name.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
 
@@ -855,7 +856,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         }
 
                         if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-
                     }
                     break;
                 }
@@ -867,6 +867,19 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         }
 
         dataPack.setCurrentPage(1);
+    }
+
+    public void updateSearchItem(@NotNull Inventory inventory, @NotNull String searchText) {
+        final int searchItemSlot = getConfiguration().getInt("buttons.search.slot");
+        if (searchItemSlot >= 0 && searchItemSlot < getSize()) {
+            final ItemStack searchItem = inventory.getItem(searchItemSlot);
+            if (searchItem != null && searchItem.getItemMeta() != null) {
+                final ItemMeta itemMeta = searchItem.getItemMeta();
+                itemMeta.setDisplayName(itemMeta.getDisplayName().replace("{search-text}", searchText));
+                searchItem.setItemMeta(itemMeta);
+                inventory.setItem(searchItemSlot, searchItem);
+            }
+        }
     }
 
     /**

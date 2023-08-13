@@ -73,8 +73,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     // listeners
     private Listeners listeners;
     private MenuListener menuListener;
+
     // hook handlers
-    private boolean paperSpigot, prismaInstalled, townyInstalled;
+    private boolean paperSpigot, prismaInstalled, townyInstalled, geyserInstalled;
     private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
@@ -132,6 +133,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             }
 
         this.economyHandler = new EconomyHandler(this);
+        this.geyserInstalled = (getServer().getPluginManager().getPlugin("Geyser-Spigot") != null);
         this.townyInstalled = (getServer().getPluginManager().getPlugin("Towny") != null);
         this.isItemAdderInstalled = (getServer().getPluginManager().getPlugin("ItemsAdder") != null);
         setPrismaInstalled(getServer().getPluginManager().getPlugin("Prisma") != null);
@@ -854,9 +856,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     @Override
-    public boolean matchesAnyMenu(@NotNull String name) {
-        return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));
-    }
+    public boolean matchesAnyMenu(@NotNull String name) {return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));}
 
     @Override
     public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {
@@ -1346,4 +1346,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     public VersionUtil getVersionUtil() {return versionUtil;}
 
+    public boolean isGeyserInstalled() {
+        return geyserInstalled;
+    }
 }
