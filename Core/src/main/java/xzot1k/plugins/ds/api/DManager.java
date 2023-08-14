@@ -944,7 +944,7 @@ public class DManager implements Manager {
                     shop.setGlobalSellLimit(Integer.parseInt(limitArgs[2]));
                     shop.setGlobalSellCounter(Integer.parseInt(limitArgs[3]));
                     shop.setPlayerBuyLimit(Integer.parseInt(limitArgs[4]));
-                    shop.setPlayerBuyLimit(Integer.parseInt(limitArgs[4]));
+                    shop.setPlayerSellLimit(Integer.parseInt(limitArgs[5]));
 
                     String changeStamp = resultSet.getString("change_time_stamp");
                     if (changeStamp != null && !changeStamp.contains("."))

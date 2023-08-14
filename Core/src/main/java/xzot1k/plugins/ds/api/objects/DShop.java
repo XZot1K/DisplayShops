@@ -690,14 +690,10 @@ public class DShop implements Shop {
         if (!DisplayShops.getPluginInstance().getConfig().getBoolean("editor-prevention")) return;
 
         if (getCurrentEditor() != null) {
-
             if (player != null && player.getUniqueId().toString().equals(getCurrentEditor().toString())) return;
 
             OfflinePlayer offlinePlayer = DisplayShops.getPluginInstance().getServer().getOfflinePlayer(getCurrentEditor());
-
-            if (offlinePlayer == null || (offlinePlayer != null && !offlinePlayer.isOnline())
-                    || (offlinePlayer != null && offlinePlayer.isOnline() && offlinePlayer.getPlayer() == null)) {
-
+            if (!offlinePlayer.isOnline() || (offlinePlayer.isOnline() && offlinePlayer.getPlayer() == null)) {
                 setCurrentEditor(null);
                 return;
             }
@@ -706,11 +702,9 @@ public class DShop implements Shop {
             if (op == null || op.getOpenInventory().getTopInventory().getType() != InventoryType.ANVIL
                     && DisplayShops.getPluginInstance().matchesAnyMenu(DisplayShops.getPluginInstance().getMenuListener()
                     .getInventoryName(op.getOpenInventory().getTopInventory(), op.getOpenInventory()))) {
-
                 setCurrentEditor(null);
                 final DataPack dataPack = DisplayShops.getPluginInstance().getManager().getDataPack(op);
                 dataPack.resetEditData();
-
             }
         }
     }

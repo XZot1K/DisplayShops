@@ -824,8 +824,6 @@ public class Listeners implements Listener {
             else player.setItemInHand(null);
         }
 
-        player.updateInventory();
-
         String description = "";
 
         if (getPluginInstance().getConfig().getBoolean("enchantment-description-set") && shop.getShopItem() != null
