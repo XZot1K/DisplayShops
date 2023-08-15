@@ -285,15 +285,14 @@ public class DManager implements Manager {
 
     @Override
     public String applyPlaceholders(@Nullable String text, @Nullable String... placeholders) {
-        if (text == null || text.isEmpty() || placeholders == null || placeholders.length == 0)
-            return text;
+        if (text == null || text.isEmpty() || placeholders == null || placeholders.length == 0) return text;
 
         for (int i = -1; ++i < placeholders.length; ) {
             final String placeholder = placeholders[i];
             if (placeholder == null || !placeholder.contains(":")) continue;
 
             final String[] args = placeholder.split(":");
-            if (args.length >= 2) text = text.replaceAll("(?i)" + Pattern.quote(args[0]), args[1]);
+            if (args.length >= 2) text = text.replace(args[0], args[1]);
         }
 
         return text;

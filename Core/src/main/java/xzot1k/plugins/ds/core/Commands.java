@@ -1678,12 +1678,13 @@ public class Commands implements CommandExecutor {
         // reset EconomyHandler
         getPluginInstance().getEconomyHandler().reset();
 
-        // reload global variables
-        getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
-
         // reload menus
         getPluginInstance().getMenuMap().clear();
         getPluginInstance().loadMenus();
+
+        // reload global variables
+        getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
+        getPluginInstance().getMenuListener().updateChangeItem();
 
         // reload market regions
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {

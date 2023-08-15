@@ -522,7 +522,8 @@ public class Listeners implements Listener {
 
         stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
                 .append("Action: ").append(e.getEconomyCallType().name()).append(" | Cost: ")
-                .append(getPluginInstance().getEconomyHandler().format(e.getShop(), e.getShop().getCurrencyType(), e.getAmount()))
+                .append(getPluginInstance().getEconomyHandler().format(e.getShop(), (e.getShop() != null ? e.getShop().getCurrencyType()
+                        : getPluginInstance().getEconomyHandler().getDefaultCurrency()), e.getAmount()))
                 .append(" --- performed by ").append(e.getPlayer().getName()).append(" performed the shop '")
                 .append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
                 .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY())

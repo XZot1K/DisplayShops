@@ -775,7 +775,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         if (itemMeta != null) {
                             if ((material != null && material.equalsIgnoreCase(currentMaterial)
                                     && (currentDurability == itemStack.getDurability() || currentDurability <= -1))) {
-
                                 if (selectedName != null) {
                                     if (INSTANCE.isItemAdderInstalled()) {
                                         dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(material);

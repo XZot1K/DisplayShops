@@ -39,9 +39,23 @@ import java.util.*;
 public class MenuListener implements Listener {
 
     private final DisplayShops INSTANCE;
+    public ItemStack changeItem;
 
     public MenuListener(@NotNull DisplayShops instance) {
         this.INSTANCE = instance;
+        updateChangeItem();
+    }
+
+    public void updateChangeItem() {
+        final Menu edit = INSTANCE.getMenu("edit");
+        if (edit != null) {
+            final String changeItemMaterial = edit.getConfiguration().getString("item-change.material"),
+                    changeItemName = edit.getConfiguration().getString("item-change.name");
+            if (changeItemName != null)
+                changeItem = new CustomItem(changeItemMaterial, 1)
+                        .setDisplayName(null, null, changeItemName)
+                        .setLore(null, edit.getConfiguration().getStringList("item-change.lore")).get();
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -153,16 +167,10 @@ public class MenuListener implements Listener {
         final boolean isSaleItemSlot = (e.getSlot() == saleItemSlot && saleItemSlot >= 0 && saleItemSlot < inventory.getSize()),
                 isTradeItemSlot = (e.getSlot() == tradeItemSlot && tradeItemSlot >= 0 && tradeItemSlot < inventory.getSize());
 
-        if (isSaleItemSlot || isTradeItemSlot) {
-            if (inventory.getType() == InventoryType.PLAYER || (e.getCurrentItem() != null && menu.isFillerItem(e.getCurrentItem()))) return;
+        if ((isSaleItemSlot || isTradeItemSlot) && inventory.getType() != InventoryType.PLAYER) {
+            if ((e.getCurrentItem() != null && menu.isFillerItem(e.getCurrentItem()))) return;
 
-            final String changeItemMaterial = menu.getConfiguration().getString("item-change.material"),
-                    changeItemName = menu.getConfiguration().getString("item-change.name");
-
-            if (e.getCurrentItem() != null && (changeItemMaterial != null && changeItemMaterial.contains(e.getCurrentItem().getType().name()))
-                    && (changeItemName != null && e.getCurrentItem().getItemMeta() != null
-                    && changeItemName.equals(e.getCurrentItem().getItemMeta().getDisplayName().replace(("" + ChatColor.COLOR_CHAR), "&")))) {
-
+            if (e.getCurrentItem() != null && changeItem != null && INSTANCE.getManager().isSimilar(e.getCurrentItem(), changeItem)) {
                 if (dataPack.getInteractionType() == InteractionType.SELECT_SALE_ITEM)
                     inventory.setItem(saleItemSlot, (shop.getShopItem() != null ? shop.getShopItem().clone() : null));
                 else if (dataPack.getInteractionType() == InteractionType.SELECT_TRADE_ITEM) {
@@ -189,45 +197,40 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
             } else {
-                final CustomItem changeItem = new CustomItem(changeItemMaterial, 1)
-                        .setDisplayName(player, shop, Objects.requireNonNull(changeItemName))
-                        .setLore(player, menu.getConfiguration().getStringList("item-change.lore"));
-                inventory.setItem(e.getSlot(), changeItem.get());
-
-                if (isSaleItemSlot) {
-                    dataPack.setInteractionType(InteractionType.SELECT_SALE_ITEM);
-                    dataPack.setInteractionValue(null);
-
-                    if (tradeItemSlot >= 0 && tradeItemSlot < inventory.getSize())
-                        inventory.setItem(tradeItemSlot, (shop.getTradeItem() != null ? shop.getTradeItem().clone() : null));
-                } else {
-                    dataPack.setInteractionType(InteractionType.SELECT_TRADE_ITEM);
-                    dataPack.setInteractionValue(null);
-
-                    if (saleItemSlot >= 0 && saleItemSlot < inventory.getSize()) inventory.setItem(saleItemSlot, (shop.getShopItem() != null ? shop.getShopItem().clone() : null));
-                }
+                dataPack.setInteractionType(isSaleItemSlot ? InteractionType.SELECT_SALE_ITEM : InteractionType.SELECT_TRADE_ITEM);
+                dataPack.setInteractionValue(null);
+                inventory.setItem(e.getSlot(), changeItem);
             }
 
             playClickSound(player);
             return;
 
         } else if (inventory.getType() == InventoryType.PLAYER) {
+            if (e.getCurrentItem() == null || dataPack.getInteractionType() == null) return;
+
             ItemStack selectedItem = e.getCurrentItem();
-            if (selectedItem == null) return;
-
-            if (dataPack.getInteractionType() == null) return;
-
-            boolean forceSingleStack = INSTANCE.getConfig().getBoolean("force-single-stack");
-            ItemStack selectedItemClone = selectedItem.clone();
-            if (forceSingleStack) selectedItemClone.setAmount(1);
-
             if (INSTANCE.getListeners().isBlockedItem(selectedItem) || INSTANCE.getBlockedItemId(selectedItem) >= 0) {
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("set-item-blocked"));
                 return;
             }
 
+            boolean forceSingleStack = INSTANCE.getConfig().getBoolean("force-single-stack");
+            ItemStack selectedItemClone = e.getCurrentItem().clone();
+            if (forceSingleStack) selectedItemClone.setAmount(1);
+
             if (dataPack.getInteractionType() == InteractionType.SELECT_SALE_ITEM) {
-                if (shop.getStock() > 0) {
+                if (INSTANCE.getManager().isSimilar(e.getCurrentItem(), shop.getShopItem())) {
+                    dataPack.setInteractionType(null);
+                    dataPack.setInteractionValue(null);
+                    inventory.setItem(e.getSlot(), shop.getShopItem());
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sale-item-similar"));
+                    return;
+                }
+
+                if (INSTANCE.getConfig().getBoolean("require-empty-stock") && shop.getStock() > 0) {
+                    dataPack.setInteractionType(null);
+                    dataPack.setInteractionValue(null);
+                    inventory.setItem(e.getSlot(), shop.getShopItem());
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-empty-required"));
                     return;
                 }
@@ -272,12 +275,27 @@ public class MenuListener implements Listener {
                     description = (description + INSTANCE.getManager().getPotionLine(shop.getShopItem()));
 
                 shop.setDescription(description);
-
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-item-set"));
 
                 INSTANCE.getInSightTask().refreshShop(shop);
                 INSTANCE.runEventCommands("shop-item-set", player);
             } else {
+                if (INSTANCE.getManager().isSimilar(e.getCurrentItem(), shop.getTradeItem())) {
+                    dataPack.setInteractionType(null);
+                    dataPack.setInteractionValue(null);
+                    inventory.setItem(e.getSlot(), shop.getShopItem());
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-similar"));
+                    return;
+                }
+
+                if (INSTANCE.getConfig().getBoolean("require-empty-balance") && shop.getStoredBalance() > 0) {
+                    dataPack.setInteractionType(null);
+                    dataPack.setInteractionValue(null);
+                    inventory.setItem(e.getSlot(), (shop.getCurrencyType().equals("item-for-item") && shop.getTradeItem() != null) ? shop.getTradeItem() : null);
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-balance-exists"));
+                    return;
+                }
+
                 final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                         INSTANCE.getConfig().getDouble("prices.trade-item-change"));
                 if (economyCallEvent.failed()) return;
@@ -287,7 +305,6 @@ public class MenuListener implements Listener {
 
                 shop.setTradeItem(selectedItemClone);
                 e.getView().getTopInventory().setItem(tradeItemSlot, shop.getTradeItem().clone());
-
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-set"));
 
                 INSTANCE.getInSightTask().refreshShop(shop);
@@ -312,12 +329,10 @@ public class MenuListener implements Listener {
                 tempMenu = INSTANCE.getMenu("appearance");
                 break;
             }
-
             case "assistants": {
                 tempMenu = INSTANCE.getMenu("assistants");
                 break;
             }
-
             case "description": {
                 final String title = menu.getConfiguration().getString("description-entry.title");
                 if (title != null) new AnvilGUI.Builder()
@@ -361,7 +376,6 @@ public class MenuListener implements Listener {
                 playClickSound(player);
                 return;
             }
-
             case "clear-limits": {
                 shop.setPlayerSellLimit(-1);
                 shop.setPlayerBuyLimit(-1);
@@ -374,7 +388,6 @@ public class MenuListener implements Listener {
                         ("{amount}:" + INSTANCE.getLangConfig().getString("disabled")));
                 break;
             }
-
             case "delete":
             case "destroy": {
                 tempMenu = INSTANCE.getMenu("confirm");
@@ -384,7 +397,6 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionValue(null);
                 break;
             }
-
             case "close": {
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
@@ -393,49 +405,36 @@ public class MenuListener implements Listener {
                 player.closeInventory();
                 break;
             }
-
             case "sale-item-arrow": {
-
-                if (shop.getStock() > 0) {
+                if (INSTANCE.getConfig().getBoolean("require-empty-stock") && shop.getStock() > 0) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-empty-required"));
                     return;
                 }
 
-                shop.setShopItem(null);
-                shop.setShopItemAmount(1);
-
-                dataPack.setInteractionType(null);
+                tempMenu = INSTANCE.getMenu("confirm");
+                dataPack.setInteractionType(InteractionType.CLEAR_SALE_ITEM);
                 dataPack.setInteractionValue(null);
-
-                inventory.setItem(saleItemSlot, null);
-                inventory.setItem(tradeItemSlot, (shop.getTradeItem() != null ? shop.getTradeItem().clone() : null));
-
-                INSTANCE.getInSightTask().refreshShop(shop);
-                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sale-item-cleared"));
                 break;
             }
-
             case "trade-item-arrow": {
                 if (menu.isFillerItem(e.getCurrentItem())) return;
 
-                dataPack.setInteractionType(null);
+                if (INSTANCE.getConfig().getBoolean("require-empty-balance") && shop.getStoredBalance() > 0) {
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-balance-exists"));
+                    return;
+                }
+
+                tempMenu = INSTANCE.getMenu("confirm");
+                dataPack.setInteractionType(InteractionType.CLEAR_TRADE_ITEM);
                 dataPack.setInteractionValue(null);
-
-                inventory.setItem(saleItemSlot, (shop.getShopItem() != null ? shop.getShopItem().clone() : null));
-                inventory.setItem(tradeItemSlot, null);
-
-                shop.setTradeItem(null);
-                INSTANCE.getInSightTask().refreshShop(shop);
-                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-cleared"));
                 break;
             }
-
-            case "balance":
+           /* case "balance":
             case "stock": {
-                /*final boolean useSelector = INSTANCE.getConfig().getBoolean("use-balance-amount-selectors");
+                final boolean useSelector = INSTANCE.getConfig().getBoolean("use-balance-amount-selectors");
                  if (!useSelector && shop.getTradeItem() != null)
                 tempMenu = INSTANCE.getMenu("deposit-balance");
-                else {*/
+                else {
                 tempMenu = INSTANCE.getMenu("amount-selector");
                 final InteractionType approxType = InteractionType.getApproxType(buttonName);
 
@@ -443,11 +442,12 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionValue(null);
                 // }
                 break;
-            }/*final boolean useSelector = INSTANCE.getConfig().getBoolean("use-stock-amount-selectors");
+            }final boolean useSelector = INSTANCE.getConfig().getBoolean("use-stock-amount-selectors");
                 if (!useSelector)
                     tempMenu = INSTANCE.getMenu("deposit-stock");
                 else {*/
-
+            case "balance":
+            case "stock":
             case "buy-price":
             case "sell-price":
             case "shop-item-amount":
@@ -462,7 +462,6 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionValue(null);
                 break;
             }
-
             case "currency-type": {
                 if (shop.getStoredBalance() > 0) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-balance-exists"));
@@ -519,10 +518,7 @@ public class MenuListener implements Listener {
                     }
                 }
             }
-
-            default: {
-                return;
-            }
+            default: {return;}
         }
 
         if (tempMenu != null) player.openInventory(tempMenu.build(player));
@@ -1498,8 +1494,9 @@ public class MenuListener implements Listener {
                                 return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(invalidText != null ? invalidText : ""));
                             }
 
-                            dataPack.setInteractionValue(Math.max(-1, Double.parseDouble(text)));
-                            amountItem.setAmount(Math.max(1, Math.min((int) dataPack.getInteractionValue(), amountItem.getMaxStackSize())));
+                            dataPack.setInteractionValue(Math.max((dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK
+                                    && !player.hasPermission("displayshops.admin") ? 0 : -1), Double.parseDouble(text)));
+                            amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
                             updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, (int) dataPack.getInteractionValue());
                             return Collections.singletonList(AnvilGUI.ResponseAction.close());
                         }).text(" ")
@@ -1574,7 +1571,6 @@ public class MenuListener implements Listener {
                         INSTANCE.getManager().sendMessage(player, message, ("{amount}:" + INSTANCE.getManager().formatNumber(amount, false)));
 
                         INSTANCE.runEventCommands("shop-amount", player);
-
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
@@ -1647,7 +1643,7 @@ public class MenuListener implements Listener {
                                 amountItem.setAmount(Math.max(1, Math.min(shop.getStock(), amountItem.getMaxStackSize())));
                                 updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, shop.getStock());
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("stock-withdraw-fail"),
-                                        ("{amount}:" + INSTANCE.getManager().formatNumber(-amount, false)));
+                                        ("{amount}:" + INSTANCE.getManager().formatNumber(newAmount, false)));
                                 return;
                             }
 
@@ -1664,7 +1660,7 @@ public class MenuListener implements Listener {
                             INSTANCE.getServer().getScheduler().runTask(INSTANCE, () -> INSTANCE.getManager().giveItemStacks(player, itemStack, (int) (double) newAmount));
 
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("withdrawn-stock"),
-                                    ("{amount}:" + INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), newAmount)));
+                                    ("{amount}:" + INSTANCE.getManager().formatNumber(newAmount, false)));
                             INSTANCE.runEventCommands("shop-withdraw", player);
                         } else {
                             final int maxStock = shop.getMaxStock();
@@ -1680,7 +1676,7 @@ public class MenuListener implements Listener {
                                 amountItem.setAmount(Math.max(1, Math.min(shop.getStock(), amountItem.getMaxStackSize())));
                                 updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, shop.getStock());
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("stock-deposit-fail"),
-                                        ("{amount}:" + INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
+                                        ("{amount}:" + INSTANCE.getManager().formatNumber(difference, false)));
                                 return;
                             }
 
@@ -1688,7 +1684,7 @@ public class MenuListener implements Listener {
                             shop.setStock((int) (shop.getStock() + difference));
 
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("deposited-stock"),
-                                    ("{amount}:" + INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), difference)));
+                                    ("{amount}:" + INSTANCE.getManager().formatNumber(difference, false)));
                             INSTANCE.runEventCommands("shop-deposit", player);
                         }
 
@@ -1984,9 +1980,7 @@ public class MenuListener implements Listener {
         if (buttonName == null || buttonName.isEmpty()) return;
 
         switch (buttonName) {
-
             case "confirm": {
-
                 if (dataPack.getInteractionType() == InteractionType.DELETE) {
                     MarketRegion marketRegion = INSTANCE.getManager().getMarketRegion(shop.getBaseLocation().asBukkitLocation());
                     if (marketRegion != null) {
@@ -2025,13 +2019,34 @@ public class MenuListener implements Listener {
 
                     dataPack.resetEditData();
                     player.closeInventory();
-                }
+                } else if (dataPack.getInteractionType() == InteractionType.CLEAR_SALE_ITEM) {
+                    dataPack.setInteractionType(null);
+                    dataPack.setInteractionValue(null);
 
+                    shop.dropStock();
+                    shop.setShopItem(null);
+                    shop.setShopItemAmount(1);
+                    shop.save(true);
+
+                    INSTANCE.getInSightTask().refreshShop(shop);
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sale-item-cleared"));
+                    player.openInventory(INSTANCE.getMenu("edit").build(player));
+                } else if (dataPack.getInteractionType() == InteractionType.CLEAR_TRADE_ITEM) {
+                    dataPack.setInteractionType(null);
+                    dataPack.setInteractionValue(null);
+
+                    shop.returnBalance();
+                    shop.setTradeItem(null);
+                    shop.save(true);
+
+                    INSTANCE.getInSightTask().refreshShop(shop);
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-cleared"));
+                    player.openInventory(INSTANCE.getMenu("edit").build(player));
+                }
                 break;
             }
 
             case "deny": {
-
                 if (dataPack.getInteractionType() == InteractionType.DELETE) {
                     final Menu editMenu = INSTANCE.getMenu("edit");
                     player.openInventory(editMenu.build(player));
@@ -2042,9 +2057,7 @@ public class MenuListener implements Listener {
                 break;
             }
 
-            default: {
-                return;
-            }
+            default: {return;}
         }
 
         playClickSound(player);

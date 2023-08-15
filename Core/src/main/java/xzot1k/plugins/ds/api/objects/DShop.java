@@ -195,19 +195,14 @@ public class DShop implements Shop {
      * Drops the shop's entire stock onto the ground after calculating stacks.
      */
     public void dropStock() {
-        if (getShopItem() == null) return;
-        if (!isAdminShop() && getStock() <= 0) return;
+        if (getShopItem() == null || getStock() <= 0 || getOwnerUniqueId() == null) return;
 
-        if (getOwnerUniqueId() != null) {
-            OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
-            if (owner.isOnline() && owner.getPlayer() != null) {
-                INSTANCE.getManager().giveItemStacks(owner.getPlayer(), getShopItem().clone(), getStock());
-                return;
-            }
+        OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
+        if (owner.isOnline() && owner.getPlayer() != null) INSTANCE.getManager().giveItemStacks(owner.getPlayer(), getShopItem().clone(), getStock());
+        else INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
+                INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this));
 
-            INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
-                    INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this));
-        }
+        setStock(0);
     }
 
     /**
@@ -215,34 +210,18 @@ public class DShop implements Shop {
      */
     public void returnBalance() {
         if (getStoredBalance() <= 0) return;
+
         final OfflinePlayer ownerPlayer = (getOwnerUniqueId() != null) ? INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId()) : null;
-        final boolean useVault = INSTANCE.getConfig().getBoolean("use-vault");
-        final ItemStack currencyItem = useVault ? null : (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use")
-                ? INSTANCE.getManager().buildShopCurrencyItem(1) : (getTradeItem() == null
-                ? INSTANCE.getManager().buildShopCurrencyItem(1) : getTradeItem()));
-
-        if (!useVault) {
-            if (getStoredBalance() == 1) {
-                currencyItem.setAmount(1);
-                Location baseLocation = getBaseLocation().asBukkitLocation();
-                final World world = baseLocation.getWorld();
-                if (world != null) world.dropItemNaturally(baseLocation, currencyItem);
-                setStoredBalance(0);
-                return;
-            }
-
-            Player playerToGive = ((ownerPlayer != null && ownerPlayer.isOnline() && ownerPlayer.getPlayer() != null) ? ownerPlayer.getPlayer() :
-                    null);
-            if (playerToGive == null) return;
-
-            if (!playerToGive.isOnline()) {
+        if (ownerPlayer != null) {
+            if (!ownerPlayer.isOnline()) {
                 INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
-                        INSTANCE.getManagementTask().createRecovery(playerToGive.getUniqueId(), this));
+                        INSTANCE.getManagementTask().createRecovery(ownerPlayer.getUniqueId(), this));
                 return;
             }
 
-            INSTANCE.getManager().giveItemStacks(playerToGive, currencyItem.clone(), (int) getStoredBalance());
-        } else if (ownerPlayer != null) INSTANCE.getEconomyHandler().deposit(ownerPlayer, this, getStoredBalance());
+            INSTANCE.getEconomyHandler().deposit(ownerPlayer, this, getStoredBalance());
+        }
+
         setStoredBalance(0);
     }
 
@@ -686,7 +665,6 @@ public class DShop implements Shop {
      * @param player Player to check against.
      */
     public void checkCurrentEditor(@Nullable Player player) {
-
         if (!DisplayShops.getPluginInstance().getConfig().getBoolean("editor-prevention")) return;
 
         if (getCurrentEditor() != null) {
@@ -763,6 +741,14 @@ public class DShop implements Shop {
 
         setCurrencyType("item-for-item");
         save(true);
+    }
+
+    /**
+     * @return Gets the item used for Item-For-Item trading.
+     */
+    public ItemStack getCurrencyItem() {
+        return ((INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") || getTradeItem() == null)
+                ? INSTANCE.getManager().defaultCurrencyItem : getTradeItem());
     }
 
     // integer list getters & setters.
