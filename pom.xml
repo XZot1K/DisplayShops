@@ -239,6 +239,13 @@
             <version>3.2.6</version>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.Zrips</groupId>
+            <artifactId>CMI</artifactId>
+            <version>9.6.2.3</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
 </project>

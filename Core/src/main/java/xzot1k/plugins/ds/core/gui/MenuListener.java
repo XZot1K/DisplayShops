@@ -87,7 +87,6 @@ public class MenuListener implements Listener {
         String[] blockedInventories = {"ANVIL", "DISPENSER", "DROPPER", "FURNACE", "GRINDSTONE", "STONECUTTER"};
         for (int i = -1; ++i < blockedInventories.length; ) {
             if (player.getOpenInventory().getType().name().startsWith(blockedInventories[i])) {
-
                 boolean isCreationItem = (e.getCurrentItem() != null && (e.getCurrentItem().hasItemMeta() && e.getCurrentItem().getItemMeta() != null)
                         && e.getCurrentItem().getItemMeta().hasDisplayName() && e.getCurrentItem().getItemMeta().getDisplayName().equals(creationItemName))
                         || (e.getCursor() != null && (e.getCursor().hasItemMeta() && e.getCursor().getItemMeta() != null) && e.getCursor().getItemMeta().hasDisplayName()

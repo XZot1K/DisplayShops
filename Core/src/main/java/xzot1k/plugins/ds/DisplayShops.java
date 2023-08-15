@@ -900,7 +900,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         for (String key : config.getKeys(true)) {
-            if (!jarConfig.contains(key)) {
+            if (!jarConfig.contains(key) && !key.toLowerCase().startsWith("translated-")) {
                 config.set(key, null);
                 System.out.println("Removed \"" + key + "\".");
                 removedCounter++;

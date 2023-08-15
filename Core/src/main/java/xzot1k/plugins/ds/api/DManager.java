@@ -293,7 +293,7 @@ public class DManager implements Manager {
             if (placeholder == null || !placeholder.contains(":")) continue;
 
             final String[] args = placeholder.split(":");
-            text = text.replaceAll("(?i)" + Pattern.quote(args[0]), args[1]);
+            if (args.length >= 2) text = text.replaceAll("(?i)" + Pattern.quote(args[0]), args[1]);
         }
 
         return text;
