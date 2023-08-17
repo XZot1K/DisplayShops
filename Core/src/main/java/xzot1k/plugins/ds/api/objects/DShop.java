@@ -414,7 +414,7 @@ public class DShop implements Shop {
         }
 
         if (safeLocation == null) {
-            final String[] coords = {"0,-2,0", "-2,0,-90", "0,2,180", "2,0,90"};
+            final String[] coords = {"0,-1,0", "-1,0,-90", "0,1,180", "1,0,90"};
             for (int i = -1; ++i < 4; ) {
                 String[] split = coords[i].split(",");
                 int x = Integer.parseInt(split[0]), z = Integer.parseInt(split[1]), yaw = Integer.parseInt(split[2]);
@@ -523,39 +523,29 @@ public class DShop implements Shop {
     /**
      * Registers the shop into the manager.
      */
-    public void register() {
-        INSTANCE.getManager().getShopMap().put(getShopId(), this);
-    }
+    public void register() {INSTANCE.getManager().getShopMap().put(getShopId(), this);}
 
     /**
      * Unregisters the shop from the manager.
      */
-    public void unRegister() {
-        INSTANCE.getManager().getShopMap().remove(getShopId());
-    }
+    public void unRegister() {INSTANCE.getManager().getShopMap().remove(getShopId());}
 
     /**
      * Gets if a shop is an admin shop or not.
      *
      * @return Whether the shop is admin or not.
      */
-    public boolean isAdminShop() {
-        return getOwnerUniqueId() == null;
-    }
+    public boolean isAdminShop() {return getOwnerUniqueId() == null;}
 
     /**
      * Sets the owner to null to initiate admin shop mode.
      */
-    public void makeAdminShop() {
-        setOwnerUniqueId(null);
-    }
+    public void makeAdminShop() {setOwnerUniqueId(null);}
 
     /**
      * Updates the shop change time stamp (Used for the purge system).
      */
-    public void updateTimeStamp() {
-        setChangeTimeStamp(System.currentTimeMillis());
-    }
+    public void updateTimeStamp() {setChangeTimeStamp(System.currentTimeMillis());}
 
     /**
      * Updates the shop buy or sell time stamp (Used for the dynamic price changing system).
@@ -935,83 +925,49 @@ public class DShop implements Shop {
         return lastSellTimeStamp;
     }
 
-    public void setLastSellTimeStamp(long lastSellTimeStamp) {
-        this.lastSellTimeStamp = lastSellTimeStamp;
-    }
+    public void setLastSellTimeStamp(long lastSellTimeStamp) {this.lastSellTimeStamp = lastSellTimeStamp;}
 
-    public List<UUID> getAssistants() {
-        return assistants;
-    }
+    public List<UUID> getAssistants() {return assistants;}
 
-    private void setAssistants(List<UUID> assistants) {
-        this.assistants = assistants;
-    }
+    private void setAssistants(List<UUID> assistants) {this.assistants = assistants;}
 
     /**
      * Gets  the player unique ID of whom is currently editing the shop.
      *
      * @return The current editor's unique ID.
      */
-    public UUID getCurrentEditor() {
-        return currentEditor;
-    }
+    public UUID getCurrentEditor() {return currentEditor;}
 
     /**
      * Sets the current editor.
      *
      * @param currentEditor The unique ID of the player editing.
      */
-    public void setCurrentEditor(UUID currentEditor) {
-        this.currentEditor = currentEditor;
-    }
+    public void setCurrentEditor(UUID currentEditor) {this.currentEditor = currentEditor;}
 
-    public int getPlayerBuyLimit() {
-        return playerBuyLimit;
-    }
+    public int getPlayerBuyLimit() {return playerBuyLimit;}
 
-    public void setPlayerBuyLimit(int playerBuyLimit) {
-        this.playerBuyLimit = playerBuyLimit;
-    }
+    public void setPlayerBuyLimit(int playerBuyLimit) {this.playerBuyLimit = playerBuyLimit;}
 
-    public int getPlayerSellLimit() {
-        return playerSellLimit;
-    }
+    public int getPlayerSellLimit() {return playerSellLimit;}
 
-    public void setPlayerSellLimit(int playerSellLimit) {
-        this.playerSellLimit = playerSellLimit;
-    }
+    public void setPlayerSellLimit(int playerSellLimit) {this.playerSellLimit = playerSellLimit;}
 
-    public int getGlobalBuyLimit() {
-        return globalBuyLimit;
-    }
+    public int getGlobalBuyLimit() {return globalBuyLimit;}
 
-    public void setGlobalBuyLimit(int globalBuyLimit) {
-        this.globalBuyLimit = globalBuyLimit;
-    }
+    public void setGlobalBuyLimit(int globalBuyLimit) {this.globalBuyLimit = globalBuyLimit;}
 
-    public int getGlobalSellLimit() {
-        return globalSellLimit;
-    }
+    public int getGlobalSellLimit() {return globalSellLimit;}
 
-    public void setGlobalSellLimit(int globalSellLimit) {
-        this.globalSellLimit = globalSellLimit;
-    }
+    public void setGlobalSellLimit(int globalSellLimit) {this.globalSellLimit = globalSellLimit;}
 
-    public int getGlobalBuyCounter() {
-        return globalBuyCounter;
-    }
+    public int getGlobalBuyCounter() {return globalBuyCounter;}
 
-    public void setGlobalBuyCounter(int globalBuyCounter) {
-        this.globalBuyCounter = globalBuyCounter;
-    }
+    public void setGlobalBuyCounter(int globalBuyCounter) {this.globalBuyCounter = globalBuyCounter;}
 
-    public int getGlobalSellCounter() {
-        return globalSellCounter;
-    }
+    public int getGlobalSellCounter() {return globalSellCounter;}
 
-    public void setGlobalSellCounter(int globalSellCounter) {
-        this.globalSellCounter = globalSellCounter;
-    }
+    public void setGlobalSellCounter(int globalSellCounter) {this.globalSellCounter = globalSellCounter;}
 
     public String getCurrencyType() {return currencyType;}
 

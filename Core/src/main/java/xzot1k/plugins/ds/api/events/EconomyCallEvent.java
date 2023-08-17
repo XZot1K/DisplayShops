@@ -137,9 +137,8 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
 
                 final String message = instance.getLangConfig().getString("insufficient-funds");
                 if (message != null && !message.equalsIgnoreCase(""))
-                    instance.getManager().sendMessage(player, message.replace("{price}", ((shop != null)
-                            ? instance.getEconomyHandler().format(shop, shop.getCurrencyType(),
-                            (!isSellType ? economyCallEvent.getAmount() : shop.getShopItemAmount()), economyCallType)
+                    instance.getManager().sendMessage(player, message.replace("{price}", ((shop != null) ? instance.getEconomyHandler().format(shop,
+                            shop.getCurrencyType(), (!isSellType ? economyCallEvent.getAmount() : shop.getShopItemAmount()), economyCallType)
                             : instance.getManager().formatNumber(economyCallEvent.getAmount(), true))));
                 return economyCallEvent;
             }

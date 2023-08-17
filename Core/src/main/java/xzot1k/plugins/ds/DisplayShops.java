@@ -894,15 +894,17 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         for (String key : jarConfig.getKeys(true)) {
             if (!config.contains(key)) {
                 config.set(key, jarConfig.get(key));
-                System.out.println("Added \"" + key + "\".");
+                log(Level.INFO, "Added \"" + key + "\".");
                 addedCounter++;
             }
         }
 
         for (String key : config.getKeys(true)) {
-            if (!jarConfig.contains(key) && !key.toLowerCase().startsWith("translated-")) {
+            if (!jarConfig.contains(key) && (!key.toLowerCase().startsWith("translated-") || key.toLowerCase().startsWith("currency-settings.vault")
+                    || key.toLowerCase().startsWith("currency-settings.cmieconomy") || key.toLowerCase().startsWith("currency-settings.playerpoints")
+                    || key.toLowerCase().startsWith("currency-settings.item-for-item"))) {
                 config.set(key, null);
-                System.out.println("Removed \"" + key + "\".");
+                log(Level.INFO, "Removed \"" + key + "\".");
                 removedCounter++;
             }
         }

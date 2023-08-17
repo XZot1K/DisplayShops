@@ -293,6 +293,7 @@ public class DManager implements Manager {
 
             final String[] args = placeholder.split(":");
             if (args.length >= 2) text = text.replace(args[0], args[1]);
+            else if (args.length == 1) text = text.replace(args[0], "");
         }
 
         return text;
@@ -302,6 +303,48 @@ public class DManager implements Manager {
     public String applyPlaceholders(@NotNull Player player, @Nullable String text, @Nullable String... placeholders) {
         if (text == null || text.isEmpty()) return text;
         return applyPlaceholders(getPluginInstance().papiText(player, text), placeholders);
+    }
+
+    /**
+     * @param text       The text to apply placeholders to.
+     * @param shop       The shop to obtain placeholder values from.
+     * @param unitValues The unit count and unit item max stack values.
+     * @return The text with placeholders applied.
+     */
+    public String applyShopBasedPlaceholders(@Nullable String text, @NotNull Shop shop, int... unitValues) {
+        final boolean unitValuesProvided = (unitValues != null && unitValues.length >= 2);
+        final int unitItemMaxStack = (unitValuesProvided ? unitValues[1] : 0),
+                unitCount = (unitValuesProvided ? unitValues[0] : 1);
+
+        final double tax = getPluginInstance().getConfig().getDouble("transaction-tax"),
+                buyPrice = shop.getBuyPrice(true),
+                sellPrice = shop.getSellPrice(true),
+                beforeBuyPrice = (buyPrice * unitCount),
+                calculatedBuyPrice = (beforeBuyPrice + (beforeBuyPrice * tax)),
+                calculatedSellPrice = (sellPrice * unitCount);
+
+        String ownerName = ((shop.getOwnerUniqueId() != null) ? getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()).getName() : ""),
+                disabled = getPluginInstance().getLangConfig().getString("disabled");
+        if (disabled == null) disabled = "";
+
+        return applyPlaceholders(text, ("{no-vault}:"), ("{assistant-count}:" + shop.getAssistants().size()),
+                ("{base-buy-price}:" + (buyPrice < 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
+                ("{buy-price}:" + (buyPrice < 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
+                ("{sell-price}:" + (sellPrice < 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
+                ("{balance}:" + getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance())),
+                ("{stock}:" + getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStock())),
+                ("{global-buy-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false)),
+                ("{global-sell-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false)),
+                ("{global-buy-limit}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false)),
+                ("{global-sell-limit}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false)),
+                ("{player-buy-limit}:" + getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false)),
+                ("{player-sell-limit}:" + getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false)),
+                ("{unit-increment}:" + Math.max(((int) (unitItemMaxStack * 0.25)), 1)),
+                ("{trade-item}:" + shop.getTradeItemName()),
+                ("{shop-item-amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),
+                ("{unit-count}:" + getPluginInstance().getManager().formatNumber(unitCount, false)),
+                ("{item-count}:" + getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false)),
+                ("{owner}:" + ((ownerName == null) ? "---" : ownerName)));
     }
 
     /**

@@ -485,11 +485,8 @@ public class MenuListener implements Listener {
                             inventory.setItem(tradeArrowSlot, fillItem);
                         } else {
                             final int tradeSlot = menu.getConfiguration().getInt("trade-item-slot");
-                            if (tradeSlot >= 0 && tradeSlot < inventory.getSize()) {
-                                if (shop.getTradeItem() != null) {
-                                    inventory.setItem(tradeSlot, dataPack.getSelectedShop().getTradeItem().clone());
-                                } else inventory.setItem(tradeSlot, null);
-                            }
+                            if (tradeSlot >= 0 && tradeSlot < inventory.getSize())
+                                inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
 
                             ConfigurationSection buttonsSection = menu.getConfiguration().getConfigurationSection("buttons");
                             if (buttonsSection != null) menu.buildButton(buttonsSection, "trade-item-arrow", player, inventory, shop, null);
@@ -1487,7 +1484,7 @@ public class MenuListener implements Listener {
                             dataPack.setInteractionValue(Math.max((dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK
                                     && !player.hasPermission("displayshops.admin") ? 0 : -1), Double.parseDouble(text)));
                             amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
-                            updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, (int) dataPack.getInteractionValue());
+                            updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, ((Double) dataPack.getInteractionValue()).intValue());
                             return Collections.singletonList(AnvilGUI.ResponseAction.close());
                         }).text(" ")
                         .title(INSTANCE.getManager().color(title))
@@ -1532,8 +1529,7 @@ public class MenuListener implements Listener {
                         shop.setSellPrice(amount);
 
                         final String message = INSTANCE.getLangConfig().getString((amount <= -1) ? "selling-disabled" : "sell-price-set");
-                        INSTANCE.getManager().sendMessage(player, message,
-                                ("{price}:" + INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
+                        INSTANCE.getManager().sendMessage(player, message, ("{price}:" + INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
 
                         INSTANCE.runEventCommands("shop-sell-price", player);
                         menuToOpen = INSTANCE.getMenu("edit");

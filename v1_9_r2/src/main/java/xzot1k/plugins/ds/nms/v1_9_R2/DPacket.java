@@ -75,64 +75,42 @@ public class DPacket implements DisplayPacket {
             playerConnection.sendPacket(itemVelocityPacket);
             playerConnection.sendPacket(data);
         }
-        if (!showHolograms) {
-            return;
-        }
-        List hologramFormat = shop.getShopItem() != null ? (shop.getOwnerUniqueId() == null
+
+        if (!showHolograms) return;
+
+        List<String> hologramFormat = shop.getShopItem() != null ? (shop.getOwnerUniqueId() == null
                 ? this.getPluginInstance().getConfig().getStringList("admin-shop-format")
                 : this.getPluginInstance().getConfig().getStringList("valid-item-format")) : (shop.getOwnerUniqueId() == null
                 ? this.getPluginInstance().getConfig().getStringList("admin-invalid-item-format")
                 : this.getPluginInstance().getConfig().getStringList("invalid-item-format"));
-        boolean forceUse = this.getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
-        String tradeItemName = "";
-        String itemName = "";
-        if (shop.getShopItem() != null) {
-            itemName = this.getPluginInstance().getManager().getItemName(shop.getShopItem());
-        }
-        if (shop.getCurrencyType().equals("item-for-item")) {
-            if (!forceUse && shop.getTradeItem() != null) {
-                tradeItemName = this.getPluginInstance().getManager().getItemName(shop.getTradeItem());
-            } else {
-                ItemStack currencyItem = this.getPluginInstance().getManager().buildShopCurrencyItem(1);
-                if (currencyItem != null) {
-                    tradeItemName = this.getPluginInstance().getManager().getItemName(currencyItem);
-                }
-            }
-        }
 
         final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
-        String ownerName = shop.getOwnerUniqueId() == null ? "" : getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()).getName();
-        double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ),
-                tax = getPluginInstance().getConfig().getDouble("transaction-tax");
+        double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
         for (int i = hologramFormat.size(); --i >= 0; ) {
-            String line = (String) hologramFormat.get(i);
-            if (line.contains("{buy-price}") && shop.getBuyPrice(true) < 0.0 || line.contains("{sell-price}")
-                    && shop.getSellPrice(true) < 0.0 || line.contains("{description}")
-                    && (shop.getDescription() == null || shop.getDescription().equalsIgnoreCase("")))
+            String line = hologramFormat.get(i);
+
+            if ((line.contains("buy-price") && shop.getBuyPrice(true) < 0)
+                    || (line.contains("sell-price") && shop.getSellPrice(true) < 0)
+                    || ((line.contains("{description}") && (shop.getDescription() == null
+                    || shop.getDescription().equalsIgnoreCase("")))))
                 continue;
-            if (line.contains("{description}") && shop.getDescription() != null && !shop.getDescription().equalsIgnoreCase("")) {
+
+            if (line.contains("{description}") && !(shop.getDescription() == null || shop.getDescription().equalsIgnoreCase(""))) {
                 final String[] otherContents = line.split("\\{description}");
                 final String prefix = (otherContents.length >= 1 ? otherContents[0] : ""),
                         suffix = (otherContents.length >= 2 ? otherContents[1] : "");
 
-                List<String> descriptionLines = this.getPluginInstance().getManager().wrapString(shop.getDescription(), wordCount);
+                List<String> descriptionLines = getPluginInstance().getManager().wrapString(shop.getDescription(), wordCount);
                 Collections.reverse(descriptionLines);
                 for (String descriptionLine : descriptionLines) {
-                    this.createStand(playerConnection, compoundTag, player.getWorld(), x, y, z, (prefix + descriptionLine + suffix), false);
+                    createStand(playerConnection, compoundTag, player.getWorld(), x, y, z, (prefix + descriptionLine + suffix), false);
                     y += 0.3;
                 }
 
                 continue;
             }
-            double buyPrice = shop.getBuyPrice(true), sellPrice = shop.getBuyPrice(true);
-            createStand(playerConnection, compoundTag, player.getWorld(), x, y, z, line
-                    .replace("{buy-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getBuyPrice(true)))
-                    .replace("{sell-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getSellPrice(true)))
-                    .replace("{taxed-buy-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), (buyPrice + (buyPrice * tax))))
-                    .replace("{taxed-sell-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), (sellPrice + (sellPrice * tax))))
-                    .replace("{stock}", (shop.getStock() < 0) ? "\u221E" : getPluginInstance().getManager().formatNumber(shop.getStock(), false))
-                    .replace("{amount}", String.valueOf(shop.getShopItem() != null ? getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false) : 0))
-                    .replace("{trade-item}", tradeItemName).replace("{item}", itemName).replace("{owner}", ownerName == null ? "---" : ownerName), false);
+
+            createStand(playerConnection, compoundTag, player.getWorld(), x, y, z, getPluginInstance().getManager().applyShopBasedPlaceholders(line, shop), false);
             y += 0.3;
         }
     }

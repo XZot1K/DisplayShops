@@ -319,8 +319,6 @@ public class EconomyHandler implements EcoHandler {
      * @return The next available currency for selection.
      */
     public String determineNextCurrencyCycle(@NotNull Player player, @NotNull Shop shop) {
-        if (getEconomyRegistry().keySet().size() == 1) return "item-for-item";
-
         final List<String> currencies = new ArrayList<>(getEconomyRegistry().keySet());
         int nextIndex = 0;
         for (int i = -1; ++i < currencies.size(); ) {
@@ -362,6 +360,7 @@ public class EconomyHandler implements EcoHandler {
             }
 
             if (currencySection.contains("decimal-placement")) ecoHook.setDecimalPlacement(currencySection.getInt("decimal-placement"));
+            if (currencySection.contains("raw-placement-value")) ecoHook.setRawPlaceholderValue(currencySection.getBoolean("raw-placement-value"));
             break;
         }
     }
@@ -498,11 +497,23 @@ public class EconomyHandler implements EcoHandler {
 
         boolean isItemForItem = currencyType.equalsIgnoreCase("item-for-item");
 
-        return (currencySymbol + (INSTANCE.getConfig().getBoolean("short-number-format")
+        final String numericalValue = (INSTANCE.getConfig().getBoolean("short-number-format")
                 ? INSTANCE.getManager().format((long) Double.parseDouble(formatted.replace(",", "")), useUKFormatting)
                 : (useUKFormatting ? formatted.replace(".", "_COMMA_").replace(",", "_PERIOD_")
-                .replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted))
-                + (isItemForItem ? " " + ((shop != null) ? shop.getTradeItemName() : INSTANCE.getManager().getItemName(INSTANCE.getManager().defaultCurrencyItem)) : ""));
+                .replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted));
+
+        return ((ecoHook != null && ecoHook.isRawPlaceholderValue()) ? numericalValue : (currencySymbol + numericalValue
+                + (isItemForItem ? " " + ((shop != null) ? shop.getTradeItemName() : INSTANCE.getManager().getItemName(INSTANCE.getManager().defaultCurrencyItem)) : "")));
+    }
+
+    /**
+     * @param currencyType The currency to get the value from.
+     * @return The decimal placement value.
+     */
+    public int getCurrencyDecimalPlacement(@NotNull String currencyType) {
+        final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(currencyType);
+        if (ecoHook != null) return ecoHook.getDecimalPlacement();
+        return 0;
     }
 
     /**

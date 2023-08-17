@@ -303,6 +303,7 @@ public class Commands implements CommandExecutor {
             if (!getPluginInstance().getEconomyHandler().has(player, shop, amount)) {
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("insufficient-funds"))
                         .replace("{trade-item}", tradeItemName)
+                        .replace("{raw-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), amount))
                         .replace("{price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));
                 return;
             }
@@ -808,7 +809,6 @@ public class Commands implements CommandExecutor {
                     sellReplacement = ((sellPrice < 0 && naNotEmpty) ? notApplicable : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), sellPrice)),
                     itemName = getPluginInstance().getManager().getItemName(shop.getShopItem());
             message = message.replace("{buy}", buyReplacement).replace("{sell}", sellReplacement);
-
             message = getPluginInstance().getManager().color(message.replace("{player}", player.getName()).replace("{item}", itemName)
                     .replace("{buy}", buyReplacement).replace("{sell}", sellReplacement));
 
@@ -943,9 +943,9 @@ public class Commands implements CommandExecutor {
                 return;
             }
 
+            double cost = getPluginInstance().getConfig().getDouble("rent-renew-cost");
             getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-time"))
-                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(),
-                            getPluginInstance().getConfig().getDouble("rent-renew-cost")))
+                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(), cost))
                     .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
             return;
         }
@@ -983,11 +983,12 @@ public class Commands implements CommandExecutor {
                 return;
             }
 
-            if (marketRegion.extendRent(player))
+            if (marketRegion.extendRent(player)) {
+                double cost = getPluginInstance().getConfig().getDouble("rent-renew-cost");
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-extended"))
-                        .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(),
-                                getPluginInstance().getConfig().getDouble("rent-renew-cost")))
+                        .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(), cost))
                         .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
+            }
             return;
         }
 
@@ -996,11 +997,12 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        if (marketRegion.rent(player))
+        if (marketRegion.rent(player)) {
+            double cost = getPluginInstance().getConfig().getDouble("rent-cost");
             getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rented"))
-                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(),
-                            getPluginInstance().getConfig().getDouble("rent-cost")))
+                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(), cost))
                     .replace("{id}", marketRegion.getMarketId()).replace("{duration}", marketRegion.formattedTimeUntilExpire()));
+        }
     }
 
     private void runReset(CommandSender commandSender, String marketRegionId) {
@@ -1027,8 +1029,9 @@ public class Commands implements CommandExecutor {
             }
 
             marketRegion.reset();
-            getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("market-region-reset")
-                    .replace("{id}", marketRegion.getMarketId()));
+
+            final String message = getPluginInstance().getLangConfig().getString("market-region-reset");
+            if (message != null) getPluginInstance().getManager().sendMessage(player, message.replace("{id}", marketRegion.getMarketId()));
             return;
         }
 

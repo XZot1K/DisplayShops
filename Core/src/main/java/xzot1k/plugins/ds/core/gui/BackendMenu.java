@@ -326,11 +326,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     } else inventory.setItem(saleSlot, null);
                 }
 
-                if (shouldShowTradeContent(shop) && tradeSlot >= 0 && tradeSlot < inventory.getSize()) {
-                    if (shop.getTradeItem() != null) {
-                        inventory.setItem(tradeSlot, dataPack.getSelectedShop().getTradeItem().clone());
-                    } else inventory.setItem(tradeSlot, null);
-                }
+                if (shouldShowTradeContent(shop) && tradeSlot >= 0 && tradeSlot < inventory.getSize())
+                    inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
 
                 final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
                 if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
@@ -828,6 +825,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                                         } else
                                             for (int i = -1; ++i < (isUnlocked ? unlockedLore : lockedLore).size(); )
                                                 add(INSTANCE.getManager().color((isUnlocked ? unlockedLore : lockedLore).get(i)
+                                                        .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalFoundPrice))
                                                         .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalFoundPrice))));
                                     }});
 
@@ -894,7 +892,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
     private void fillEmptySlots(@NotNull Inventory inventory, @Nullable List<Integer> emptySlots) {
         final CustomItem fillItem = new CustomItem(getString("filler-material"), 0, 1)
-                .setDisplayName(null, null, "&6");
+                .setDisplayName(null, null, "&6")
+                .setModelData(getInt("filler-model-data"));
 
         for (int i = -1; ++i < inventory.getSize(); ) {
             final ItemStack itemStack = inventory.getItem(i);
@@ -907,7 +906,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     private void fillSlot(@NotNull Inventory inventory, int slot) {
         if (slot >= 0 && slot < inventory.getSize())
             inventory.setItem(slot, new CustomItem(getString("filler-material"), 0, 1)
-                    .setDisplayName(null, null, "&6").get());
+                    .setDisplayName(null, null, "&6")
+                    .setModelData(getInt("filler-model-data"))
+                    .get());
     }
 
     public int getButtonSlot(@NotNull String name) {

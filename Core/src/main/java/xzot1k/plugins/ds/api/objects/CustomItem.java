@@ -127,26 +127,21 @@ public class CustomItem {
             }
 
         } else {
-
             String itemMat;
             if (materialName.contains(":")) {
                 final String[] materialArgs = materialName.split(":");
-
                 if (materialArgs.length > 2) itemMat = (materialArgs[0] + ":" + materialArgs[1]);
                 else itemMat = materialArgs[0];
-
             } else itemMat = materialName;
 
             Material material = Material.getMaterial(itemMat);
             if (material == null) {
-
                 if (getPluginInstance().isItemAdderInstalled()) {
                     if (dev.lone.itemsadder.api.CustomStack.isInRegistry(itemMat)) {
                         dev.lone.itemsadder.api.CustomStack customStack = dev.lone.itemsadder.api.CustomStack.getInstance(itemMat);
                         if (customStack != null) itemStack = customStack.getItemStack();
                     } else itemStack = new ItemStack(Material.STONE);
                 }
-
             } else itemStack = new ItemStack(material, Math.min(amount, material.getMaxStackSize()), (short) durability);
         }
     }
@@ -162,125 +157,43 @@ public class CustomItem {
     }
 
     public CustomItem setDisplayName(@Nullable Player player, @Nullable Shop shop, @NotNull String displayName, @Nullable String... extraPlaceHolders) {
-        final double tax = getPluginInstance().getConfig().getDouble("transaction-tax"),
-                beforeBuyPrice = (shop != null ? (shop.getBuyPrice(true) * unitCount) : 0),
-                calculatedSellPrice = (shop != null ? (shop.getSellPrice(true) * unitCount) : 0),
-                calculatedBuyPrice = (beforeBuyPrice + (beforeBuyPrice * tax));
-
-        String disabled = getPluginInstance().getLangConfig().getString("disabled");
-        if (disabled == null) disabled = "";
-
-        final String newName = displayName
-                .replace("{assistant-count}", String.valueOf((shop != null ? shop.getAssistants().size() : 0)))
-                .replace("{stock}", ((shop != null) ? getPluginInstance().getManager().formatNumber(shop.getStock(), false) : "0"))
-                .replace("{base-buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), beforeBuyPrice) : "0"))
-                .replace("{buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : "0"))
-                .replace("{sell-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : "0"))
-                .replace("{balance}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()) : "0"))
-                .replace("{shop-item-amount}", ((shop != null && shop.getShopItem() != null) ? getPluginInstance().getManager()
-                        .formatNumber(shop.getShopItemAmount(), false) : "0"))
-                .replace("{unit-count}", ((shop != null && shop.getShopItem() != null)
-                        ? getPluginInstance().getManager().formatNumber(unitCount, false) : "0"))
-                .replace("{item-count}", ((shop != null && shop.getShopItem() != null) ?
-                        getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false) : "0"))
-                .replace("{global-buy-counter}", (shop != null ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false) : "0"))
-                .replace("{global-sell-counter}", (shop != null ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false) : "0"))
-                .replace("{global-buy-limit}", (shop != null ? (shop.getGlobalBuyLimit() <= -1 ? disabled
-                        : getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false)) : disabled))
-                .replace("{global-sell-limit}", (shop != null ? (shop.getGlobalSellLimit() <= -1 ? disabled
-                        : getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false)) : disabled))
-                .replace("{player-buy-limit}", (shop != null ? (shop.getPlayerBuyLimit() <= -1 ? disabled
-                        : getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false)) : disabled))
-                .replace("{player-sell-limit}", (shop != null ? (shop.getPlayerSellLimit() <= -1 ? disabled
-                        : getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false)) : disabled));
-
-        setDisplayName(player, replaceExtraPlaceholders(newName, extraPlaceHolders));
+        setDisplayName(player, replaceExtraPlaceholders(((shop != null)
+                ? getPluginInstance().getManager().applyShopBasedPlaceholders(displayName, shop, unitCount, unitItemMaxStack)
+                : displayName), extraPlaceHolders));
         return this;
     }
 
     public void setLore(Player player, @Nullable String[] extraPlaceHolders, String... lines) {
         ItemMeta itemMeta = get().getItemMeta();
+        if (itemMeta == null) return;
+        itemMeta.setLore(new ArrayList<String>() {{
+            final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault");
+            for (int i = -1; ++i < lines.length; ) {
+                String line = papiHere ? getPluginInstance().getPapiHelper().replace(player, lines[i]) : lines[i];
+                if (!line.contains("{no-vault}") || (!useVault && line.contains("{no-vault}"))) {
+                    if (line.contains("{description}")) {
+                        if (shop.getDescription() == null || shop.getDescription().isEmpty()) continue;
 
-        if (itemMeta != null) {
-            itemMeta.setLore(new ArrayList<String>() {{
-                final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault");
-                final double tax = getPluginInstance().getConfig().getDouble("transaction-tax");
-                final int unitIncrement = ((int) (unitItemMaxStack * 0.25));
+                        final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
+                        List<String> descriptionLines = getPluginInstance().getManager().wrapString(shop.getDescription(), wordCount);
+                        Collections.reverse(descriptionLines);
 
-                if (getShop() != null) {
-                    String tradeItemName = "";
-                    if (!useVault) {
-                        final boolean forceUseCurrency = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
-                        final ItemStack forceCurrencyItem = getPluginInstance().getManager().buildShopCurrencyItem(1);
-                        final String defaultName = getPluginInstance().getManager().getItemName(forceCurrencyItem);
-                        tradeItemName = (forceUseCurrency ? defaultName : shop.getTradeItem() != null ?
-                                getPluginInstance().getManager().getItemName(shop.getTradeItem()) : defaultName);
-                    }
-
-                    final double beforeBuyPrice = (shop.getBuyPrice(true) * unitCount),
-                            calculatedBuyPrice = (beforeBuyPrice + (beforeBuyPrice * tax)),
-                            calculatedSellPrice = (shop.getSellPrice(true) * unitCount);
-
-                    String disabled = getPluginInstance().getLangConfig().getString("disabled");
-                    if (disabled == null) disabled = "";
-
-                    for (String line : lines) {
-                        line = papiHere ? getPluginInstance().getPapiHelper().replace(player, line) : line;
-                        if (!line.contains("{no-vault}") || (!useVault && line.contains("{no-vault}"))) {
-                            if (line.contains("{description}")) {
-                                if (shop.getDescription() == null || shop.getDescription().isEmpty()) continue;
-
-                                final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
-                                List<String> descriptionLines = getPluginInstance().getManager().wrapString(shop.getDescription(), wordCount);
-                                Collections.reverse(descriptionLines);
-
-                                for (int j = -1; ++j < descriptionLines.size(); ) {
-                                    final String descLine = descriptionLines.get(j);
-                                    add(getPluginInstance().getManager().color(descLine));
-                                }
-
-                                if (!descriptionLines.isEmpty()) add("");
-                                continue;
-                            }
-
-                            add(getPluginInstance().getManager().color(replaceExtraPlaceholders(line.replace("{no-vault}", "")
-                                    .replace("{assistant-count}", String.valueOf((shop != null ? shop.getAssistants().size() : 0)))
-                                    .replace("{base-buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop,
-                                            shop.getCurrencyType(), beforeBuyPrice) : "0"))
-                                    .replace("{buy-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop,
-                                            shop.getCurrencyType(), calculatedBuyPrice) : "0"))
-                                    .replace("{sell-price}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop,
-                                            shop.getCurrencyType(), calculatedSellPrice) : "0"))
-                                    .replace("{balance}", (shop != null ? getPluginInstance().getEconomyHandler().format(shop,
-                                            shop.getCurrencyType(), shop.getStoredBalance()) : "0"))
-                                    .replace("{stock}", getPluginInstance().getManager().formatNumber(shop.getStock(), false))
-                                    .replace("{global-buy-counter}", getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false))
-                                    .replace("{global-sell-counter}", getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false))
-                                    .replace("{global-buy-limit}", (shop.getGlobalBuyLimit() <= -1 ? disabled
-                                            : getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false)))
-                                    .replace("{global-sell-limit}", (shop.getGlobalSellLimit() <= -1 ? disabled
-                                            : getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false)))
-                                    .replace("{player-buy-limit}", (shop.getPlayerBuyLimit() <= -1 ? disabled
-                                            : getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false)))
-                                    .replace("{player-sell-limit}", (shop.getPlayerSellLimit() <= -1 ? disabled
-                                            : getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false)))
-                                    .replace("{unit-increment}", String.valueOf(Math.max(unitIncrement, 1)))
-                                    .replace("{trade-item}", tradeItemName).replace("{balance}",
-                                            getPluginInstance().getManager().formatNumber(shop.getStoredBalance(), true))
-                                    .replace("{shop-item-amount}", (shop.getShopItem() != null ? getPluginInstance().getManager()
-                                            .formatNumber(shop.getShopItemAmount(), false) : "0"))
-                                    .replace("{unit-count}", (shop.getShopItem() != null ? getPluginInstance().getManager().formatNumber(unitCount, false) : "0"))
-                                    .replace("{item-count}", shop.getShopItem() != null ?
-                                            getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false) : "0"), extraPlaceHolders)));
+                        for (int j = -1; ++j < descriptionLines.size(); ) {
+                            final String descLine = descriptionLines.get(j);
+                            add(getPluginInstance().getManager().color(descLine));
                         }
-                    }
-                } else for (String line : lines)
-                    if (!line.contains("{no-vault}") || (!useVault && line.contains("{no-vault}")))
-                        add(getPluginInstance().getManager().color(replaceExtraPlaceholders(line.replace("{no-vault}", ""), extraPlaceHolders)));
-            }});
-            get().setItemMeta(itemMeta);
-        }
 
+                        if (!descriptionLines.isEmpty()) add("");
+                        continue;
+                    }
+
+                    add(getPluginInstance().getManager().color(replaceExtraPlaceholders(((shop != null)
+                            ? getPluginInstance().getManager().applyShopBasedPlaceholders(line, shop, unitCount, unitItemMaxStack)
+                            : line), extraPlaceHolders)));
+                }
+            }
+        }});
+        get().setItemMeta(itemMeta);
     }
 
     public CustomItem setLore(Player player, List<String> lines, @Nullable String... extraPlaceHolders) {
@@ -375,19 +288,11 @@ public class CustomItem {
         return this;
     }
 
-    private boolean isNew() {
-        return isNew;
-    }
+    private boolean isNew() {return isNew;}
 
-    private DisplayShops getPluginInstance() {
-        return pluginInstance;
-    }
+    private DisplayShops getPluginInstance() {return pluginInstance;}
 
-    public ItemStack get() {
-        return itemStack;
-    }
+    public ItemStack get() {return itemStack;}
 
-    private Shop getShop() {
-        return shop;
-    }
+    private Shop getShop() {return shop;}
 }

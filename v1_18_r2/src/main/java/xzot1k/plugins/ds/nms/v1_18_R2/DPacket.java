@@ -166,33 +166,13 @@ public class DPacket implements DisplayPacket {
             else hologramFormat = getPluginInstance().getConfig().getStringList("invalid-item-format");
         }
 
-        boolean forceUse = getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use");
-
-        String itemName, tradeItemName;
-        itemName = tradeItemName = "";
-
-        if (shop.getShopItem() != null)
-            itemName = getPluginInstance().getManager().getItemName(shop.getShopItem());
-
-        if (shop.getCurrencyType().equals("item-for-item"))
-            if (!forceUse && shop.getTradeItem() != null)
-                tradeItemName = getPluginInstance().getManager().getItemName(shop.getTradeItem());
-            else {
-                ItemStack currencyItem = getPluginInstance().getManager().buildShopCurrencyItem(1);
-                if (currencyItem != null) tradeItemName = getPluginInstance().getManager().getItemName(currencyItem);
-            }
-
         final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
-        String ownerName = shop.getOwnerUniqueId() == null ? ""
-                : getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()).getName();
-        double x = (shop.getBaseLocation().getX() + offsetX),
-                y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ),
-                tax = getPluginInstance().getConfig().getDouble("transaction-tax");
+        double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
 
-            if ((line.contains("{buy-price}") && shop.getBuyPrice(true) < 0)
-                    || (line.contains("{sell-price}") && shop.getSellPrice(true) < 0)
+            if ((line.contains("buy-price") && shop.getBuyPrice(true) < 0)
+                    || (line.contains("sell-price") && shop.getSellPrice(true) < 0)
                     || ((line.contains("{description}") && (shop.getDescription() == null
                     || shop.getDescription().equalsIgnoreCase("")))))
                 continue;
@@ -212,17 +192,7 @@ public class DPacket implements DisplayPacket {
                 continue;
             }
 
-            double buyPrice = shop.getBuyPrice(true), sellPrice = shop.getBuyPrice(true);
-            createStand(playerConnection, x, y, z, line
-                    .replace("{buy-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getBuyPrice(true)))
-                    .replace("{sell-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getSellPrice(true)))
-                    .replace("{taxed-buy-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), (buyPrice + (buyPrice * tax))))
-                    .replace("{taxed-sell-price}", getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), (sellPrice + (sellPrice * tax))))
-                    .replace("{stock}", (shop.getStock() < 0) ? "\u221E" : getPluginInstance().getManager().formatNumber(shop.getStock(), false))
-                    .replace("{amount}", String.valueOf(shop.getShopItem() != null ?
-                            getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false) : 0))
-                    .replace("{trade-item}", tradeItemName).replace("{item}", itemName)
-                    .replace("{owner}", ownerName == null ? "---" : ownerName), false);
+            createStand(playerConnection, x, y, z, getPluginInstance().getManager().applyShopBasedPlaceholders(line, shop), false);
             y += 0.3;
         }
     }
