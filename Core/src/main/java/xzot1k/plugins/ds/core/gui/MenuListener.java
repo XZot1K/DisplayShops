@@ -336,21 +336,21 @@ public class MenuListener implements Listener {
                             List<String> filterList = INSTANCE.getConfig().getStringList("description-filter");
                             for (int i = -1; ++i < filterList.size(); )
                                 filteredEntry = filteredEntry.replaceAll("(?i)" + filterList.get(i), "");
-                            filteredEntry = ChatColor.stripColor(INSTANCE.getManager().color(filteredEntry
-                                    .replace("'", "").replace("\"", "")));
+                            filteredEntry = INSTANCE.getManager().color(filteredEntry.replace("'", "[q1]").replace("\"", "[q2]"));
 
-                            if (filteredEntry.equalsIgnoreCase(shop.getDescription())) {
+                            if (ChatColor.stripColor(filteredEntry).equalsIgnoreCase(ChatColor.stripColor(shop.getDescription()))) {
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                                 final String tooSimilar = menu.getConfiguration().getString("description-entry.too-similar");
                                 return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(tooSimilar != null ? tooSimilar : ""));
                             }
 
                             final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
-                                    INSTANCE.getConfig().getDouble("prices.global-buy-limit"));
+                                    INSTANCE.getConfig().getDouble("prices.description"));
                             if (economyCallEvent.failed()) return AnvilGUI.Response.close();
 
                             shop.setDescription(filteredEntry);
                             shop.updateTimeStamp();
+                            INSTANCE.getInSightTask().refreshShop(shop);
 
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("description-set"),
                                     ("{description}:" + shop.getDescription()));
@@ -358,8 +358,8 @@ public class MenuListener implements Listener {
                             INSTANCE.runEventCommands("shop-description", player);
                             return Collections.singletonList(AnvilGUI.ResponseAction.close());
                         })
-                        .text((shop.getDescription() != null && !shop.getDescription().isEmpty()) ?
-                                INSTANCE.getManager().color(shop.getDescription()) : " ")
+                        .text((shop.getDescription() != null && !shop.getDescription().isEmpty())
+                                ? INSTANCE.getManager().color(shop.getDescription()) : " ")
                         .title(INSTANCE.getManager().color(title))
                         .plugin(INSTANCE).open(player);
 
@@ -943,18 +943,12 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(inventory), 1))
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player, stateSnapshot.getText().trim())), 1))
                             .onClick((slot, stateSnapshot) -> {
                                 if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
                                 menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
                                 menu.switchPage(inventory, player, dataPack.getCurrentPage());
-
-                                final int searchSlot = menu.getConfiguration().getInt("buttons.search.slot");
-                                menu.updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + stateSnapshot.getText().trim()));
-
-                                ItemStack searchItem = inventory.getItem(searchSlot);
-                                if (searchItem != null) INSTANCE.updateNBT(searchItem, "ds-search", stateSnapshot.getText().trim());
 
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
@@ -1094,22 +1088,120 @@ public class MenuListener implements Listener {
                     return;
                 }
 
+                case "add": {
+                    playClickSound(player);
+
+                    final int assistantsCap = INSTANCE.getConfig().getInt("assistants-cap");
+                    if (shop.getAssistants().size() >= assistantsCap) {
+                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-cap-exceeded"),
+                                ("{cap}:" + INSTANCE.getManager().formatNumber(assistantsCap, false)));
+                        return;
+                    }
+
+                    final String title = menu.getConfiguration().getString("assistant-entry.title");
+                    if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                            .onClick((slot, stateSnapshot) -> {
+                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                final String entry = stateSnapshot.getText().trim();
+                                if (INSTANCE.getManager().getUUIDPattern().matcher(entry).matches()) {
+                                    final String uuidString = INSTANCE.getNBT(e.getCurrentItem(), "uuid");
+                                    if (uuidString == null || uuidString.isEmpty()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
+                                    final UUID uuid = UUID.fromString(uuidString);
+                                    shop.getAssistants().add(uuid);
+                                } else {
+                                    if (entry.isEmpty()) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-entry"));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
+                                    OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(entry);
+                                    if (!offlinePlayer.hasPlayedBefore()) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("player-invalid"));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    } else shop.getAssistants().add(offlinePlayer.getUniqueId());
+                                }
+
+                                shop.save(true);
+                                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-added"),
+                                        ("{player}:" + stateSnapshot.getText().trim()));
+
+                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
+                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                            })
+                            .text(" ")
+                            .title(INSTANCE.getManager().color(title))
+                            .plugin(INSTANCE).open(player);
+                    return;
+                }
+
+                case "remove": {
+                    playClickSound(player);
+
+                    final String title = menu.getConfiguration().getString("assistant-entry.title");
+                    if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE,
+                                    () -> stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                            .onClick((slot, stateSnapshot) -> {
+                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                final String entry = stateSnapshot.getText().trim();
+                                if (INSTANCE.getManager().getUUIDPattern().matcher(entry).matches()) {
+                                    final String uuidString = INSTANCE.getNBT(e.getCurrentItem(), "uuid");
+                                    if (uuidString == null || uuidString.isEmpty()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
+                                    final UUID uuid = UUID.fromString(uuidString);
+                                    if (!shop.getAssistants().contains(uuid)) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-no-access"),
+                                                ("{player}:" + stateSnapshot.getText().trim()));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    } else shop.getAssistants().remove(uuid);
+                                } else {
+                                    if (entry.isEmpty()) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-entry"));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
+                                    OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(entry);
+                                    if (!offlinePlayer.hasPlayedBefore()) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("player-invalid"));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    } else {
+                                        if (!shop.getAssistants().contains(offlinePlayer.getUniqueId())) {
+                                            INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-no-access"),
+                                                    ("{player}:" + stateSnapshot.getText().trim()));
+                                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                        } else shop.getAssistants().remove(offlinePlayer.getUniqueId());
+                                    }
+                                }
+
+                                shop.save(true);
+                                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-removed"),
+                                        ("{player}:" + stateSnapshot.getText().trim()));
+
+                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
+                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                            })
+                            .text(" ")
+                            .title(INSTANCE.getManager().color(title))
+                            .plugin(INSTANCE).open(player);
+
+                    return;
+                }
+
                 case "search": {
                     playClickSound(player);
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(inventory), 1))
+                                    stateSnapshot.getPlayer().openInventory(menu.build(player, stateSnapshot.getText().trim())), 1))
                             .onClick((slot, stateSnapshot) -> {
                                 if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
                                 menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
                                 menu.switchPage(inventory, player, dataPack.getCurrentPage());
-
-                                final int searchSlot = menu.getConfiguration().getInt("buttons.search.slot");
-                                menu.updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + stateSnapshot.getText().trim()));
-
-                                ItemStack searchItem = inventory.getItem(searchSlot);
-                                if (searchItem != null) INSTANCE.updateNBT(searchItem, "ds-search", stateSnapshot.getText().trim());
 
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })

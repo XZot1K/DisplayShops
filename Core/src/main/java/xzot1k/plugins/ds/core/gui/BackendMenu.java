@@ -414,12 +414,12 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                 buttonActions.parallelStream().forEach(buttonAction -> {
                     // checks whether to add the next and/or previous buttons for page menus
-                    if (isPageMenu && (buttonAction.equals("next") && !dataPack.hasNextPage()
-                            || buttonAction.equals("previous") && !dataPack.hasPreviousPage())
+                    if ((isPageMenu && (buttonAction.equals("next") && !dataPack.hasNextPage()
+                            || buttonAction.equals("previous") && !dataPack.hasPreviousPage()))
                             || (!shouldShowTradeContent(shop) && buttonAction.contains("trade"))
+                            || !mainSection.contains(buttonAction)
                             /* || (buttonAction.equals("custom-amount") && INSTANCE.isGeyserInstalled()
                             && org.geysermc.geyser.api.GeyserApi.api().isBedrockPlayer(player.getUniqueId()))*/) return;
-
                     buildButton(mainSection, buttonAction, player, inventory, shop, emptySlots);
                 });
             }
@@ -656,9 +656,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     final String activeColor = getString("active-color"),
                             inActiveColor = getString("inactive-color");
                     final List<String> loreFormat = getStringList("head-lore");
+                    final List<UUID> addedPlayers = new ArrayList<>();
 
                     INSTANCE.getServer().getOnlinePlayers().parallelStream().forEach(currentPlayer -> {
-
                         if (currentPlayer.getUniqueId().toString().equals(player.getUniqueId().toString())) return;
 
                         if (searchText != null && !searchText.isEmpty()
@@ -682,6 +682,27 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         }
 
                         pageContents.add(INSTANCE.updateNBT(item.get(), "uuid", currentPlayer.getUniqueId().toString()));
+                        addedPlayers.add(currentPlayer.getUniqueId());
+                    });
+
+                    shop.getAssistants().parallelStream().forEach(uuid -> {
+                        if (addedPlayers.contains(uuid)) return;
+
+                        OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
+                        if (!offlinePlayer.hasPlayedBefore()) return;
+
+                        final CustomItem item = new CustomItem(("HEAD:" + offlinePlayer.getName()), 0, 1)
+                                .setDisplayName(player, shop, (shop.getAssistants().contains(offlinePlayer.getUniqueId())
+                                        ? (activeColor + offlinePlayer.getName()) : (inActiveColor + offlinePlayer.getName())))
+                                .setLore(null, loreFormat, ("{player}:" + offlinePlayer.getName()));
+
+                        if (pageContents.size() >= (getSize() - 9)) {
+                            dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
+                            pageContents.clear();
+                            currentPage[0] += 1;
+                        }
+
+                        pageContents.add(INSTANCE.updateNBT(item.get(), "uuid", uuid.toString()));
                     });
 
                     if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
@@ -837,9 +858,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                                 boolean isNumeric = !INSTANCE.getManager().isNotNumeric(searchText);
 
                                 if (!(isNumeric && foundPrice == Double.parseDouble(searchText))
-                                        && !itemStack.getType().name().toLowerCase().replace("_", " ").contains(searchText.toLowerCase())
-                                        && (shop.getShopItem().getItemMeta() != null
-                                        && !ChatColor.stripColor(shop.getShopItem().getItemMeta().getDisplayName()).toLowerCase().contains(searchText.toLowerCase())))
+                                        && !itemStack.getType().name().toLowerCase().replace("_", " ")
+                                        .contains(searchText.toLowerCase().replace("_", " ")))
                                     continue;
                             }
 

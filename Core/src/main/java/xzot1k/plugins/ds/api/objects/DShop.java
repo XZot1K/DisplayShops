@@ -897,9 +897,7 @@ public class DShop implements Shop {
         this.changeTimeStamp = changeTimeStamp;
     }
 
-    public String getDescription() {
-        return description;
-    }
+    public String getDescription() {return (description != null ? description.replace("[q1]", "'").replace("[q2]]", "\"") : null);}
 
     public void setDescription(String description) {
         this.description = description;

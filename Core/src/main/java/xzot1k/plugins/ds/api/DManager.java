@@ -49,7 +49,7 @@ public class DManager implements Manager {
 
     private HashMap<UUID, Shop> shopMap;
     private List<MarketRegion> marketRegions;
-    private final Pattern hexPattern;
+    private final Pattern hexPattern, uuidPattern;
     private HashMap<UUID, DataPack> dataPackMap;
     public ItemStack defaultCurrencyItem;
 
@@ -59,6 +59,7 @@ public class DManager implements Manager {
         setDataPackMap(new HashMap<>());
         setMarketRegions(new ArrayList<>());
         hexPattern = Pattern.compile("#[a-fA-F\\d]{6}");
+        uuidPattern = Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
         defaultCurrencyItem = buildShopCurrencyItem(1);
     }
 
@@ -328,20 +329,22 @@ public class DManager implements Manager {
         if (disabled == null) disabled = "";
 
         return applyPlaceholders(text, ("{no-vault}:"), ("{assistant-count}:" + shop.getAssistants().size()),
-                ("{base-buy-price}:" + (buyPrice < 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
-                ("{buy-price}:" + (buyPrice < 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
-                ("{sell-price}:" + (sellPrice < 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
+                ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
+                ("{buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
+                ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
                 ("{balance}:" + getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance())),
-                ("{stock}:" + getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStock())),
+                ("{stock}:" + getPluginInstance().getManager().formatNumber(shop.getStock(), false)),
                 ("{global-buy-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false)),
                 ("{global-sell-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false)),
-                ("{global-buy-limit}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false)),
-                ("{global-sell-limit}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false)),
-                ("{player-buy-limit}:" + getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false)),
-                ("{player-sell-limit}:" + getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false)),
+                ("{global-buy-limit}:" + (shop.getGlobalBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false) : disabled)),
+                ("{global-sell-limit}:" + (shop.getGlobalSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false) : disabled)),
+                ("{player-buy-limit}:" + (shop.getPlayerBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false) : disabled)),
+                ("{player-sell-limit}:" + (shop.getPlayerSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false) : disabled)),
                 ("{unit-increment}:" + Math.max(((int) (unitItemMaxStack * 0.25)), 1)),
+                ("{item}:" + (shop.getShopItem() != null ? getPluginInstance().getManager().getItemName(shop.getShopItem()) : "")),
                 ("{trade-item}:" + shop.getTradeItemName()),
                 ("{shop-item-amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),
+                ("{amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),
                 ("{unit-count}:" + getPluginInstance().getManager().formatNumber(unitCount, false)),
                 ("{item-count}:" + getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false)),
                 ("{owner}:" + ((ownerName == null) ? "---" : ownerName)));
@@ -1733,5 +1736,7 @@ public class DManager implements Manager {
     private void setDataPackMap(HashMap<UUID, DataPack> dataPackMap) {
         this.dataPackMap = dataPackMap;
     }
+
+    public Pattern getUUIDPattern() {return uuidPattern;}
 
 }
