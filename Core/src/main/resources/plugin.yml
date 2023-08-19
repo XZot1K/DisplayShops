@@ -66,6 +66,7 @@ permissions:
       displayshops.deposit: true
       displayshops.balwithdraw: true
       displayshops.baldeposit: true
+      displayshops.currency.Vault: true
 
   displayshops.buy:
     default: op

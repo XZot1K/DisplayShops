@@ -460,7 +460,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             final List<String> flags = mainSection.getStringList(buttonAction + ".flags");
             if (!flags.isEmpty()) item.setItemFlags(flags);
 
-            inventory.setItem(slot, item.get());
+            final ItemStack itemStack = item.get();
+            itemStack.setAmount(amount);
+
+            inventory.setItem(slot, itemStack);
         }
     }
 

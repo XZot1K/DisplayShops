@@ -75,7 +75,7 @@ public class CustomItem {
         this.papiHere = (getPluginInstance().getPapiHelper() != null);
 
         if (materialName == null || materialName.isEmpty()) {
-            itemStack = new ItemStack(Material.STONE);
+            itemStack = new ItemStack(Material.STONE, amount);
             return;
         }
 
@@ -84,12 +84,11 @@ public class CustomItem {
             final String[] materialArgs = replacedMaterial.split(":");
             if (getPluginInstance().getHeadDatabaseAPI() != null && !getPluginInstance().getManager().isNotNumeric(materialArgs[1])) {
                 itemStack = getPluginInstance().getHeadDatabaseAPI().getItemHead(materialArgs[1]);
-                itemStack.setAmount(Math.max(1, Math.min(amount, itemStack.getType().getMaxStackSize())));
+                itemStack.setAmount(amount);
             } else {
-
-                itemStack = isNew ? new ItemStack(Objects.requireNonNull(Material.getMaterial("PLAYER_HEAD")), 1)
-                        : new ItemStack(Objects.requireNonNull(Material.getMaterial("SKULL_ITEM")),
-                        Math.max(1, Math.min(amount, itemStack.getType().getMaxStackSize())), (short) 3);
+                Material mat = Material.getMaterial(isNew ? "PLAYER_HEAD" : "SKULL_ITEM");
+                mat = (mat != null ? mat : Material.STONE);
+                itemStack = new ItemStack(mat, amount, (isNew ? 0 : (short) 3));
 
                 SkullMeta skullMeta = (SkullMeta) itemStack.getItemMeta();
                 if (skullMeta != null && materialArgs[1] != null && !materialArgs[1].equalsIgnoreCase("")) {
@@ -101,12 +100,10 @@ public class CustomItem {
                 }
             }
         } else if (materialName.toUpperCase().startsWith("TEXTURE") && materialName.contains(":")) {
-
             final String[] materialArgs = replacedMaterial.split(":");
-
-            itemStack = isNew ? new ItemStack(Objects.requireNonNull(Material.getMaterial("PLAYER_HEAD")), 1)
-                    : new ItemStack(Objects.requireNonNull(Material.getMaterial("SKULL_ITEM")),
-                    Math.max(1, Math.min(amount, itemStack.getType().getMaxStackSize())), (short) 3);
+            Material mat = Material.getMaterial(isNew ? "PLAYER_HEAD" : "SKULL_ITEM");
+            mat = (mat != null ? mat : Material.STONE);
+            itemStack = new ItemStack(mat, amount, (isNew ? 0 : (short) 3));
 
             SkullMeta skullMeta = (SkullMeta) itemStack.getItemMeta();
             if (skullMeta != null && materialArgs[1] != null && !materialArgs[1].equalsIgnoreCase("")) {
@@ -141,8 +138,9 @@ public class CustomItem {
                         dev.lone.itemsadder.api.CustomStack customStack = dev.lone.itemsadder.api.CustomStack.getInstance(itemMat);
                         if (customStack != null) itemStack = customStack.getItemStack();
                     } else itemStack = new ItemStack(Material.STONE);
+                    itemStack.setAmount(amount);
                 }
-            } else itemStack = new ItemStack(material, Math.min(amount, material.getMaxStackSize()), (short) durability);
+            } else itemStack = new ItemStack(material, amount, (short) durability);
         }
     }
 
@@ -183,7 +181,6 @@ public class CustomItem {
                             add(getPluginInstance().getManager().color(descLine));
                         }
 
-                        if (!descriptionLines.isEmpty()) add("");
                         continue;
                     }
 

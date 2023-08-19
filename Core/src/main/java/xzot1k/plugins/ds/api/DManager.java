@@ -28,6 +28,7 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.eco.EcoHook;
 import xzot1k.plugins.ds.api.objects.*;
 
 import java.io.File;
@@ -328,6 +329,7 @@ public class DManager implements Manager {
                 disabled = getPluginInstance().getLangConfig().getString("disabled");
         if (disabled == null) disabled = "";
 
+        EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(shop.getCurrencyType());
         return applyPlaceholders(text, ("{no-vault}:"), ("{assistant-count}:" + shop.getAssistants().size()),
                 ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
                 ("{buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
@@ -347,7 +349,9 @@ public class DManager implements Manager {
                 ("{amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),
                 ("{unit-count}:" + getPluginInstance().getManager().formatNumber(unitCount, false)),
                 ("{item-count}:" + getPluginInstance().getManager().formatNumber((shop.getShopItemAmount() * unitCount), false)),
-                ("{owner}:" + ((ownerName == null) ? "---" : ownerName)));
+                ("{owner}:" + ((ownerName == null) ? "---" : ownerName)),
+                ("{symbol}:" + (ecoHook != null ? ecoHook.getSymbol() : "")),
+                ("{currency-name}:" + (ecoHook != null ? ecoHook.getName() : "")));
     }
 
     /**

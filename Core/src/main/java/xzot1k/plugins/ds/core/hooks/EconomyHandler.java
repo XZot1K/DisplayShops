@@ -360,7 +360,7 @@ public class EconomyHandler implements EcoHandler {
             }
 
             if (currencySection.contains("decimal-placement")) ecoHook.setDecimalPlacement(currencySection.getInt("decimal-placement"));
-            if (currencySection.contains("raw-placement-value")) ecoHook.setRawPlaceholderValue(currencySection.getBoolean("raw-placement-value"));
+            if (currencySection.contains("raw-placeholder-value")) ecoHook.setRawPlaceholderValue(currencySection.getBoolean("raw-placeholder-value"));
             break;
         }
     }

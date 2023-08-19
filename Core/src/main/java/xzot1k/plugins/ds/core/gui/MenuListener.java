@@ -478,11 +478,10 @@ public class MenuListener implements Listener {
 
                         if (!shop.getCurrencyType().equalsIgnoreCase("item-for-item")) {
                             final ItemStack fillItem = new CustomItem(menu.getConfiguration().getString("filler-material"), 0, 1)
-                                    .setDisplayName(null, null, "&6").get();
-                            final int tradeSlot = menu.getConfiguration().getInt("trade-item-slot"),
-                                    tradeArrowSlot = menu.getConfiguration().getInt("buttons.trade-item-arrow.slot");
-                            inventory.setItem(tradeSlot, fillItem);
-                            inventory.setItem(tradeArrowSlot, fillItem);
+                                    .setDisplayName(null, null, "&6")
+                                    .setModelData(menu.getConfiguration().getInt("filler-model-data")).get();
+                            inventory.setItem(menu.getConfiguration().getInt("trade-item-slot"), fillItem);
+                            inventory.setItem(menu.getConfiguration().getInt("buttons.trade-item-arrow.slot"), fillItem);
                         } else {
                             final int tradeSlot = menu.getConfiguration().getInt("trade-item-slot");
                             if (tradeSlot >= 0 && tradeSlot < inventory.getSize())
