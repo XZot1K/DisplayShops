@@ -169,15 +169,15 @@ public class DPacket implements DisplayPacket {
                 : (shop.getOwnerUniqueId() == null ? this.getPluginInstance().getConfig().getStringList("admin-invalid-item-format")
                 : this.getPluginInstance().getConfig().getStringList("invalid-item-format"));
 
+        final boolean hidePriceLine = getPluginInstance().getConfig().getBoolean("price-disabled-hide");
         final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
         double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
 
-            if ((line.contains("buy-price") && shop.getBuyPrice(true) < 0)
-                    || (line.contains("sell-price") && shop.getSellPrice(true) < 0)
-                    || ((line.contains("{description}") && (shop.getDescription() == null
-                    || shop.getDescription().equalsIgnoreCase("")))))
+            if ((hidePriceLine && ((line.contains("buy-price") && shop.getBuyPrice(true) < 0)
+                    || (line.contains("sell-price") && shop.getSellPrice(true) < 0)))
+                    || ((line.contains("{description}") && (shop.getDescription() == null || shop.getDescription().equalsIgnoreCase("")))))
                 continue;
 
             if (line.contains("{description}") && !(shop.getDescription() == null || shop.getDescription().equalsIgnoreCase(""))) {

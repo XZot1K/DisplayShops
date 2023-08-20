@@ -520,19 +520,24 @@ public class Listeners implements Listener {
         if (!e.willSucceed()) return;
         StringBuilder stringBuilder = new StringBuilder();
 
-        stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
-                .append("Action: ").append(e.getEconomyCallType().name()).append(" | Cost: ")
-                .append(getPluginInstance().getEconomyHandler().format(e.getShop(), (e.getShop() != null ? e.getShop().getCurrencyType()
-                        : getPluginInstance().getEconomyHandler().getDefaultCurrency()), e.getAmount()))
-                .append(" --- performed by ").append(e.getPlayer().getName()).append(" performed the shop '")
-                .append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
-                .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY())
-                .append(" Z: ").append(e.getShop().getBaseLocation().getZ()).append(")");
+        String value = (e.getShop() != null ? getPluginInstance().getEconomyHandler().format(e.getShop(), (e.getShop() != null ? e.getShop().getCurrencyType()
+                : getPluginInstance().getEconomyHandler().getDefaultCurrency()), e.getAmount())
+                : getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(), e.getAmount()));
 
-        if (e.getEconomyCallType() == EconomyCallType.BUY || e.getEconomyCallType() == EconomyCallType.SELL
-                || e.getEconomyCallType() == EconomyCallType.EDIT_ACTION) {
-            final int unitCount = (int) (e.getRawAmount() / e.getShop().getSellPrice(true));
-            stringBuilder.append(" (Estimated Unit Count: ").append(getPluginInstance().getManager().formatNumber(unitCount, false)).append(")");
+        stringBuilder.append("[").append(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis()))).append("] ")
+                .append("Action: ").append(e.getEconomyCallType().name()).append(" | Cost: ").append(value).append(" --- performed by ").append(e.getPlayer().getName());
+
+        if (e.getShop() != null) {
+            stringBuilder.append(" performed the shop '")
+                    .append(e.getShop().getShopId().toString()).append("' (World: ").append(e.getShop().getBaseLocation().getWorldName())
+                    .append(" X: ").append(e.getShop().getBaseLocation().getX()).append(" Y: ").append(e.getShop().getBaseLocation().getY())
+                    .append(" Z: ").append(e.getShop().getBaseLocation().getZ()).append(")");
+
+            if (e.getEconomyCallType() == EconomyCallType.BUY || e.getEconomyCallType() == EconomyCallType.SELL
+                    || e.getEconomyCallType() == EconomyCallType.EDIT_ACTION) {
+                final int unitCount = (int) (e.getRawAmount() / e.getShop().getSellPrice(true));
+                stringBuilder.append(" (Estimated Unit Count: ").append(getPluginInstance().getManager().formatNumber(unitCount, false)).append(")");
+            }
         }
 
         if (stringBuilder.length() > 0)

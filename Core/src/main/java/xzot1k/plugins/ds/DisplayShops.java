@@ -920,7 +920,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     public void fixConfig() {
-
         if (getServerVersion() < 1_13) {
             final String shopBlock = getConfig().getString("shop-block-material");
             if (shopBlock == null || shopBlock.isEmpty() || shopBlock.toUpperCase().contains("END_PORTAL_FRAME"))

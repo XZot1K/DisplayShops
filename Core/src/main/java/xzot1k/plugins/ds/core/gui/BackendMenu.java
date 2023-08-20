@@ -84,40 +84,17 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         save();
                     }
                 }
-
-                // This will add the trade-item-amount, if missing
-               /* if (!buttonSection.contains("trade-item-amount")) {
-                    ConfigurationSection newSection = buttonSection.createSection("trade-item-amount");
-                    final FileConfiguration jarConfigCopy = INSTANCE.getConfigFromJar("menus/edit.yml");
-                    if (jarConfigCopy != null) {
-                        ConfigurationSection tradeAmountSection = jarConfigCopy.getConfigurationSection("buttons.trade-item-amount");
-                        if (tradeAmountSection != null) {
-                            for (String key : tradeAmountSection.getKeys(false)) {
-                                final Object value = tradeAmountSection.get(key);
-                                newSection.set(key, value);
-                            }
-                        }
-
-                        save();
-                    }
-                }*/
-
             }
-        }/* else if (getMenuName().equals("amount-selector")) { // ensure {currency-symbol} is used in amount-selector
-            ConfigurationSection amountButtonSection = getConfiguration().getConfigurationSection("buttons.amount");
-            if (amountButtonSection != null) {
-                final String name = amountButtonSection.getString("name");
-                if (name != null && !name.contains("{currency-symbol}"))
-                    amountButtonSection.set("name", ("&a{currency-symbol}" + name));
-                save();
-            }
-        }*/
 
+            if (getConfiguration().contains("item-change") && !getConfiguration().contains("sale-item-change")
+                    && !getConfiguration().contains("trade-item-change")) {
+                addSectionFromJarConfig("menus/edit.yml", "sale-item-change");
+                addSectionFromJarConfig("menus/edit.yml", "trade-item-change");
+            }
+        }
 
         for (Map.Entry<String, Object> entry : getValues(true).entrySet()) {
-
             final String key = entry.getKey().toLowerCase();
-
             if (key.endsWith("material")) {
 
                 final String mat = String.valueOf(entry.getValue());
@@ -180,6 +157,22 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             getConfiguration().save(getFile());
             reload();
         } catch (IOException ignored) {}
+    }
+
+    public void addSectionFromJarConfig(@NotNull String configPathInJar, @NotNull String sectionName) {
+        ConfigurationSection newSection = getConfiguration().createSection(sectionName);
+        final FileConfiguration jarConfigCopy = INSTANCE.getConfigFromJar(configPathInJar);
+        if (jarConfigCopy != null) {
+            ConfigurationSection section = jarConfigCopy.getConfigurationSection(sectionName);
+            if (section != null) {
+                for (String key : section.getKeys(true)) {
+                    final Object value = section.get(key);
+                    newSection.set(key, value);
+                }
+            }
+
+            save();
+        }
     }
 
     private boolean isValidMaterial(@Nullable String material) {
@@ -329,9 +322,11 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 if (shouldShowTradeContent(shop) && tradeSlot >= 0 && tradeSlot < inventory.getSize())
                     inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
 
-                final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
-                        shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
+                if (getConfiguration().contains("buttons.currency-type")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
+                    if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
+                            shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
+                }
                 return inventory;
 
             } else if (getMenuName().contains("transaction")) {
@@ -402,7 +397,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         if (mainSection != null) {
             final Collection<String> buttonActions = mainSection.getKeys(false);
             if (!buttonActions.isEmpty()) {
-
                 final DDataPack dataPack = (DDataPack) INSTANCE.getManager().getDataPack(player);
                 final Shop shop = dataPack.getSelectedShop();
 
@@ -414,10 +408,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                 buttonActions.parallelStream().forEach(buttonAction -> {
                     // checks whether to add the next and/or previous buttons for page menus
-                    if ((isPageMenu && (buttonAction.equals("next") && !dataPack.hasNextPage()
-                            || buttonAction.equals("previous") && !dataPack.hasPreviousPage()))
-                            || (!shouldShowTradeContent(shop) && buttonAction.contains("trade"))
-                            || !mainSection.contains(buttonAction)
+                    if ((isPageMenu && (buttonAction.equals("next") && !dataPack.hasNextPage() || buttonAction.equals("previous") && !dataPack.hasPreviousPage()))
+                            || (!shouldShowTradeContent(shop) && buttonAction.contains("trade")) || !mainSection.contains(buttonAction)
                             /* || (buttonAction.equals("custom-amount") && INSTANCE.isGeyserInstalled()
                             && org.geysermc.geyser.api.GeyserApi.api().isBedrockPlayer(player.getUniqueId()))*/) return;
                     buildButton(mainSection, buttonAction, player, inventory, shop, emptySlots);
@@ -443,6 +435,11 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             final CustomItem item = (shop != null ? new CustomItem(materialName, amount, durability, shop,
                     (shop.getShopItem() != null ? shop.getShopItem().getMaxStackSize() : 1), 1)
                     : new CustomItem(materialName, amount, durability));
+
+            if (item.get().getType() == Material.STONE && (materialName == null || !materialName.contains("STONE"))) {
+                INSTANCE.log(Level.WARNING, "The button \"" + buttonAction + "\" from the \"" + getMenuName() + "\" menu failed to build right.");
+                return;
+            }
 
             final String name = mainSection.getString(buttonAction + ".name");
             if (name != null && !name.isEmpty()) item.setDisplayName(null, shop, name, extraPlaceHolders);
@@ -659,40 +656,14 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     final String activeColor = getString("active-color"),
                             inActiveColor = getString("inactive-color");
                     final List<String> loreFormat = getStringList("head-lore");
-                    final List<UUID> addedPlayers = new ArrayList<>();
-
-                    INSTANCE.getServer().getOnlinePlayers().parallelStream().forEach(currentPlayer -> {
-                        if (currentPlayer.getUniqueId().toString().equals(player.getUniqueId().toString())) return;
-
-                        if (searchText != null && !searchText.isEmpty()
-                                && !currentPlayer.getName().toLowerCase().startsWith(searchText.toLowerCase())
-                                && !currentPlayer.getUniqueId().toString().startsWith(searchText)) return;
-
-                        final CustomItem item = new CustomItem(("HEAD:" + currentPlayer.getName()), 0, 1)
-                                .setDisplayName(player, shop, (shop.getAssistants().contains(currentPlayer.getUniqueId())
-                                        ? (activeColor + currentPlayer.getName()) : (inActiveColor + currentPlayer.getName())))
-                                .setLore(null, new ArrayList<String>() {{
-                                    for (int i = -1; ++i < loreFormat.size(); ) {
-                                        final String line = loreFormat.get(i);
-                                        add(line.replace("{player}", currentPlayer.getName()));
-                                    }
-                                }});
-
-                        if (pageContents.size() >= (getSize() - 9)) {
-                            dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-                            pageContents.clear();
-                            currentPage[0] += 1;
-                        }
-
-                        pageContents.add(INSTANCE.updateNBT(item.get(), "uuid", currentPlayer.getUniqueId().toString()));
-                        addedPlayers.add(currentPlayer.getUniqueId());
-                    });
 
                     shop.getAssistants().parallelStream().forEach(uuid -> {
-                        if (addedPlayers.contains(uuid)) return;
-
                         OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
                         if (!offlinePlayer.hasPlayedBefore()) return;
+
+                        if (searchText != null && !searchText.isEmpty()
+                                && !(offlinePlayer.getName() != null && offlinePlayer.getName().toLowerCase().startsWith(searchText.toLowerCase()))
+                                && !offlinePlayer.getUniqueId().toString().startsWith(searchText)) return;
 
                         final CustomItem item = new CustomItem(("HEAD:" + offlinePlayer.getName()), 0, 1)
                                 .setDisplayName(player, shop, (shop.getAssistants().contains(offlinePlayer.getUniqueId())
@@ -914,7 +885,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     }
 
     private void fillEmptySlots(@NotNull Inventory inventory, @Nullable List<Integer> emptySlots) {
-        final CustomItem fillItem = new CustomItem(getString("filler-material"), 0, 1)
+        final String mat = getString("filler-material");
+        if (mat == null || mat.toUpperCase().contains("AIR")) return;
+
+        final CustomItem fillItem = new CustomItem(mat, 0, 1)
                 .setDisplayName(null, null, "&6")
                 .setModelData(getInt("filler-model-data"));
 
@@ -927,11 +901,14 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     }
 
     private void fillSlot(@NotNull Inventory inventory, int slot) {
-        if (slot >= 0 && slot < inventory.getSize())
-            inventory.setItem(slot, new CustomItem(getString("filler-material"), 0, 1)
+        if (slot >= 0 && slot < inventory.getSize()) {
+            final String mat = getString("filler-material");
+            if (mat == null || mat.toUpperCase().contains("AIR")) return;
+            inventory.setItem(slot, new CustomItem(mat, 0, 1)
                     .setDisplayName(null, null, "&6")
                     .setModelData(getInt("filler-model-data"))
                     .get());
+        }
     }
 
     public int getButtonSlot(@NotNull String name) {

@@ -39,7 +39,7 @@ import java.util.*;
 public class MenuListener implements Listener {
 
     private final DisplayShops INSTANCE;
-    public ItemStack changeItem;
+    public ItemStack saleChangeItem, tradeChangeItem;
 
     public MenuListener(@NotNull DisplayShops instance) {
         this.INSTANCE = instance;
@@ -49,12 +49,23 @@ public class MenuListener implements Listener {
     public void updateChangeItem() {
         final Menu edit = INSTANCE.getMenu("edit");
         if (edit != null) {
-            final String changeItemMaterial = edit.getConfiguration().getString("item-change.material"),
-                    changeItemName = edit.getConfiguration().getString("item-change.name");
-            if (changeItemName != null)
-                changeItem = new CustomItem(changeItemMaterial, 1)
-                        .setDisplayName(null, null, changeItemName)
-                        .setLore(null, edit.getConfiguration().getStringList("item-change.lore")).get();
+            final String saleChangeItemMaterial = edit.getConfiguration().getString("sale-item-change.material"),
+                    saleChangeItemName = edit.getConfiguration().getString("sale-item-change.name");
+            if (saleChangeItemName != null) {
+                saleChangeItem = new CustomItem(saleChangeItemMaterial, 1)
+                        .setDisplayName(null, null, saleChangeItemName)
+                        .setLore(null, edit.getConfiguration().getStringList("sale-item-change.lore"))
+                        .setModelData(edit.getConfiguration().getInt("sale-item-change.custom-model-data")).get();
+            }
+
+            final String tradeChangeItemMaterial = edit.getConfiguration().getString("trade-item-change.material"),
+                    tradeChangeItemName = edit.getConfiguration().getString("trade-item-change.name");
+            if (tradeChangeItemName != null) {
+                tradeChangeItem = new CustomItem(tradeChangeItemMaterial, 1)
+                        .setDisplayName(null, null, tradeChangeItemName)
+                        .setLore(null, edit.getConfiguration().getStringList("trade-item-change.lore"))
+                        .setModelData(edit.getConfiguration().getInt("trade-item-change.custom-model-data")).get();
+            }
         }
     }
 
@@ -167,30 +178,44 @@ public class MenuListener implements Listener {
         final boolean isSaleItemSlot = (e.getSlot() == saleItemSlot && saleItemSlot >= 0 && saleItemSlot < inventory.getSize()),
                 isTradeItemSlot = (e.getSlot() == tradeItemSlot && tradeItemSlot >= 0 && tradeItemSlot < inventory.getSize());
 
-        if ((isSaleItemSlot || isTradeItemSlot) && inventory.getType() != InventoryType.PLAYER) {
+        if (isSaleItemSlot && inventory.getType() != InventoryType.PLAYER) {
             if ((e.getCurrentItem() != null && menu.isFillerItem(e.getCurrentItem()))) return;
 
-            if (e.getCurrentItem() != null && changeItem != null && INSTANCE.getManager().isSimilar(e.getCurrentItem(), changeItem)) {
-                if (dataPack.getInteractionType() == InteractionType.SELECT_SALE_ITEM)
-                    inventory.setItem(saleItemSlot, (shop.getShopItem() != null ? shop.getShopItem().clone() : null));
-                else if (dataPack.getInteractionType() == InteractionType.SELECT_TRADE_ITEM) {
-                    inventory.setItem(tradeItemSlot, (shop.getTradeItem() != null ? shop.getTradeItem().clone() : null));
-                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                    if (ecoHook != null) menu.updateButton(player, inventory, menu.getConfiguration().getInt("buttons.currency-type.slot"),
-                            shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
-                }
-
+            if (e.getCurrentItem() != null && saleChangeItem != null && INSTANCE.getManager().isSimilar(e.getCurrentItem(), saleChangeItem)
+                    && dataPack.getInteractionType() == InteractionType.SELECT_SALE_ITEM) {
+                inventory.setItem(saleItemSlot, (shop.getShopItem() != null ? shop.getShopItem().clone() : null));
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
             } else {
-                dataPack.setInteractionType(isSaleItemSlot ? InteractionType.SELECT_SALE_ITEM : InteractionType.SELECT_TRADE_ITEM);
+                dataPack.setInteractionType(InteractionType.SELECT_SALE_ITEM);
                 dataPack.setInteractionValue(null);
-                inventory.setItem(e.getSlot(), changeItem);
+                inventory.setItem(e.getSlot(), saleChangeItem);
             }
 
             playClickSound(player);
             return;
 
+        } else if (isTradeItemSlot && inventory.getType() != InventoryType.PLAYER) {
+            if ((e.getCurrentItem() != null && menu.isFillerItem(e.getCurrentItem()))) return;
+
+            if (e.getCurrentItem() != null && tradeChangeItem != null && INSTANCE.getManager().isSimilar(e.getCurrentItem(), tradeChangeItem)
+                    && dataPack.getInteractionType() == InteractionType.SELECT_TRADE_ITEM) {
+                inventory.setItem(tradeItemSlot, shop.getCurrencyItem());
+                dataPack.setInteractionType(null);
+                dataPack.setInteractionValue(null);
+                if (menu.getConfiguration().contains("buttons.currency-type")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
+                    if (ecoHook != null) menu.updateButton(player, inventory, menu.getConfiguration().getInt("buttons.currency-type.slot"),
+                            shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
+                }
+            } else {
+                dataPack.setInteractionType(InteractionType.SELECT_TRADE_ITEM);
+                dataPack.setInteractionValue(null);
+                inventory.setItem(e.getSlot(), tradeChangeItem);
+            }
+
+            playClickSound(player);
+            return;
         } else if (inventory.getType() == InventoryType.PLAYER) {
             if (e.getCurrentItem() == null || dataPack.getInteractionType() == null) return;
 
@@ -292,9 +317,11 @@ public class MenuListener implements Listener {
                 shop.setTradeItem(selectedItemClone);
                 e.getView().getTopInventory().setItem(tradeItemSlot, shop.getTradeItem().clone());
 
-                final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                if (ecoHook != null) menu.updateButton(player, e.getView().getTopInventory(), menu.getConfiguration().getInt("buttons.currency-type.slot"),
-                        shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
+                if (menu.getConfiguration().contains("buttons.currency-type")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
+                    if (ecoHook != null) menu.updateButton(player, e.getView().getTopInventory(), menu.getConfiguration().getInt("buttons.currency-type.slot"),
+                            shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
+                }
 
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-set"));
                 INSTANCE.getInSightTask().refreshShop(shop);
@@ -481,14 +508,17 @@ public class MenuListener implements Listener {
                                     .setDisplayName(null, null, "&6")
                                     .setModelData(menu.getConfiguration().getInt("filler-model-data")).get();
                             inventory.setItem(menu.getConfiguration().getInt("trade-item-slot"), fillItem);
-                            inventory.setItem(menu.getConfiguration().getInt("buttons.trade-item-arrow.slot"), fillItem);
+                            if (menu.getConfiguration().contains("buttons.trade-item-arrow"))
+                                inventory.setItem(menu.getConfiguration().getInt("buttons.trade-item-arrow.slot"), fillItem);
                         } else {
                             final int tradeSlot = menu.getConfiguration().getInt("trade-item-slot");
                             if (tradeSlot >= 0 && tradeSlot < inventory.getSize())
                                 inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
 
-                            ConfigurationSection buttonsSection = menu.getConfiguration().getConfigurationSection("buttons");
-                            if (buttonsSection != null) menu.buildButton(buttonsSection, "trade-item-arrow", player, inventory, shop, null);
+                            if (menu.getConfiguration().contains("buttons.trade-item-arrow")) {
+                                ConfigurationSection buttonsSection = menu.getConfiguration().getConfigurationSection("buttons");
+                                if (buttonsSection != null) menu.buildButton(buttonsSection, "trade-item-arrow", player, inventory, shop, null);
+                            }
                         }
 
                         final int buyPriceSlot = menu.getConfiguration().getInt("buttons.buy-price.slot");
