@@ -17,6 +17,11 @@
       <option name="url" value="https://nexus.iridiumdevelopment.net/repository/maven-releases/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="opencollab-snapshot" />
+      <option name="name" value="opencollab-snapshot" />
+      <option name="url" value="https://repo.opencollab.dev/main/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="savagelabs" />
       <option name="name" value="savagelabs" />
       <option name="url" value="https://nexus.savagelabs.net" />
@@ -57,6 +62,11 @@
       <option name="url" value="https://jitpack.io" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="rosewood-repo" />
+      <option name="name" value="rosewood-repo" />
+      <option name="url" value="https://repo.rosewooddev.io/repository/public/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="codemc-repo" />
       <option name="name" value="codemc-repo" />
       <option name="url" value="https://repo.codemc.org/repository/maven-public/" />
@@ -75,6 +85,11 @@
       <option name="id" value="glaremasters repo" />
       <option name="name" value="glaremasters repo" />
       <option name="url" value="https://repo.glaremasters.me/repository/towny/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="auxilor" />
+      <option name="name" value="auxilor" />
+      <option name="url" value="https://repo.auxilor.io/repository/maven-public/" />
     </remote-repository>
     <remote-repository>
       <option name="id" value="jboss.community" />

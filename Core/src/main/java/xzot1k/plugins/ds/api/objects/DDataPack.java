@@ -34,6 +34,7 @@ public class DDataPack implements DataPack {
         this.setPluginInstance(pluginInstance);
         this.transactionLimitMap = new HashMap<>();
         this.cooldownMap = new HashMap<>();
+        this.baseBlockPageMap = new HashMap<>();
         setTransactionNotify(true);
         setBaseBlockUnlocks(new LinkedHashMap<>());
         loadBBM(baseBlockUnlocks);
@@ -302,9 +303,7 @@ public class DDataPack implements DataPack {
     }
 
     @Override
-    public HashMap<Integer, List<ItemStack>> getBaseBlockPageMap() {
-        return this.baseBlockPageMap;
-    }
+    public HashMap<Integer, List<ItemStack>> getBaseBlockPageMap() {return (this.baseBlockPageMap == null ? this.baseBlockPageMap = new HashMap<>() : this.baseBlockPageMap);}
 
     @Override
     public void setBaseBlockPageMap(HashMap<Integer, List<ItemStack>> baseBlockPageMap) {
