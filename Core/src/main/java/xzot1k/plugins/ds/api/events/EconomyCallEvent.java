@@ -160,7 +160,6 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         setPerformedCurrencyTransfer(true);
 
         switch (getEconomyCallType()) {
-
             case WITHDRAW_BALANCE: {
                 INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount());
                 getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - getAmount()), 0));
@@ -168,7 +167,6 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 shop.save(true);
                 return;
             }
-
             case DEPOSIT_BALANCE: {
                 INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount());
                 getShop().setStoredBalance(Math.max((getShop().getStoredBalance() + getAmount()), 0));
@@ -176,7 +174,6 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 shop.save(true);
                 return;
             }
-
             default: {break;}
         }
 

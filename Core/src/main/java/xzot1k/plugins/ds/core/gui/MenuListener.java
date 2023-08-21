@@ -664,6 +664,8 @@ public class MenuListener implements Listener {
                 }
 
                 int availableUnits = (shop.getStock() < 0 ? -1 : Math.max(0, (shop.getStock() / shop.getShopItemAmount())));
+                System.out.println("Available Units: " + availableUnits);
+
                 if (shop.getGlobalBuyLimit() > 0) {
                     long remainingLimit = dataPack.getCurrentTransactionCounter(shop, true, true);
                     if (remainingLimit <= 0) {
@@ -698,9 +700,7 @@ public class MenuListener implements Listener {
 
                 int affordableUnits = (player.hasPermission("displayshops.bypass") ? maxBuyAll
                         : Math.min(maxBuyAll, (int) (investorBalance / (buyPrice + (buyPrice * tax)))));
-
-                availableUnits = ((availableUnits < 0 && shop.isAdminShop()) ? affordableUnits : Math.min(maxBuyAll, affordableUnits));
-
+                availableUnits = ((availableUnits < 0 && shop.isAdminShop()) ? affordableUnits : Math.min(availableUnits, Math.min(maxBuyAll, affordableUnits)));
                 if (availableUnits <= 0) {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("no-affordable-units"));
                     return;
