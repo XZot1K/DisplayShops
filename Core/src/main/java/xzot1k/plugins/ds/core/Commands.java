@@ -283,15 +283,7 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        String tradeItemName = "";
-        ItemStack tradeItem = null;
-        if (!useVault) {
-            tradeItem = (getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use")
-                    ? getPluginInstance().getManager().buildShopCurrencyItem(1) : (shop.getTradeItem() != null
-                    ? shop.getTradeItem() : getPluginInstance().getManager().buildShopCurrencyItem(1)));
-            if (tradeItem != null) tradeItemName = getPluginInstance().getManager().getItemName(tradeItem);
-        }
-
+        String tradeItemName = shop.getTradeItemName();
         if (isWithdraw) {
             if ((shop.getStoredBalance() - amount) < 0 && shop.getStoredBalance() != amount) {
                 getPluginInstance().getManager().sendMessage(player, Objects.requireNonNull(getPluginInstance().getLangConfig().getString("balance-withdraw-fail"))

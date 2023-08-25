@@ -933,8 +933,8 @@ public class DManager implements Manager {
                         }
                     }
 
-                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet,
-                            "location") ? "base_" : "") + "location"), storedBaseBlockMaterialLine;
+                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location")
+                            ? "base_" : "") + "location"), storedBaseBlockMaterialLine;
                     LClone baseLocation;
                     if (baseLocationString.contains(":")) {
                         final String[] locationStringArgsOuter = baseLocationString.split(":"),
@@ -975,8 +975,7 @@ public class DManager implements Manager {
                     if (tradeItemString != null && !tradeItemString.equalsIgnoreCase(""))
                         tradeItem = getPluginInstance().toItem(tradeItemString);
 
-                    DShop shop = new DShop(shopId, ownerId, shopItem, baseLocation,
-                            resultSet.getInt("shop_item_amount"), storedBaseBlockMaterialLine);
+                    DShop shop = new DShop(shopId, ownerId, shopItem, baseLocation, resultSet.getInt("shop_item_amount"), storedBaseBlockMaterialLine);
                     shop.setTradeItem(tradeItem);
                     shop.setDescription(resultSet.getString("description"));
                     shop.setBuyPrice(resultSet.getDouble("buy_price"));
@@ -996,8 +995,7 @@ public class DManager implements Manager {
                     shop.setPlayerSellLimit(Integer.parseInt(limitArgs[5]));
 
                     String changeStamp = resultSet.getString("change_time_stamp");
-                    if (changeStamp != null && !changeStamp.contains("."))
-                        shop.setChangeTimeStamp(Long.parseLong(changeStamp));
+                    if (changeStamp != null && !changeStamp.contains(".")) shop.setChangeTimeStamp(Long.parseLong(changeStamp));
 
                     shop.setCommandOnlyMode(resultSet.getBoolean("command_only_mode"));
                     shop.setStock(resultSet.getInt("stock"));
@@ -1024,10 +1022,8 @@ public class DManager implements Manager {
 
                             shop.setDynamicPriceChange(Boolean.parseBoolean(extraDataArgs[0]));
 
-                            if (extraDataArgs.length > 3) {
-                                shop.setCurrencyType(extraDataArgs[3]);
-                                shop.checkCurrencyType(null);
-                            } else if (shop.getTradeItem() != null) shop.setCurrencyType("item-for-item");
+                            if (extraDataArgs.length > 3) shop.setCurrencyType(extraDataArgs[3]);
+                            shop.checkCurrencyType(null);
 
                             if (extraDataArgs.length > 2 && extraDataLine.contains(":")) {
                                 String[] buySplit = extraDataArgs[1].split(":"), sellSplit = extraDataArgs[2].split(":");
@@ -1073,13 +1069,10 @@ public class DManager implements Manager {
         if (!shopsToDelete.isEmpty())
             for (String id : shopsToDelete) {
                 try {
-                    PreparedStatement statement = getPluginInstance().getDatabaseConnection()
-                            .prepareStatement("DELETE FROM shops WHERE id = '" + id + "';");
+                    PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement("DELETE FROM shops WHERE id = '" + id + "';");
                     statement.executeUpdate();
                     statement.close();
-                } catch (SQLException e) {
-                    getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
-                }
+                } catch (SQLException e) {getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");}
             }
 
         if (loadedShops <= 0) getPluginInstance().log(Level.INFO, "No shops were found.");

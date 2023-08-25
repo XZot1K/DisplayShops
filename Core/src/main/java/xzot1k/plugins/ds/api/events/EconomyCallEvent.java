@@ -130,8 +130,8 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             return economyCallEvent;
         }
 
-        final boolean canBypass = !player.hasPermission("displayshops.bypass");
-        if (canBypass) {
+        final boolean canNotBypass = !player.hasPermission("displayshops.bypass");
+        if (canNotBypass) {
             if (!economyCallEvent.playerHasEnough()) {
                 player.closeInventory();
 
@@ -144,7 +144,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             }
         }
 
-        if (economyCallEvent.willSucceed()) economyCallEvent.performCurrencyTransfer(canBypass);
+        if (economyCallEvent.willSucceed()) economyCallEvent.performCurrencyTransfer(canNotBypass);
         else if (economyCallEvent.getErrorMessage() != null)
             DisplayShops.getPluginInstance().getManager().sendMessage(player, economyCallEvent.getErrorMessage());
         return economyCallEvent;
