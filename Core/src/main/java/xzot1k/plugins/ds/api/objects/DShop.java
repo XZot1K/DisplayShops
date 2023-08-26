@@ -721,16 +721,9 @@ public class DShop implements Shop {
 
         String defaultEcoCurrency = INSTANCE.getConfig().getString("default-currency-type");
         if (defaultEcoCurrency != null) {
-            EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(defaultEcoCurrency);
-            if (ecoHook != null) {
-                setCurrencyType(defaultEcoCurrency);
-                save(true);
-                return;
-            }
+            setCurrencyType(defaultEcoCurrency);
+            save(true);
         }
-
-        setCurrencyType("item-for-item");
-        save(true);
     }
 
     /**
