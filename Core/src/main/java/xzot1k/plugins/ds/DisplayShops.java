@@ -900,9 +900,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         for (String key : config.getKeys(true)) {
-            if (!jarConfig.contains(key) && (!key.toLowerCase().startsWith("translated-") || key.toLowerCase().startsWith("currency-settings.vault")
-                    || key.toLowerCase().startsWith("currency-settings.cmieconomy") || key.toLowerCase().startsWith("currency-settings.playerpoints")
-                    || key.toLowerCase().startsWith("currency-settings.item-for-item"))) {
+            if (!jarConfig.contains(key) && !key.toLowerCase().startsWith("translated-") && !key.toLowerCase().startsWith("currency-settings")) {
                 config.set(key, null);
                 log(Level.INFO, "Removed \"" + key + "\".");
                 removedCounter++;

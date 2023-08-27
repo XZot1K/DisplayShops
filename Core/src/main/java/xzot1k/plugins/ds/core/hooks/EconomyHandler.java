@@ -21,7 +21,11 @@ import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class EconomyHandler implements EcoHandler {
 
@@ -48,7 +52,7 @@ public class EconomyHandler implements EcoHandler {
 
     // pre-made registration
     private void setupItemForItem() {
-        EcoHook ecoHook = new EcoHook() {
+        new EcoHook("item-for-item", this) {
             @Override
             public String getSingularName() {return "item-for-item";}
 
@@ -118,9 +122,6 @@ public class EconomyHandler implements EcoHandler {
                 return EconomyHandler.this.getBalance(player, shop);
             }
         };
-
-        getEconomyRegistry().put("item-for-item", ecoHook);
-        loadExtraData("item-for-item", ecoHook);
     }
 
     public void setupVaultEconomy() {
@@ -131,7 +132,7 @@ public class EconomyHandler implements EcoHandler {
 
         this.vaultEconomy = rsp.getProvider();
 
-        EcoHook ecoHook = new EcoHook() {
+        new EcoHook("Vault", this) {
             @Override
             public String getSingularName() {
                 return ((getVaultEconomy().currencyNameSingular() == null
@@ -171,9 +172,6 @@ public class EconomyHandler implements EcoHandler {
             @Override
             public double getBalance(@NotNull OfflinePlayer player) {return getVaultEconomy().getBalance(player);}
         };
-
-        getEconomyRegistry().put("Vault", ecoHook);
-        loadExtraData("Vault", ecoHook);
     }
 
     private void setupPlayerPoints() {
@@ -187,7 +185,8 @@ public class EconomyHandler implements EcoHandler {
             final String singular = config.getString("currency-singular"),
                     plural = config.getString("currency-plural");
 
-            EcoHook ecoHook = new EcoHook() {
+            final String id = org.black_ixx.playerpoints.PlayerPoints.getInstance().getName();
+            new EcoHook(id, this) {
                 @Override
                 public String getSingularName() {return singular;}
 
@@ -216,10 +215,6 @@ public class EconomyHandler implements EcoHandler {
                 @Override
                 public double getBalance(@NotNull OfflinePlayer player) {return getBalance(player.getUniqueId());}
             };
-
-            final String id = org.black_ixx.playerpoints.PlayerPoints.getInstance().getName();
-            getEconomyRegistry().put(id, ecoHook);
-            loadExtraData(id, ecoHook);
         }
     }
 
@@ -230,8 +225,7 @@ public class EconomyHandler implements EcoHandler {
         for (int i = -1; ++i < com.willfp.ecobits.currencies.Currencies.values().size(); ) {
             final com.willfp.ecobits.currencies.Currency currency = com.willfp.ecobits.currencies.Currencies.values().get(i);
             if (currency.isRegisteredWithVault()) continue;
-
-            EcoHook ecoHook = new EcoHook() {
+            new EcoHook(currency.getId(), this) {
                 @Override
                 public String getSingularName() {return currency.getName();}
 
@@ -281,9 +275,6 @@ public class EconomyHandler implements EcoHandler {
                 @Override
                 public double getBalance(@NotNull OfflinePlayer player) {return CurrencyUtils.getBalance(player, currency).doubleValue();}
             };
-
-            getEconomyRegistry().put(currency.getId(), ecoHook);
-            loadExtraData(currency.getId(), ecoHook);
         }
     }
 
@@ -302,13 +293,18 @@ public class EconomyHandler implements EcoHandler {
      * @return Whether the player can use the currency.
      */
     public boolean canUseCurrency(@NotNull Player player, @NotNull String currencyName) {
-        if (player.hasPermission("displayshops.currency.*") || player.hasPermission("displayshops.currency." + currencyName)) return true;
+        boolean isBlacklisted = false;
         final List<String> blacklistedCurrencies = INSTANCE.getConfig().getStringList("currency-blacklist");
         for (int i = -1; ++i < blacklistedCurrencies.size(); ) {
             final String blacklistedCurrency = blacklistedCurrencies.get(i);
-            if (blacklistedCurrency.equalsIgnoreCase(currencyName)) return false;
+            if (blacklistedCurrency.equalsIgnoreCase(currencyName)) {
+                isBlacklisted = true;
+                break;
+            }
         }
-        return true;
+
+        if (isBlacklisted) return false;
+        else return (player.hasPermission("displayshops.currency.*") || player.hasPermission("displayshops.currency." + currencyName));
     }
 
     /**
@@ -319,27 +315,29 @@ public class EconomyHandler implements EcoHandler {
      * @return The next available currency for selection.
      */
     public String determineNextCurrencyCycle(@NotNull Player player, @NotNull Shop shop) {
-        final List<String> currencies = new ArrayList<>(getEconomyRegistry().keySet());
-        int nextIndex = 0;
+        final List<String> currencies = getEconomyRegistry().keySet().parallelStream().filter(currency ->
+                canUseCurrency(player, currency)).collect(Collectors.toList());
+        if (currencies.size() == 1) return currencies.get(0);
+
+        int index = 0;
         for (int i = -1; ++i < currencies.size(); ) {
             final String currency = currencies.get(i);
             if (currency.equalsIgnoreCase(shop.getCurrencyType())) {
-                if ((nextIndex + 1) < currencies.size()) nextIndex++;
+                index = i;
                 break;
             }
         }
 
-        String nextCurrency = currencies.get(nextIndex);
-        while (nextCurrency.equals(shop.getCurrencyType()) || !canUseCurrency(player, nextCurrency)) {
-            nextCurrency = currencies.get(nextIndex);
-            if ((nextIndex + 1) >= currencies.size()) nextIndex = 0;
-            else nextIndex++;
-        }
-
+        int counter = 0;
+        String nextCurrency;
+        do {
+            nextCurrency = currencies.get(((index + 1) >= currencies.size()) ? 0 : (index + 1));
+            counter++;
+        } while (nextCurrency.equalsIgnoreCase(shop.getCurrencyType()) && counter < (currencies.size() + 1));
         return nextCurrency;
     }
 
-    private void loadExtraData(@NotNull String currencyType, @NotNull EcoHook ecoHook) {
+    public void loadExtraData(@NotNull String currencyType, @NotNull EcoHook ecoHook) {
         ConfigurationSection currencySettingsSection = INSTANCE.getConfig().getConfigurationSection("currency-settings");
         if (currencySettingsSection == null) return;
 

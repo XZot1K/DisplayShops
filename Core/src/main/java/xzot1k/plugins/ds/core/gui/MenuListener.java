@@ -610,7 +610,6 @@ public class MenuListener implements Listener {
         final int unitItemSlot = menu.getConfiguration().getInt("buttons.unit.slot");
 
         switch (buttonName) {
-
             case "buy": {
                 playClickSound(player);
 
@@ -664,8 +663,6 @@ public class MenuListener implements Listener {
                 }
 
                 int availableUnits = (shop.getStock() < 0 ? -1 : Math.max(0, (shop.getStock() / shop.getShopItemAmount())));
-                System.out.println("Available Units: " + availableUnits);
-
                 if (shop.getGlobalBuyLimit() > 0) {
                     long remainingLimit = dataPack.getCurrentTransactionCounter(shop, true, true);
                     if (remainingLimit <= 0) {
