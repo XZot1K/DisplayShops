@@ -14,6 +14,10 @@ commands:
     default: op
     description: The main command for the DisplayShops plugin.
     aliases: [ ds ]
+  dsfilter:
+    default: op
+    description: The filter command for searching in the Shops visit menu.
+    aliases: [ swfilter ]
 
 permissions:
   displayshops.*:

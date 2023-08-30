@@ -45,8 +45,24 @@ public class Commands implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (command.getName().equalsIgnoreCase("displayshops")) {
+        if (command.getName().equalsIgnoreCase("dsfilter")) {
+            if (args.length > 1) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = -1; ++i < args.length; ) {
+                    if (sb.length() > 0) sb.append(" ");
+                    sb.append(args[i]);
+                }
 
+                runVisit(commandSender, sb.toString(), sb.toString());
+                return true;
+            } else if (args.length == 1) {
+                runVisit(commandSender, args[0], args[0]);
+                return true;
+            }
+
+            runVisit(commandSender, null, null);
+            return true;
+        } else if (command.getName().equalsIgnoreCase("displayshops")) {
             if (args.length >= 2 && (args[0].equalsIgnoreCase("addcommand") || args[0].equalsIgnoreCase("addcmd"))) {
                 runAddCommand(commandSender, args);
                 return true;
@@ -54,7 +70,6 @@ public class Commands implements CommandExecutor {
 
             if (args.length > 0 && (args[0].equalsIgnoreCase("visit") || args[0].equalsIgnoreCase("sw"))) {
                 if (args.length > 2) {
-
                     StringBuilder sb = new StringBuilder();
                     for (int i = 0; ++i < args.length; ) {
                         if (sb.length() > 0) sb.append(" ");
@@ -133,7 +148,6 @@ public class Commands implements CommandExecutor {
                         runId(commandSender);
                         return true;
                     }
-
                     break;
                 case 2:
                     if (args[0].equalsIgnoreCase("buyprice") || args[0].equalsIgnoreCase("bp")) {
@@ -266,9 +280,7 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        boolean isAll = args[1].equalsIgnoreCase("all"),
-                useVault = getPluginInstance().getConfig().getBoolean("use-vault");
-
+        boolean isAll = args[1].equalsIgnoreCase("all");
         if (!isAll && getPluginInstance().getManager().isNotNumeric(args[2].replace(",", "."))) {
             String message = getPluginInstance().getLangConfig().getString("invalid-amount");
             if (message != null && !message.equalsIgnoreCase(""))
@@ -314,30 +326,6 @@ public class Commands implements CommandExecutor {
 
         if (isWithdraw) getPluginInstance().getEconomyHandler().deposit(player, shop, amount);
         else getPluginInstance().getEconomyHandler().withdraw(player, shop, amount);
-        /*if (useVault) {
-            if (isWithdraw) getPluginInstance().getEconomyHandler().deposit(player, shop, amount);
-            else getPluginInstance().getEconomyHandler().withdraw(player, shop, amount);
-        } else {
-            if (isWithdraw) {
-                if (tradeItem != null) {
-                    int stackCount = (int) (amount / tradeItem.getType().getMaxStackSize()),
-                            remainder = (int) (amount % tradeItem.getType().getMaxStackSize());
-
-                    tradeItem.setAmount(tradeItem.getType().getMaxStackSize());
-                    for (int i = -1; ++i < stackCount; )
-                        if (player.getInventory().firstEmpty() == -1)
-                            player.getWorld().dropItemNaturally(player.getLocation(), tradeItem);
-                        else player.getInventory().addItem(tradeItem);
-
-                    if (remainder > 0) {
-                        tradeItem.setAmount(remainder);
-                        if (player.getInventory().firstEmpty() == -1)
-                            player.getWorld().dropItemNaturally(player.getLocation(), tradeItem);
-                        else player.getInventory().addItem(tradeItem);
-                    }
-                }
-            } else getPluginInstance().getManager().removeItem(player.getInventory(), tradeItem, (int) amount);
-        }*/
 
         shop.setStoredBalance(shop.getStoredBalance() + (isWithdraw ? -amount : amount));
         shop.updateTimeStamp();
@@ -1064,7 +1052,8 @@ public class Commands implements CommandExecutor {
                 try {
                     shop.delete(false);
                     for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
-                        if (player == null || !player.isOnline() || !player.getLocation().getWorld().getName().equalsIgnoreCase(worldName))
+                        if (player == null || !player.isOnline() || player.getLocation().getWorld() == null
+                                || !player.getLocation().getWorld().getName().equalsIgnoreCase(worldName))
                             continue;
                         shop.kill(player);
                         if (getPluginInstance().getShopMemory().containsKey(player.getUniqueId())) {
@@ -1411,9 +1400,11 @@ public class Commands implements CommandExecutor {
         }
 
         commandSender.sendMessage(getPluginInstance().getManager().color("\n&e<&m------------&r&e[ &bDisplayShops &e]&m------------&r&e>\n" +
-                "&7Current Plugin Version: " + (getPluginInstance().getDescription().getVersion().toLowerCase().contains("build") ? "&c" : "&a") + getPluginInstance().getDescription().getVersion() + "\n" +
-                "&7Latest Release Plugin Version: " + (getPluginInstance().getDescription().getVersion().toLowerCase().contains("snapshot") ? "&1" : "&a") + getPluginInstance().getLatestVersion() + "\n" +
-                "&7Author(s): &bXZot1K\n" +
+                "&7Current Plugin Version: " + (getPluginInstance().getDescription().getVersion().toLowerCase().contains("build") ? "&c" : "&a")
+                + getPluginInstance().getDescription().getVersion() + "\n" +
+                "&7Latest Release Plugin Version: " + (getPluginInstance().getDescription().getVersion().toLowerCase().contains("snapshot") ? "&1" : "&a")
+                + getPluginInstance().getLatestVersion() + "\n"
+                + "&7Author(s): &bXZot1K\n" +
                 "&e<&m-------------------------------------&r&e>\n"));
     }
 
@@ -1991,6 +1982,7 @@ public class Commands implements CommandExecutor {
 
     // other helpers
     private void sendHelp(CommandSender commandSender) {
+        //if (!(commandSender instanceof Player)) {
         final String helpMessage = getPluginInstance().getLangConfig().getString(commandSender.hasPermission("displayshops.adminhelp")
                 ? "admin-help-message" : "user-help-message");
         if (helpMessage == null || helpMessage.isEmpty()) return;
@@ -2014,6 +2006,40 @@ public class Commands implements CommandExecutor {
         commandSender.sendMessage(getPluginInstance().getManager().color(helpMessage));
         if (helpLink != null && !helpLink.isEmpty())
             commandSender.sendMessage(helpLink.equalsIgnoreCase("wiki") ? "https://github.com/XZot1K/DisplayShopsAPI/wiki/Commands" : helpLink);
+        //    return;
+        //}
+
+       /* ItemStack bookItem = new ItemStack(Material.WRITTEN_BOOK);
+        BookMeta bookmeta = (BookMeta) bookItem.getItemMeta();
+        if (bookmeta == null) return;
+
+        bookmeta.setAuthor("XZot1K");
+        bookmeta.setTitle("Commands");
+
+        ConfigurationSection commandsSection = getPluginInstance().getLangConfig().getConfigurationSection("help-book.commands");
+        if (commandsSection == null) return;
+
+        String pageHeader = getPluginInstance().getLangConfig().getString("help-book.page-header");
+        int counter = 0;
+        StringBuilder sb = new StringBuilder(pageHeader + "\n");
+        for (String command : commandsSection.getKeys(false)) {
+            sb.append(getPluginInstance().getManager().color("\n" + command + "\n" + commandsSection.getString(command) + "\n"));
+
+            if (counter >= 4) {
+                bookmeta.addPage(sb.toString());
+                counter = 0;
+                sb.setLength(0);
+                sb.append(pageHeader).append("\n");
+            }
+
+            counter++;
+        }
+
+        if (sb.length() > (pageHeader + "\n").length()) bookmeta.addPage(sb.toString());
+
+        bookItem.setItemMeta(bookmeta);
+        Player player = (Player) commandSender;
+        player.openBook(bookItem);*/
     }
 
     // getters & setters

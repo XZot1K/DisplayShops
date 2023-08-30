@@ -96,7 +96,7 @@ public class DDataPack implements DataPack {
     }
 
     @Override
-    public int getCooldown(Player player, @NotNull String cooldownId, int cooldown) {
+    public int getCooldown(@NotNull Player player, @NotNull String cooldownId, int cooldown) {
         if (!player.hasPermission("displayshops.cdbypass")) {
             int cd = Math.max(cooldown, 0);
             return (int) ((getCooldownMap().containsKey(cooldownId) ? getCooldownMap().get(cooldownId)

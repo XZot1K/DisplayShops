@@ -559,7 +559,6 @@ public class MenuListener implements Listener {
         final int previewSlot = menu.getConfiguration().getInt("preview-slot");
 
         if (e.getSlot() == previewSlot) {
-
             ItemStack previewSlotItem = inventory.getItem(previewSlot);
             if (previewSlotItem == null) return;
 
@@ -608,6 +607,37 @@ public class MenuListener implements Listener {
         if (buttonName == null || buttonName.isEmpty()) return;
 
         final int unitItemSlot = menu.getConfiguration().getInt("buttons.unit.slot");
+        if (buttonName.startsWith("unit-increase-")) {
+            final String amountString = buttonName.replace("unit-increase-", "");
+            if (INSTANCE.getManager().isNotNumeric(amountString)) return;
+            playClickSound(player);
+
+            ItemStack unitCountItem = inventory.getItem(unitItemSlot);
+            if (unitCountItem == null) {
+                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-item-invalid"));
+                return;
+            }
+
+            final int amount = Integer.parseInt(amountString);
+            unitCountItem.setAmount(Math.min((unitCountItem.getAmount() + amount), unitCountItem.getType().getMaxStackSize()));
+            updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
+            return;
+        } else if (buttonName.startsWith("unit-decrease-")) {
+            final String amountString = buttonName.replace("unit-decrease-", "");
+            if (INSTANCE.getManager().isNotNumeric(amountString)) return;
+            playClickSound(player);
+
+            ItemStack unitCountItem = inventory.getItem(unitItemSlot);
+            if (unitCountItem == null) {
+                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-item-invalid"));
+                return;
+            }
+
+            final int amount = Integer.parseInt(amountString);
+            unitCountItem.setAmount(Math.max(1, (unitCountItem.getAmount() - amount)));
+            updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
+            return;
+        }
 
         switch (buttonName) {
             case "buy": {
@@ -652,7 +682,6 @@ public class MenuListener implements Listener {
                 runEconomyCall(player, shop, EconomyCallType.BUY, unitCount);
                 break;
             }
-
             case "buy-all": {
                 playClickSound(player);
 
@@ -714,7 +743,6 @@ public class MenuListener implements Listener {
                 runEconomyCall(player, shop, EconomyCallType.BUY, availableUnits);
                 break;
             }
-
             case "sell": {
                 playClickSound(player);
 
@@ -760,7 +788,6 @@ public class MenuListener implements Listener {
                 runEconomyCall(player, shop, EconomyCallType.SELL, unitCount);
                 break;
             }
-
             case "sell-all": {
                 playClickSound(player);
 
@@ -824,7 +851,6 @@ public class MenuListener implements Listener {
                 runEconomyCall(player, shop, EconomyCallType.SELL, Math.min(sellableUnits, INSTANCE.getConfig().getInt("maximum-sell-all")));
                 break;
             }
-
             case "unit-increase": {
                 playClickSound(player);
 
@@ -846,30 +872,6 @@ public class MenuListener implements Listener {
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-increased"));
                 break;
             }
-
-            case "unit-increase-more": {
-                playClickSound(player);
-
-                ItemStack unitCountItem = inventory.getItem(unitItemSlot);
-                if (unitCountItem == null) {
-                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-item-invalid"));
-                    return;
-                }
-
-                if (unitCountItem.getAmount() >= unitCountItem.getType().getMaxStackSize()) {
-                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-max"));
-                    return;
-                }
-
-                final int newStack = (unitCountItem.getAmount() + ((int) (unitCountItem.getType().getMaxStackSize() * 0.25)));
-                unitCountItem.setAmount(Math.min(newStack, unitCountItem.getType().getMaxStackSize()));
-
-                updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
-
-                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-increased"));
-                break;
-            }
-
             case "unit-decrease": {
                 playClickSound(player);
 
@@ -891,33 +893,7 @@ public class MenuListener implements Listener {
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-decreased"));
                 break;
             }
-
-            case "unit-decrease-more": {
-                playClickSound(player);
-
-                ItemStack unitCountItem = inventory.getItem(menu.getConfiguration().getInt("buttons.unit.slot"));
-                if (unitCountItem == null) {
-                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-item-invalid"));
-                    return;
-                }
-
-                if (unitCountItem.getAmount() <= 1) {
-                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-min"));
-                    return;
-                }
-
-                final int newStack = (unitCountItem.getAmount() - ((int) (unitCountItem.getType().getMaxStackSize() * 0.25)));
-                unitCountItem.setAmount(Math.max(1, newStack));
-
-                updateTransactionButtons(player, e.getClickedInventory(), shop, menu, unitCountItem.getAmount());
-
-                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-decreased"));
-                break;
-            }
-
-            default: {
-                break;
-            }
+            default: {break;}
         }
     }
 

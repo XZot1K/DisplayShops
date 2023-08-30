@@ -342,7 +342,6 @@ public class DManager implements Manager {
                 ("{global-sell-limit}:" + (shop.getGlobalSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false) : disabled)),
                 ("{player-buy-limit}:" + (shop.getPlayerBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false) : disabled)),
                 ("{player-sell-limit}:" + (shop.getPlayerSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false) : disabled)),
-                ("{unit-increment}:" + Math.max(((int) (unitItemMaxStack * 0.25)), 1)),
                 ("{item}:" + (shop.getShopItem() != null ? getPluginInstance().getManager().getItemName(shop.getShopItem()) : "")),
                 ("{trade-item}:" + shop.getTradeItemName()),
                 ("{shop-item-amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),

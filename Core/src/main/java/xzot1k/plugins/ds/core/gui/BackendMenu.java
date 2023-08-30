@@ -64,6 +64,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         } catch (IOException | InvalidConfigurationException e) {INSTANCE.getServer().getLogger().warning(e.getMessage());}
     }
 
+    @SuppressWarnings("unchecked")
     private void fixup() {
         // This fixes the edit.yml for the new values added
         if (getMenuName().equals("edit")) {
@@ -90,6 +91,69 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     && !getConfiguration().contains("trade-item-change")) {
                 addSectionFromJarConfig("menus/edit.yml", "sale-item-change");
                 addSectionFromJarConfig("menus/edit.yml", "trade-item-change");
+            }
+        }
+
+        if (getMenuName().equals("transaction")) {
+            ConfigurationSection buttonSection = getConfiguration().getConfigurationSection("buttons");
+            if (buttonSection != null) {
+                if (buttonSection.contains("unit-increase-more")) {
+                    ConfigurationSection oldSection = buttonSection.getConfigurationSection("unit-increase-more");
+                    if (oldSection != null) {
+                        ConfigurationSection newSection = buttonSection.createSection("unit-increase-16");
+                        for (String key : oldSection.getKeys(false)) {
+                            if (key.contains("amount")) {
+                                newSection.set(key, "16");
+                                continue;
+                            }
+
+                            final Object value = oldSection.get(key);
+                            if (value instanceof String) {
+                                newSection.set(key, ((String) value).replace("{unit-increment}", "16"));
+                                continue;
+                            } else if (value instanceof List) {
+                                List<String> list = ((List<String>) value);
+                                for (int i = -1; ++i < list.size(); ) {
+                                    String line = list.get(i);
+                                    list.set(i, line.replace("{unit-increment}", "16"));
+                                }
+                            }
+                            newSection.set(key, value);
+                        }
+
+                        buttonSection.set("unit-increase-more", null);
+                        save();
+                    }
+                }
+
+                if (buttonSection.contains("unit-decrease-more")) {
+                    ConfigurationSection oldSection = buttonSection.getConfigurationSection("unit-decrease-more");
+                    if (oldSection != null) {
+                        ConfigurationSection newSection = buttonSection.createSection("unit-decrease-16");
+                        for (String key : oldSection.getKeys(false)) {
+                            if (key.contains("amount")) {
+                                newSection.set(key, "16");
+                                continue;
+                            }
+
+                            final Object value = oldSection.get(key);
+                            if (value instanceof String) {
+                                newSection.set(key, ((String) value).replace("{unit-increment}", "16"));
+                                continue;
+                            } else if (value instanceof List) {
+                                List<String> list = ((List<String>) value);
+                                for (int i = -1; ++i < list.size(); ) {
+                                    String line = list.get(i);
+                                    list.set(i, line.replace("{unit-increment}", "16"));
+                                }
+                            }
+                            newSection.set(key, value);
+                        }
+
+                        buttonSection.set("unit-decrease-more", null);
+                        save();
+                    }
+                }
             }
         }
 
@@ -348,6 +412,32 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     inventory.setItem(previewSlot, previewItem);
                 }
 
+                // ((int) (unitCountItem.getType().getMaxStackSize() * 0.25))
+
+                if (getConfiguration().contains("buttons.unit")) {
+                    final int unitSlot = getInt("buttons.unit.slot");
+                    if (unitSlot >= 0 && unitSlot < inventory.getSize()) {
+                        ItemStack unitItem = inventory.getItem(unitSlot);
+                        if (unitItem != null) {
+                            if (getConfiguration().contains("buttons.unit-increase-more")) {
+                                final int unitMoreSlot = getInt("buttons.unit-increase-more.slot");
+                                if (unitMoreSlot >= 0 && unitMoreSlot < inventory.getSize()) {
+                                    ItemStack itemStack = inventory.getItem(unitMoreSlot);
+                                    if (itemStack != null) itemStack.setAmount((int) (unitItem.getType().getMaxStackSize() * 0.25));
+                                }
+                            }
+
+                            if (getConfiguration().contains("buttons.unit-decrease-more")) {
+                                final int unitMoreSlot = getInt("buttons.unit-decrease-more.slot");
+                                if (unitMoreSlot >= 0 && unitMoreSlot < inventory.getSize()) {
+                                    ItemStack itemStack = inventory.getItem(unitMoreSlot);
+                                    if (itemStack != null) itemStack.setAmount((int) (unitItem.getType().getMaxStackSize() * 0.25));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 return inventory;
             }
         }
@@ -466,7 +556,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
     @Override
     public void switchPage(@NotNull Inventory inventory, @NotNull Player player, int page) {
-
         List<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
         for (int i = -1; ++i < inventory.getSize(); ) {
             if (emptySlots.contains(i)) inventory.setItem(i, null);
@@ -492,6 +581,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         }
     }
 
+    @SuppressWarnings("UnnecessaryUnicodeEscape")
     @Override
     public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText, @Nullable ItemStack typeItem) {
         dataPack.getPageMap().clear();
@@ -500,7 +590,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         final int[] currentPage = {1};
         List<ItemStack> pageContents = new ArrayList<>();
         switch (getMenuName()) {
-
             case "visit": {
                 final boolean showAdminShop = getBoolean("show-admin-shops");
 
@@ -650,7 +739,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 }
                 break;
             }
-
             case "assistants": {
                 if (shop != null) {
                     final String activeColor = getString("active-color"),
@@ -683,178 +771,30 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 }
                 break;
             }
-
             case "appearance": {
                 if (shop != null) {
-                    String currentMaterial = (shop.getStoredBaseBlockMaterial() != null ? shop.getStoredBaseBlockMaterial()
-                            : INSTANCE.getConfig().getString("shop-block-material"));
-                    int currentDurability = -1;
-
-                    if (currentMaterial != null) {
-                        if (currentMaterial.contains(":")) {
-                            String[] args = currentMaterial.split(":");
-                            Material newMat = Material.getMaterial(args[0].toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (newMat != null) currentMaterial = newMat.name();
-                            else if (INSTANCE.isItemAdderInstalled()) {
-                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
-                                if (customBlock != null) currentMaterial = customBlock.getId();
-                            }
-
-                            currentDurability = Integer.parseInt(args[1]);
-                        } else {
-                            Material newMat = Material.getMaterial(currentMaterial.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (newMat != null) currentMaterial = newMat.name();
-                            else if (INSTANCE.isItemAdderInstalled()) {
-                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(currentMaterial);
-                                if (customBlock != null) currentMaterial = customBlock.getId();
-                            }
-                        }
-                    }
-
-                    String selectedName = getString("selected-format.name");
-                    final String unlockedName = getString("unlocked-format.name"),
-                            lockedName = getString("locked-format.name");
-
-                    final List<String> appearances = getStringList("appearances"),
-                            selectedLore = getStringList("selected-format.lore"),
-                            unlockedLore = getStringList("unlocked-format.lore"),
-                            lockedLore = getStringList("locked-format.lore");
-
+                    final List<Appearance> appearances = new ArrayList<>(Appearance.getAppearances());
                     if (getBoolean("sort-alphabetically")) Collections.sort(appearances); // sort appearances alphabetically
 
                     for (int i = -1; ++i < appearances.size(); ) {
-                        final String appearance = appearances.get(i);
-                        ItemStack itemStack = null;
-                        double foundPrice = 0;
+                        Appearance appearance = appearances.get(i);
+                        if (appearance == null) continue;
 
-                        String material = null, unlockId = appearance;
-                        if (appearance.contains(":")) {
-                            String[] args = appearance.split(":");
-                            unlockId = (args[0] + ":" + args[1]);
-
-                            Material mat = Material.getMaterial(args[0]);
-                            if (mat != null) {
-                                material = mat.name();
-                                int durability = Integer.parseInt(args[1]);
-                                itemStack = new ItemStack(mat, 1, (byte) (Math.max(durability, 0)));
-                                itemStack = INSTANCE.updateNBT(itemStack, "ds-type", material);
-                            } else if (INSTANCE.isItemAdderInstalled()) {
-                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
-                                if (customBlock != null) {
-                                    material = customBlock.getId();
-                                    itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", material);
-                                }
-                            }
-
-                            if (args.length >= 3 && !INSTANCE.getManager().isNotNumeric(args[2])) foundPrice = Double.parseDouble(args[2]);
-                        } else {
-                            Material mat = Material.getMaterial(appearance);
-                            if (mat != null) {
-                                material = mat.name();
-                                itemStack = INSTANCE.updateNBT(new ItemStack(mat), "ds-type", material);
-                            } else if (INSTANCE.isItemAdderInstalled()) {
-                                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(appearance);
-                                if (customBlock != null) {
-                                    material = customBlock.getId();
-                                    itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", material);
-                                }
-                            }
+                        if (pageContents.size() >= (getSize() - 9)) {
+                            dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
+                            pageContents.clear();
+                            currentPage[0] += 1;
                         }
 
-                        if (itemStack == null) continue;
-
-                        final ItemMeta itemMeta = itemStack.getItemMeta();
-                        if (itemMeta != null) {
-                            if ((material != null && material.equalsIgnoreCase(currentMaterial)
-                                    && (currentDurability == itemStack.getDurability() || currentDurability <= -1))) {
-                                if (selectedName != null) {
-                                    if (INSTANCE.isItemAdderInstalled()) {
-                                        dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(material);
-                                        if (customBlock != null) selectedName = selectedName.replace("{material}", customBlock.getDisplayName());
-                                        else selectedName = selectedName.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
-                                    } else selectedName = selectedName.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
-                                    itemMeta.setDisplayName(INSTANCE.getManager().color(selectedName));
-                                }
-                                itemMeta.setLore(new ArrayList<String>() {{
-                                    for (int i = -1; ++i < selectedLore.size(); )
-                                        add(INSTANCE.getManager().color(selectedLore.get(i)));
-                                }});
-
-                                if (getBoolean("selected-format.enchanted")) {
-                                    try {
-                                        itemMeta.addEnchant(Enchantment.DURABILITY, 0, true);
-                                        itemMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                        INSTANCE.log(Level.WARNING, "Failed to hide the enchantments on the current base-block item"
-                                                + " for the selection GUI. Please disable this option for your version.");
-                                    }
-                                }
-
-                                itemStack.setItemMeta(itemMeta);
-                            } else {
-                                final boolean isUnlocked = dataPack.hasUnlockedBBM(unlockId);
-                                String name = getString((isUnlocked ? "unlocked" : "locked") + "-format.name");
-                                if (name != null) {
-                                    if (INSTANCE.isItemAdderInstalled()) {
-                                        dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(material);
-                                        if (customBlock != null) name = name.replace("{material}", customBlock.getDisplayName());
-                                        else name = name.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
-                                    } else name = name.replace("{material}", INSTANCE.getManager().getTranslatedName(itemStack.getType()));
-
-                                    itemMeta.setDisplayName(INSTANCE.getManager().color(Objects.requireNonNull((isUnlocked ? unlockedName : lockedName))
-                                            .replace("{material}", name)));
-
-                                    final double finalFoundPrice = foundPrice;
-                                    itemMeta.setLore(new ArrayList<String>() {{
-                                        if (appearance.contains(":")) {
-                                            String[] args = appearance.split(":");
-                                            for (int i = -1; ++i < (isUnlocked ? unlockedLore : lockedLore).size(); ) {
-                                                String line = (isUnlocked ? unlockedLore : lockedLore).get(i);
-                                                if (!line.equalsIgnoreCase("{requirement}"))
-                                                    add(INSTANCE.getManager().color(INSTANCE.papiText(player, line.replace("{price}",
-                                                            INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalFoundPrice)))));
-                                                else if (args.length >= 4)
-                                                    add(INSTANCE.getManager().color(INSTANCE.papiText(player, args[3])));
-                                            }
-                                        } else
-                                            for (int i = -1; ++i < (isUnlocked ? unlockedLore : lockedLore).size(); )
-                                                add(INSTANCE.getManager().color((isUnlocked ? unlockedLore : lockedLore).get(i)
-                                                        .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalFoundPrice))
-                                                        .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalFoundPrice))));
-                                    }});
-
-                                    itemStack.setItemMeta(itemMeta);
-                                }
-                            }
-
-                            if (searchText != null && !searchText.isEmpty()) {
-                                boolean isNumeric = !INSTANCE.getManager().isNotNumeric(searchText);
-
-                                if (!(isNumeric && foundPrice == Double.parseDouble(searchText))
-                                        && !itemStack.getType().name().toLowerCase().replace("_", " ")
-                                        .contains(searchText.toLowerCase().replace("_", " ")))
-                                    continue;
-                            }
-
-                            if (pageContents.size() >= (getInt("size") - 9)) {
-                                dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-                                pageContents.clear();
-                                currentPage[0] += 1;
-                            }
-
-                            pageContents.add(INSTANCE.updateNBT(itemStack, "ds-bbm", shop.getShopId().toString()));
-                        }
-
-                        if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
+                        ItemStack itemStack = appearance.build(player, shop);
+                        if (itemStack != null) pageContents.add(itemStack);
                     }
+
+                    if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
                     break;
                 }
             }
-
-            default: {
-                break;
-            }
+            default: {break;}
         }
 
         dataPack.setCurrentPage(1);

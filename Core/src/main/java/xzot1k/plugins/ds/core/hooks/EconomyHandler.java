@@ -359,6 +359,8 @@ public class EconomyHandler implements EcoHandler {
 
             if (currencySection.contains("decimal-placement")) ecoHook.setDecimalPlacement(currencySection.getInt("decimal-placement"));
             if (currencySection.contains("raw-placeholder-value")) ecoHook.setRawPlaceholderValue(currencySection.getBoolean("raw-placeholder-value"));
+            if (currencySection.contains("use-format")) ecoHook.setUseFormat(currencySection.getBoolean("use-format"));
+            if (currencySection.contains("format")) ecoHook.setFormat(currencySection.getString("format"));
             break;
         }
     }
@@ -500,8 +502,17 @@ public class EconomyHandler implements EcoHandler {
                 : (useUKFormatting ? formatted.replace(".", "_COMMA_").replace(",", "_PERIOD_")
                 .replace("_PERIOD_", ".").replace("_COMMA_", ",") : formatted));
 
-        return ((ecoHook != null && ecoHook.isRawPlaceholderValue()) ? numericalValue : (currencySymbol + numericalValue
-                + (isItemForItem ? " " + ((shop != null) ? shop.getTradeItemName() : INSTANCE.getManager().getItemName(INSTANCE.getManager().defaultCurrencyItem)) : "")));
+        if (ecoHook != null) {
+            if (ecoHook.useFormat()) {
+                String format = ecoHook.getFormat();
+                if (format != null) return format.replace("{amount}", numericalValue).replace("{symbol}", currencySymbol)
+                        .replace("{item}", (shop != null ? INSTANCE.getManager().getItemName(shop.getCurrencyItem()) : ""))
+                        .replace("{trade-item}", (shop != null ? shop.getTradeItemName() : ""));
+            } else if (ecoHook.isRawPlaceholderValue()) return numericalValue;
+        }
+
+        return (currencySymbol + numericalValue + (isItemForItem ? " " + ((shop != null) ? shop.getTradeItemName()
+                : INSTANCE.getManager().getItemName(INSTANCE.getManager().defaultCurrencyItem)) : ""));
     }
 
     /**

@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.api.DManager;
 import xzot1k.plugins.ds.api.VersionUtil;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
+import xzot1k.plugins.ds.api.objects.DAppearance;
 import xzot1k.plugins.ds.api.objects.DataPack;
 import xzot1k.plugins.ds.api.objects.Menu;
 import xzot1k.plugins.ds.api.objects.Shop;
@@ -59,7 +60,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private DManager manager;
     private SimpleDateFormat dateFormat;
 
-    public Class<?> craftPlayerClass, packetOpenWindowClass, displayPacketClass;
+    public Class<?> displayPacketClass;//craftPlayerClass, packetOpenWindowClass
     private double serverVersion;
     // Version handlers
     private String versionPackageName;
@@ -153,6 +154,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         setManager(new DManager(this));
 
         loadMenus();
+        DAppearance.loadAppearances();
 
         long databaseStartTime = System.currentTimeMillis();
         final boolean fixedTables = setupDatabase();
@@ -179,14 +181,15 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                     + "incompatibilities. Make sure you are on the correct version of PlotSquared.");
         }
 
-        PluginCommand command = getCommand("displayshops");
-        if (command != null) {
-            command.setExecutor(new Commands(this));
-
-            TabCompleter tabCompleter = new TabCompleter(this);
-            command.setTabCompleter(tabCompleter);
-        }
-
+        final Commands commands = new Commands(this);
+        final TabCompleter tabCompleter = new TabCompleter(this);
+        getDescription().getCommands().forEach((key, value) -> {
+            PluginCommand command = getCommand(key);
+            if (command != null) {
+                command.setExecutor(commands);
+                command.setTabCompleter(tabCompleter);
+            }
+        });
 
         if (getConfig().getBoolean("shop-creation-item.craftable")) {
             try {
@@ -792,26 +795,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     public ItemStack toItem(@NotNull String itemString) {
-
-        /*
-        if (!itemString.contains("item:")) {
-            try {
-                final ByteArrayInputStream inputStream = new ByteArrayInputStream(new BigInteger(itemString, 32).toByteArray());
-                final DataInputStream dataInputStream = new DataInputStream(inputStream);
-                final NBTTagCompound tag = NBTCompressedStreamTools.a(dataInputStream, NBTReadLimiter.a); // read() and UNLIMITED
-
-                dataInputStream.close();
-                inputStream.close();
-
-                Constructor<?> constructor = net.minecraft.world.item.ItemStack.class.getDeclaredConstructor(NBTTagCompound.class);
-                constructor.setAccessible(true);
-
-                return CraftItemStack.asBukkitCopy((net.minecraft.world.item.ItemStack) constructor.newInstance(tag));
-            } catch (IOException | NoSuchMethodException | InstantiationException
-                     | IllegalAccessException | InvocationTargetException e) {e.printStackTrace();}
-        }
-         */
-
         YamlConfiguration restoreConfig = new YamlConfiguration();
         try {
             restoreConfig.loadFromString(itemString.replace("[sq]", "'").replace("[dq]", "\""));
