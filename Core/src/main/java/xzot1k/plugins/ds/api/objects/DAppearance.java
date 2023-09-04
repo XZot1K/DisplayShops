@@ -29,7 +29,8 @@ public class DAppearance extends Appearance {
 
         Object appearanceObject = menu.getConfiguration().get("appearances");
         if (appearanceObject == null) {
-            DisplayShops.getPluginInstance().log(Level.WARNING, "No appearances section was found in the \"" + menu.getConfiguration().getName() + "\" file.");
+            DisplayShops.getPluginInstance().log(Level.WARNING, "No appearances section was found in the \"" + menu.getConfiguration().getName() +
+                    "\" file.");
             return;
         }
 
@@ -79,7 +80,8 @@ public class DAppearance extends Appearance {
             String material = appearanceOptions.getString("material");
             if (material == null || material.isEmpty()) {
                 failed++;
-                DisplayShops.getPluginInstance().log(Level.WARNING, "The appearance \"" + id + "\" was unable to load due to a missing/invalid material value.");
+                DisplayShops.getPluginInstance().log(Level.WARNING, "The appearance \"" + id + "\" was unable to load due to a missing/invalid " +
+                        "material value.");
                 continue;
             }
 
@@ -208,16 +210,18 @@ public class DAppearance extends Appearance {
                             add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
                                     .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
                                     .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                    .replace("{permission}", getPermission())
-                                    .replace("{id}", getId()))));
+                                    .replace("{permission}", (getPermission() != null ? getPermission() : ""))
+                                    .replace("{id}", (getId() != null ? getId() : "")))));
                         } else {
-                            for (int j = -1; ++j < getRequirement().size(); ) {
-                                final String rLine = getRequirement().get(j);
-                                if (rLine != null) add(INSTANCE.getManager().color(INSTANCE.papiText(player, rLine
-                                        .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                        .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                        .replace("{permission}", getPermission())
-                                        .replace("{id}", getId()))));
+                            if (getRequirement() != null && getRequirement().isEmpty()) {
+                                for (int j = -1; ++j < getRequirement().size(); ) {
+                                    final String rLine = getRequirement().get(j);
+                                    if (rLine != null) add(INSTANCE.getManager().color(INSTANCE.papiText(player, rLine
+                                            .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
+                                            .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
+                                            .replace("{permission}", (getPermission() != null ? getPermission() : ""))
+                                            .replace("{id}", (getId() != null ? getId() : "")))));
+                                }
                             }
                         }
                     }

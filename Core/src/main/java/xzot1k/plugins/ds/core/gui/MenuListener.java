@@ -25,12 +25,10 @@ import org.bukkit.inventory.meta.PotionMeta;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.eco.EcoHook;
-import xzot1k.plugins.ds.api.enums.Direction;
-import xzot1k.plugins.ds.api.enums.EconomyCallType;
-import xzot1k.plugins.ds.api.enums.InteractionType;
-import xzot1k.plugins.ds.api.enums.ShopActionType;
+import xzot1k.plugins.ds.api.enums.*;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.events.ShopDeletionEvent;
+import xzot1k.plugins.ds.api.events.ShopEditEvent;
 import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.Method;
@@ -323,7 +321,8 @@ public class MenuListener implements Listener {
                             shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
                 }
 
-                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-set"));
+                INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-set"),
+                        ("{name}:" + shop.getTradeItemName()));
                 INSTANCE.getInSightTask().refreshShop(shop);
                 INSTANCE.runEventCommands("shop-trade-set", player);
             }
@@ -906,7 +905,8 @@ public class MenuListener implements Listener {
                 || e.getCurrentItem().getType().name().contains("AIR")) return;
 
         final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-        if (!inventoryCheck(player, dataPack) || (e.getClickedInventory() != null && e.getClickedInventory().getType() == InventoryType.PLAYER)) return;
+        if (!inventoryCheck(player, dataPack) || (e.getClickedInventory() != null
+                && e.getClickedInventory().getType() == InventoryType.PLAYER)) return;
 
         final Shop shop = dataPack.getSelectedShop();
         if (shop.getBaseLocation() == null) {
@@ -991,12 +991,17 @@ public class MenuListener implements Listener {
         final boolean hasStarPerm = player.hasPermission("displayshops.bbm.*");
         if (!hasStarPerm && !player.hasPermission("displayshops.bbm." + typeId)) {
             String message = INSTANCE.getLangConfig().getString("missing-bbm-requirement");
-            if (message != null && !message.equalsIgnoreCase(""))
-                INSTANCE.getManager().sendMessage(player, message);
+            if (message != null && !message.equalsIgnoreCase("")) INSTANCE.getManager().sendMessage(player, message);
             return;
         }
 
         final String unlockId = (typeId + ":" + e.getCurrentItem().getDurability());
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.APPEARANCE_CHANGE, unlockId);
+        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
+
         if (!dataPack.hasUnlockedBBM(unlockId)) {
             final double foundPrice = INSTANCE.getManager().getBBMPrice(typeId, e.getCurrentItem().getDurability());
 
@@ -1589,10 +1594,8 @@ public class MenuListener implements Listener {
 
             case "confirm": {
                 final double amount = Double.parseDouble(INSTANCE.getNBT(amountItem, "ds-amount"));
-
                 Menu menuToOpen = null;
                 switch (dataPack.getInteractionType()) {
-
                     case AMOUNT_BUY_PRICE: {
                         if (amount == shop.getBuyPrice(false)) {
                             amountItem.setAmount((int) Math.max(1, Math.min(shop.getBuyPrice(false), amountItem.getMaxStackSize())));
@@ -1600,6 +1603,11 @@ public class MenuListener implements Listener {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                             return;
                         }
+
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.BUY_PRICE, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
 
                         shop.setBuyPrice(amount);
 
@@ -1611,7 +1619,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_SELL_PRICE: {
                         if (amount == shop.getSellPrice(false)) {
                             amountItem.setAmount((int) Math.max(1, Math.min(shop.getSellPrice(false), amountItem.getMaxStackSize())));
@@ -1619,6 +1626,11 @@ public class MenuListener implements Listener {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                             return;
                         }
+
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.SELL_PRICE, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
 
                         shop.setSellPrice(amount);
 
@@ -1629,7 +1641,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case SHOP_ITEM_AMOUNT: {
                         if (amount > INSTANCE.getConfig().getInt("max-item-stack-size") || amount < 1) {
                             amountItem.setAmount(Math.max(1, Math.min(shop.getShopItemAmount(), amountItem.getMaxStackSize())));
@@ -1645,6 +1656,11 @@ public class MenuListener implements Listener {
                             return;
                         }
 
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.SHOP_ITEM_AMOUNT, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
+
                         shop.setShopItemAmount((int) amount);
 
                         final String message = INSTANCE.getLangConfig().getString("stack-size-set");
@@ -1654,7 +1670,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_BALANCE: {
                         if (amount == shop.getStoredBalance()) {
                             amountItem.setAmount((int) Math.max(1, Math.min(shop.getStoredBalance(), amountItem.getMaxStackSize())));
@@ -1685,7 +1700,14 @@ public class MenuListener implements Listener {
                             }
                         }
 
-                        economyCallEvent = EconomyCallEvent.call(player, shop, (isRemoval ? EconomyCallType.WITHDRAW_BALANCE : EconomyCallType.DEPOSIT_BALANCE), difference);
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, (isRemoval ? EditType.WITHDRAW_BALANCE
+                                : EditType.DEPOSIT_BALANCE), difference);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
+
+                        economyCallEvent = EconomyCallEvent.call(player, shop, (isRemoval ? EconomyCallType.WITHDRAW_BALANCE
+                                : EconomyCallType.DEPOSIT_BALANCE), difference);
                         if (economyCallEvent.failed()) {
                             amountItem.setAmount((int) Math.max(1, Math.min(shop.getStoredBalance(), amountItem.getMaxStackSize())));
                             updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, shop.getStoredBalance());
@@ -1697,7 +1719,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_STOCK: {
                         if (shop.isAdminShop() && shop.getStock() == -1) {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-infinite-stock"));
@@ -1713,6 +1734,7 @@ public class MenuListener implements Listener {
 
                         final boolean isRemoval = (amount < shop.getStock());
                         final double difference = (Math.max(amount, shop.getStock()) - Math.min(amount, shop.getStock()));
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, (isRemoval ? EditType.WITHDRAW_STOCK : EditType.DEPOSIT_STOCK));
 
                         if (isRemoval) {
                             final int availableSpace = Math.min(INSTANCE.getManager().getInventorySpaceForItem(player, shop.getShopItem()),
@@ -1735,9 +1757,15 @@ public class MenuListener implements Listener {
                                 return;
                             }
 
+                            // call edit event
+                            shopEditEvent.setAmount(newAmount);
+                            INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                            if (shopEditEvent.isCancelled()) return;
+
                             shop.setStock(shop.getStock() - newAmount);
                             final ItemStack itemStack = shop.getShopItem().clone();
-                            INSTANCE.getServer().getScheduler().runTask(INSTANCE, () -> INSTANCE.getManager().giveItemStacks(player, itemStack, (int) (double) newAmount));
+                            INSTANCE.getServer().getScheduler().runTask(INSTANCE, () ->
+                                    INSTANCE.getManager().giveItemStacks(player, itemStack, (int) (double) newAmount));
 
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("withdrawn-stock"),
                                     ("{amount}:" + INSTANCE.getManager().formatNumber(newAmount, false)));
@@ -1760,6 +1788,11 @@ public class MenuListener implements Listener {
                                 return;
                             }
 
+                            // call edit event
+                            shopEditEvent.setAmount(difference);
+                            INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                            if (shopEditEvent.isCancelled()) return;
+
                             INSTANCE.getManager().removeItem(player.getInventory(), shop.getShopItem(), (int) difference);
                             shop.setStock((int) (shop.getStock() + difference));
 
@@ -1771,7 +1804,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_PLAYER_BUY_LIMIT: {
                         if (amount > ((float) (shop.getMaxStock()) / Math.max(1, shop.getShopItemAmount()))) {
                             amountItem.setAmount(Math.max(1, Math.min(shop.getPlayerBuyLimit(), amountItem.getMaxStackSize())));
@@ -1786,6 +1818,11 @@ public class MenuListener implements Listener {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                             return;
                         }
+
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.PLAYER_BUY_LIMIT, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
 
                         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                                 INSTANCE.getConfig().getDouble("prices.player-buy-limit"));
@@ -1803,7 +1840,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_PLAYER_SELL_LIMIT: {
                         if (amount > ((float) shop.getMaxStock() / Math.max(1, shop.getShopItemAmount()))) {
                             amountItem.setAmount(Math.max(1, Math.min(shop.getPlayerSellLimit(), amountItem.getMaxStackSize())));
@@ -1818,6 +1854,11 @@ public class MenuListener implements Listener {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                             return;
                         }
+
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.PLAYER_SELL_LIMIT, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
 
                         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                                 INSTANCE.getConfig().getDouble("prices.player-sell-limit"));
@@ -1835,7 +1876,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_GLOBAL_BUY_LIMIT: {
                         if (amount > ((float) shop.getMaxStock() / Math.max(1, shop.getShopItemAmount()))) {
                             amountItem.setAmount(Math.max(1, Math.min(shop.getGlobalBuyLimit(), amountItem.getMaxStackSize())));
@@ -1850,6 +1890,11 @@ public class MenuListener implements Listener {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                             return;
                         }
+
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.GLOBAL_BUY_LIMIT, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
 
                         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                                 INSTANCE.getConfig().getDouble("prices.global-buy-limit"));
@@ -1867,7 +1912,6 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
                     case AMOUNT_GLOBAL_SELL_LIMIT: {
                         if (amount > ((float) shop.getMaxStock()) / Math.max(1, shop.getShopItemAmount())) {
                             amountItem.setAmount(Math.max(1, Math.min(shop.getGlobalSellLimit(), amountItem.getMaxStackSize())));
@@ -1882,6 +1926,11 @@ public class MenuListener implements Listener {
                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-edit-too-similar"));
                             return;
                         }
+
+                        // call edit event
+                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.GLOBAL_SELL_LIMIT, amount);
+                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                        if (shopEditEvent.isCancelled()) return;
 
                         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                                 INSTANCE.getConfig().getDouble("prices.global-sell-limit"));
@@ -1899,10 +1948,7 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-
-                    default: {
-                        break;
-                    }
+                    default: {break;}
                 }
 
                 playClickSound(player);

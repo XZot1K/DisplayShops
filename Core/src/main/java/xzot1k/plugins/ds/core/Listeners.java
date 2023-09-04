@@ -155,7 +155,8 @@ public class Listeners implements Listener {
 
         final MarketRegion marketRegion = getPluginInstance().getManager().getMarketRegion(e.getClickedBlock().getLocation());
         if (marketRegion != null && marketRegion.getRenter() == null) {
-            getPluginInstance().getManager().sendMessage(e.getPlayer(), Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rentable-interact"))
+            getPluginInstance().getManager().sendMessage(e.getPlayer(), Objects.requireNonNull(getPluginInstance().getLangConfig().getString(
+                            "rentable-interact"))
                     .replace("{id}", marketRegion.getMarketId()));
             return;
         }
@@ -233,17 +234,17 @@ public class Listeners implements Listener {
                     }
                 }
 
-                ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.QUICK_WITHDRAW);
-                getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
-                if (shopEditEvent.isCancelled()) return;
-
                 if (editPrevention) shop.setCurrentEditor(e.getPlayer().getUniqueId());
                 dataPack.setSelectedShop(shop);
 
                 String message = getPluginInstance().getLangConfig().getString("quick-withdraw");
-
                 final int itemAmount = Math.min(shop.getShopItem().getMaxStackSize(), shop.getShopItemAmount());
+                ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.QUICK_WITHDRAW);
                 if (shop.getStock() >= itemAmount) {
+                    shopEditEvent.setAmount(itemAmount);
+                    getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+                    if (shopEditEvent.isCancelled()) return;
+
                     shop.setStock(shop.getStock() - itemAmount);
 
                     ItemStack cloneItem = shop.getShopItem().clone();
@@ -257,6 +258,10 @@ public class Listeners implements Listener {
                         getPluginInstance().getManager().sendMessage(e.getPlayer(), message
                                 .replace("{amount}", getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)));
                 } else {
+                    shopEditEvent.setAmount(shop.getStock());
+                    getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+                    if (shopEditEvent.isCancelled()) return;
+
                     ItemStack shopItemClone = shop.getShopItem().clone();
                     shopItemClone.setAmount(shop.getStock());
                     shop.setStock(0);
@@ -302,7 +307,8 @@ public class Listeners implements Listener {
                     }
                 }
 
-                if (!shop.isAdminShop() && (shop.getOwnerUniqueId().toString().equals(e.getPlayer().getUniqueId().toString()) || shop.getAssistants().contains(e.getPlayer().getUniqueId()))) {
+                if (!shop.isAdminShop() && (shop.getOwnerUniqueId().toString().equals(e.getPlayer().getUniqueId().toString())
+                        || shop.getAssistants().contains(e.getPlayer().getUniqueId()))) {
                     ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.OPEN_EDIT_MENU);
                     getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
                     if (shopEditEvent.isCancelled()) return;
@@ -364,10 +370,6 @@ public class Listeners implements Listener {
                 else itemInHand = e.getPlayer().getItemInHand();
 
                 if (getPluginInstance().getManager().isSimilar(itemInHand, shop.getShopItem())) {
-                    ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.QUICK_DEPOSIT);
-                    getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
-                    if (shopEditEvent.isCancelled()) return;
-
                     final int maxStock = shop.getMaxStock(), newTotalStock = (shop.getStock() + itemInHand.getAmount()),
                             remainderInHand = (newTotalStock - maxStock);
 
@@ -385,6 +387,11 @@ public class Listeners implements Listener {
                                     message.replace("{max}", getPluginInstance().getManager().formatNumber(maxStock, false)));
                         return;
                     }
+
+                    ShopEditEvent shopEditEvent = new ShopEditEvent(e.getPlayer(), shop, EditType.QUICK_DEPOSIT,
+                            (itemInHand.getAmount() - remainderInHand));
+                    getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+                    if (shopEditEvent.isCancelled()) return;
 
                     String message = getPluginInstance().getLangConfig().getString("quick-deposit");
                     if (newTotalStock > maxStock && remainderInHand > 0) {
@@ -492,11 +499,22 @@ public class Listeners implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
     public void onEdit(ShopEditEvent e) {
         getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () ->
-                getPluginInstance().writeToLog("[" + getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis())) + "] "
-                        + e.getPlayer().getName() + " performed the " + WordUtils.capitalize(e.getEditType().name().toLowerCase().replace("_", " "))
-                        + " edit action on the shop '" + e.getShop().getShopId().toString() + "' at (World: " + e.getShop().getBaseLocation().getWorldName()
-                        + " X: " + e.getShop().getBaseLocation().getX() + " Y: " + e.getShop().getBaseLocation().getY() + " Z: "
-                        + e.getShop().getBaseLocation().getZ() + ")."));
+        {
+            StringBuilder data = new StringBuilder();
+            switch (e.getEditType()) {
+                ca
+
+                default: {break;}
+            }
+
+            getPluginInstance().writeToLog("[" + getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis())) + "] "
+                    + e.getPlayer().getName() + " performed the "
+                    + WordUtils.capitalize(e.getEditType().name().toLowerCase().replace("_", " "))
+                    + " edit action on the shop '" + e.getShop().getShopId().toString()
+                    + "' at (World: " + e.getShop().getBaseLocation().getWorldName()
+                    + " X: " + e.getShop().getBaseLocation().getX() + " Y: " + e.getShop().getBaseLocation().getY() + " Z: "
+                    + e.getShop().getBaseLocation().getZ() + ").");
+        });
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
@@ -520,7 +538,8 @@ public class Listeners implements Listener {
         if (!e.willSucceed()) return;
         StringBuilder stringBuilder = new StringBuilder();
 
-        String value = (e.getShop() != null ? getPluginInstance().getEconomyHandler().format(e.getShop(), (e.getShop() != null ? e.getShop().getCurrencyType()
+        String value = (e.getShop() != null ? getPluginInstance().getEconomyHandler().format(e.getShop(), (e.getShop() != null ?
+                e.getShop().getCurrencyType()
                 : getPluginInstance().getEconomyHandler().getDefaultCurrency()), e.getAmount())
                 : getPluginInstance().getEconomyHandler().format(null, getPluginInstance().getEconomyHandler().getDefaultCurrency(), e.getAmount()));
 
@@ -590,9 +609,12 @@ public class Listeners implements Listener {
                         xDiff = (e.getBlock().getX() != shop.getBaseLocation().getX()),
                         zDiff = (e.getBlock().getZ() != shop.getBaseLocation().getZ());
 
-                final double changeInX = (Math.max(e.getBlock().getX(), shop.getBaseLocation().getX()) - Math.min(e.getBlock().getX(), shop.getBaseLocation().getX())),
-                        changeInY = (Math.max(e.getBlock().getY(), shop.getBaseLocation().getY()) - Math.min(e.getBlock().getY(), shop.getBaseLocation().getY())),
-                        changeInZ = (Math.max(e.getBlock().getZ(), shop.getBaseLocation().getZ()) - Math.min(e.getBlock().getZ(), shop.getBaseLocation().getZ()));
+                final double changeInX = (Math.max(e.getBlock().getX(), shop.getBaseLocation().getX()) - Math.min(e.getBlock().getX(),
+                        shop.getBaseLocation().getX())),
+                        changeInY = (Math.max(e.getBlock().getY(), shop.getBaseLocation().getY()) - Math.min(e.getBlock().getY(),
+                                shop.getBaseLocation().getY())),
+                        changeInZ = (Math.max(e.getBlock().getZ(), shop.getBaseLocation().getZ()) - Math.min(e.getBlock().getZ(),
+                                shop.getBaseLocation().getZ()));
 
                 if ((!xDiff && zDiff && changeInZ < 12) || (!zDiff && xDiff && changeInX < 12) || (yDiff && changeInY < 12 && !xDiff && !zDiff)) {
                     e.setCancelled(true);
