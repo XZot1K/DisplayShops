@@ -370,6 +370,11 @@ public class MenuListener implements Listener {
                                 return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(tooSimilar != null ? tooSimilar : ""));
                             }
 
+                            // call edit event
+                            ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.DESCRIPTION_CHANGE, filteredEntry);
+                            INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                            if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
                             final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                                     INSTANCE.getConfig().getDouble("prices.description"));
                             if (economyCallEvent.failed()) return AnvilGUI.Response.close();
@@ -393,6 +398,11 @@ public class MenuListener implements Listener {
                 return;
             }
             case "clear-limits": {
+                // call edit event
+                ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.CLEAR_LIMITS);
+                INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                if (shopEditEvent.isCancelled()) return;
+
                 shop.setPlayerSellLimit(-1);
                 shop.setPlayerBuyLimit(-1);
                 shop.setGlobalSellCounter(0);
@@ -485,6 +495,11 @@ public class MenuListener implements Listener {
                 }
 
                 final String nextCurrency = INSTANCE.getEconomyHandler().determineNextCurrencyCycle(player, shop);
+
+                // call edit event
+                ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.CURRENCY_CHANGE, nextCurrency);
+                INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                if (shopEditEvent.isCancelled()) return;
 
                 final ItemStack itemStack = e.getCurrentItem();
                 final ItemMeta itemMeta = itemStack.getItemMeta();
@@ -1113,10 +1128,20 @@ public class MenuListener implements Listener {
 
                                 final String entry = stateSnapshot.getText().trim();
                                 if (INSTANCE.getManager().getUUIDPattern().matcher(entry).matches()) {
-                                    final String uuidString = INSTANCE.getNBT(e.getCurrentItem(), "uuid");
-                                    if (uuidString == null || uuidString.isEmpty()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    final UUID uuid = UUID.fromString(entry);
 
-                                    final UUID uuid = UUID.fromString(uuidString);
+                                    if (shop.getAssistants().contains(uuid)) {
+                                        OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-access"),
+                                                ("{player}:" + offlinePlayer.getName()));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
+                                    // call edit event
+                                    ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.ASSISTANT_ADD, uuid.toString());
+                                    INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                                    if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
                                     shop.getAssistants().add(uuid);
                                 } else {
                                     if (entry.isEmpty()) {
@@ -1128,7 +1153,20 @@ public class MenuListener implements Listener {
                                     if (!offlinePlayer.hasPlayedBefore()) {
                                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("player-invalid"));
                                         return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                                    } else shop.getAssistants().add(offlinePlayer.getUniqueId());
+                                    } else {
+                                        if (shop.getAssistants().contains(offlinePlayer.getUniqueId())) {
+                                            INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-access"),
+                                                    ("{player}:" + offlinePlayer.getName()));
+                                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                        }
+
+                                        // call edit event
+                                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.ASSISTANT_ADD, offlinePlayer.getUniqueId().toString());
+                                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                                        if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
+                                        shop.getAssistants().add(offlinePlayer.getUniqueId());
+                                    }
                                 }
 
                                 shop.save(true);
@@ -1156,15 +1194,20 @@ public class MenuListener implements Listener {
 
                                 final String entry = stateSnapshot.getText().trim();
                                 if (INSTANCE.getManager().getUUIDPattern().matcher(entry).matches()) {
-                                    final String uuidString = INSTANCE.getNBT(e.getCurrentItem(), "uuid");
-                                    if (uuidString == null || uuidString.isEmpty()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
-
-                                    final UUID uuid = UUID.fromString(uuidString);
+                                    final UUID uuid = UUID.fromString(entry);
                                     if (!shop.getAssistants().contains(uuid)) {
+                                        OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
                                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-no-access"),
-                                                ("{player}:" + stateSnapshot.getText().trim()));
+                                                ("{player}:" + offlinePlayer.getName()));
                                         return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                                    } else shop.getAssistants().remove(uuid);
+                                    } else {
+                                        // call edit event
+                                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.ASSISTANT_REMOVE, uuid.toString());
+                                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                                        if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
+                                        shop.getAssistants().remove(uuid);
+                                    }
                                 } else {
                                     if (entry.isEmpty()) {
                                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("invalid-entry"));
@@ -1180,7 +1223,14 @@ public class MenuListener implements Listener {
                                             INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-no-access"),
                                                     ("{player}:" + stateSnapshot.getText().trim()));
                                             return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                                        } else shop.getAssistants().remove(offlinePlayer.getUniqueId());
+                                        } else {
+                                            // call edit event
+                                            ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.ASSISTANT_REMOVE, offlinePlayer.getUniqueId().toString());
+                                            INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                                            if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
+                                            shop.getAssistants().remove(offlinePlayer.getUniqueId());
+                                        }
                                     }
                                 }
 
@@ -1243,7 +1293,6 @@ public class MenuListener implements Listener {
         if (uuidString == null || uuidString.isEmpty()) return;
 
         final UUID uuid = UUID.fromString(uuidString);
-
         playClickSound(player);
 
         final int assistantsCap = INSTANCE.getConfig().getInt("assistants-cap");
@@ -1253,10 +1302,15 @@ public class MenuListener implements Listener {
             return;
         }
 
+
+        final boolean isActive = shop.getAssistants().contains(uuid);
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, (!isActive ? EditType.ASSISTANT_ADD : EditType.ASSISTANT_REMOVE), uuid.toString());
+        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
+
         final String activeColor = menu.getConfiguration().getString("active-color"),
                 inactiveColor = menu.getConfiguration().getString("inactive-color");
-        final boolean isActive = shop.getAssistants().contains(uuid);
-
         String currentName = "";
         final ItemStack headItem = e.getCurrentItem();
         if (headItem.getItemMeta() != null) {
@@ -2141,11 +2195,21 @@ public class MenuListener implements Listener {
                     ShopDeletionEvent shopDeletionEvent = new ShopDeletionEvent(player, shop.getBaseLocation().asBukkitLocation());
                     if (shopDeletionEvent.isCancelled()) return;
 
+                    // call edit event
+                    ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.DELETE);
+                    INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                    if (shopEditEvent.isCancelled()) return;
+
                     shop.purge(player, true);
 
                     dataPack.resetEditData();
                     player.closeInventory();
                 } else if (dataPack.getInteractionType() == InteractionType.CLEAR_SALE_ITEM) {
+                    // call edit event
+                    ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.CLEAR_SALE_ITEM, INSTANCE.toString(shop.getShopItem()));
+                    INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                    if (shopEditEvent.isCancelled()) return;
+
                     dataPack.setInteractionType(null);
                     dataPack.setInteractionValue(null);
 
@@ -2158,6 +2222,11 @@ public class MenuListener implements Listener {
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sale-item-cleared"));
                     player.openInventory(INSTANCE.getMenu("edit").build(player));
                 } else if (dataPack.getInteractionType() == InteractionType.CLEAR_TRADE_ITEM) {
+                    // call edit event
+                    ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.CLEAR_TRADE_ITEM, INSTANCE.toString(shop.getTradeItem()));
+                    INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                    if (shopEditEvent.isCancelled()) return;
+
                     dataPack.setInteractionType(null);
                     dataPack.setInteractionValue(null);
 

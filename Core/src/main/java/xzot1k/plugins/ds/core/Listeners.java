@@ -502,18 +502,63 @@ public class Listeners implements Listener {
         {
             StringBuilder data = new StringBuilder();
             switch (e.getEditType()) {
-                ca
-
-                default: {break;}
+                case CLEAR_TRADE_ITEM:
+                case CLEAR_SALE_ITEM: {
+                    data.append("\n\n").append(e.getValue());
+                    break;
+                }
+                case WITHDRAW_STOCK:
+                case DEPOSIT_STOCK: {
+                    data.append("\n\n").append(getPluginInstance().toString(e.getShop().getShopItem()));
+                    break;
+                }
+                case ASSISTANT_REMOVE:
+                case ASSISTANT_ADD: {
+                    data.append(" (Assistant Id: ").append(e.getValue()).append(")");
+                    break;
+                }
+                case CURRENCY_CHANGE: {
+                    data.append(" (New Currency: ").append(e.getValue()).append(")");
+                    break;
+                }
+                case SELL_PRICE:
+                case BUY_PRICE:
+                case GLOBAL_BUY_LIMIT:
+                case GLOBAL_SELL_LIMIT:
+                case PLAYER_BUY_LIMIT:
+                case PLAYER_SELL_LIMIT:
+                case DEPOSIT_BALANCE:
+                case WITHDRAW_BALANCE:
+                case QUICK_DEPOSIT:
+                case QUICK_WITHDRAW:
+                case STOCK_SET:
+                case SHOP_ITEM_AMOUNT: {
+                    data.append(" (Amount: ").append(e.getAmount()).append(")");
+                    break;
+                }
+                case COMMAND_ADD:
+                case COMMAND_REMOVE: {
+                    data.append(" (Command: ").append(e.getValue()).append(")");
+                    break;
+                }
+                case APPEARANCE_CHANGE: {
+                    data.append(" (New Appearance: ").append(e.getValue()).append(")");
+                    break;
+                }
+                case DESCRIPTION_CHANGE: {
+                    data.append(" (New Description: ").append(e.getValue()).append(")");
+                    break;
+                }
+                default: {return;}
             }
 
             getPluginInstance().writeToLog("[" + getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis())) + "] "
-                    + e.getPlayer().getName() + " performed the "
+                    + e.getPlayer().getName() + " performed the \""
                     + WordUtils.capitalize(e.getEditType().name().toLowerCase().replace("_", " "))
-                    + " edit action on the shop '" + e.getShop().getShopId().toString()
+                    + "\" action on the shop '" + e.getShop().getShopId().toString()
                     + "' at (World: " + e.getShop().getBaseLocation().getWorldName()
                     + " X: " + e.getShop().getBaseLocation().getX() + " Y: " + e.getShop().getBaseLocation().getY() + " Z: "
-                    + e.getShop().getBaseLocation().getZ() + ").");
+                    + e.getShop().getBaseLocation().getZ() + ")." + data);
         });
     }
 

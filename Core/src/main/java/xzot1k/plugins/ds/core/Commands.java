@@ -24,7 +24,9 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.EconomyCallType;
+import xzot1k.plugins.ds.api.enums.EditType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
+import xzot1k.plugins.ds.api.events.ShopEditEvent;
 import xzot1k.plugins.ds.api.objects.*;
 
 import java.io.File;
@@ -320,6 +322,11 @@ public class Commands implements CommandExecutor {
             return;
         }
 
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, (isWithdraw ? EditType.WITHDRAW_BALANCE : EditType.DEPOSIT_BALANCE), (isWithdraw ? -amount : amount));
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
+
         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, (isWithdraw ? EconomyCallType.WITHDRAW_BALANCE : EconomyCallType.DEPOSIT_BALANCE),
                 getPluginInstance().getConfig().getDouble("prices.balance"));
         if (economyCallEvent.failed()) return;
@@ -375,7 +382,6 @@ public class Commands implements CommandExecutor {
         }
 
         int amount = Math.max(1, Integer.parseInt(args[1]));
-
         String message;
         if (amount > shop.getStock()) {
             message = getPluginInstance().getLangConfig().getString("stock-withdraw-fail");
@@ -396,6 +402,11 @@ public class Commands implements CommandExecutor {
                         .replace("{space}", getPluginInstance().getManager().formatNumber(availableSpace, false)));
             return;
         }
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.WITHDRAW_STOCK, amount);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
 
         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                 getPluginInstance().getConfig().getDouble("prices.withdraw-stock"));
@@ -457,7 +468,6 @@ public class Commands implements CommandExecutor {
         }
 
         int amount = Math.max(1, Integer.parseInt(args[1]));
-
         String message;
         final int maxStock = shop.getMaxStock();
         int totalItemCount = getPluginInstance().getManager().getItemAmount(player.getInventory(), shop.getShopItem());
@@ -476,6 +486,11 @@ public class Commands implements CommandExecutor {
                         .replace("{amount}", getPluginInstance().getManager().formatNumber(amount, false)));
             return;
         }
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.DEPOSIT_STOCK, amountToRemove);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
 
         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                 getPluginInstance().getConfig().getDouble("prices.deposit-stock"));
@@ -533,7 +548,6 @@ public class Commands implements CommandExecutor {
         }
 
         final int price = Math.max(-1, Integer.parseInt(args[1]));
-
         if (price > -1) {
             double foundSellPriceMax = (shop.getShopItem() != null ? getPluginInstance().getManager().getMaterialMaxPrice(shop.getShopItem(), false) : 0),
                     foundSellPriceMin = shop.getShopItem() != null ? getPluginInstance().getManager().getMaterialMinPrice(shop.getShopItem(), false) : 0;
@@ -549,6 +563,11 @@ public class Commands implements CommandExecutor {
                 return;
             }
         }
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.SELL_PRICE, price);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
 
         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                 getPluginInstance().getConfig().getDouble("prices.sale-item-change"));
@@ -623,6 +642,11 @@ public class Commands implements CommandExecutor {
                 return;
             }
         }
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.BUY_PRICE, price);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
 
         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
                 getPluginInstance().getConfig().getDouble("prices.buy-price"));
@@ -1138,6 +1162,12 @@ public class Commands implements CommandExecutor {
 
         StringBuilder enteredCommand = new StringBuilder(args[1]);
         for (int i = 1; ++i < args.length; ) enteredCommand.append(" ").append(args[i]);
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.COMMAND_ADD, enteredCommand.toString());
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
+
         shop.getCommands().add(enteredCommand.toString());
 
         if (!shop.getCommands().isEmpty() && shop.getSellPrice(false) >= 0) {
@@ -1188,6 +1218,11 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().getManager().sendMessage(player, message);
             return;
         }
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.COMMAND_REMOVE, index);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
 
         shop.getCommands().remove(index);
         if (!shop.getCommands().isEmpty() && shop.getSellPrice(false) >= 0) {
@@ -1783,6 +1818,11 @@ public class Commands implements CommandExecutor {
             return;
         }
 
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.DELETE);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
+
         shop.purge(player, true);
         String message = getPluginInstance().getLangConfig().getString("shop-deleted");
         if (message != null && !message.equalsIgnoreCase(""))
@@ -1870,6 +1910,11 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().getManager().sendMessage(player, message);
             return;
         }
+
+        // call edit event
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.STOCK_SET, enteredAmount);
+        getPluginInstance().getServer().getPluginManager().callEvent(shopEditEvent);
+        if (shopEditEvent.isCancelled()) return;
 
         shop.setStock(enteredAmount);
         getPluginInstance().getInSightTask().refreshShop(shop);
