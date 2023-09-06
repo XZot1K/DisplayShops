@@ -15,6 +15,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -156,6 +157,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         loadMenus();
         DAppearance.loadAppearances();
 
+        // setup default item
+        getManager().defaultCurrencyItem = getManager().buildShopCurrencyItem(1);
+
         long databaseStartTime = System.currentTimeMillis();
         final boolean fixedTables = setupDatabase();
         if (getDatabaseConnection() != null)
@@ -191,84 +195,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             }
         });
 
-        if (getConfig().getBoolean("shop-creation-item.craftable")) {
-            try {
-                ShapedRecipe shapedRecipe;
-
-                if (Math.floor(getServerVersion()) > 1_10) {
-                    org.bukkit.NamespacedKey namespacedKey = new org.bukkit.NamespacedKey(this, "shop");
-                    shapedRecipe = new ShapedRecipe(namespacedKey, getManager().buildShopCreationItem(null, 1));
-                    if (Math.floor(getServerVersion()) >= 1_16 && getServer().getRecipe(namespacedKey) != null) return;
-                } else shapedRecipe = new ShapedRecipe(getManager().buildShopCreationItem(null, 1));
-                shapedRecipe.shape("abc", "def", "ghi");
-
-                String lineOne = getConfig().getString("shop-creation-item.recipe.line-one"),
-                        lineTwo = getConfig().getString("shop-creation-item.recipe.line-two"),
-                        lineThree = getConfig().getString("shop-creation-item.recipe.line-three");
-                if (lineOne != null && lineOne.contains(",")) {
-                    String[] lineSplit = lineOne.split(",");
-                    for (int i = -1; ++i < 3; ) {
-                        String materialLine = lineSplit[i];
-                        char recipeChar = ((i == 0) ? 'a' : (i == 1) ? 'b' : 'c');
-
-                        if (materialLine.contains(":")) {
-                            String[] materialSplit = materialLine.split(":");
-                            Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
-                            int durability = Integer.parseInt(materialSplit[1]);
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material, durability);
-                        } else {
-                            Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
-                        }
-                    }
-                }
-
-                if (lineTwo != null && lineTwo.contains(",")) {
-                    String[] lineSplit = lineTwo.split(",");
-                    for (int i = -1; ++i < 3; ) {
-                        String materialLine = lineSplit[i];
-                        char recipeChar = ((i == 0) ? 'd' : (i == 1) ? 'e' : 'f');
-
-                        if (materialLine.contains(":")) {
-                            String[] materialSplit = materialLine.split(":");
-                            Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
-                            int durability = Integer.parseInt(materialSplit[1]);
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material, durability);
-                        } else {
-                            Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
-                        }
-                    }
-                }
-
-                if (lineThree != null && lineThree.contains(",")) {
-                    String[] lineSplit = lineThree.split(",");
-                    for (int i = -1; ++i < 3; ) {
-                        String materialLine = lineSplit[i];
-                        char recipeChar = ((i == 0) ? 'g' : (i == 1) ? 'h' : 'i');
-
-                        if (materialLine.contains(":")) {
-                            String[] materialSplit = materialLine.split(":");
-                            Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) {
-                                int durability = Integer.parseInt(materialSplit[1]);
-                                shapedRecipe.setIngredient(recipeChar, material, durability);
-                            }
-                        } else {
-                            Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
-                        }
-                    }
-                }
-
-                getServer().addRecipe(shapedRecipe);
-            } catch (Exception e) {
-                log(Level.WARNING, "Unable to create the custom recipe for the shop creation item. This is normally due to the version of Minecraft" +
-                        " not supporting the new 'NamespacedKey' API values. "
-                        + "To avoid this issue entirely -> DISABLE THE 'craftable' OPTION IN THE 'shop-creation-item' SECTION LOCATED IN THE " +
-                        "'config.yml' file.");
-            }
-        }
+        setupRecipe();
 
         getManager().loadShops(false, false);
         getManager().loadMarketRegions(false);
@@ -348,9 +275,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         if (getDatabaseConnection() != null)
             try {
                 getDatabaseConnection().close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            } catch (SQLException e) {e.printStackTrace();}
 
         try {
             final String host = getConfig().getString("mysql.host");
@@ -359,30 +284,19 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                 setDatabaseConnection(DriverManager.getConnection("jdbc:sqlite:" + getDataFolder() + "/data.db"));
                 Statement statement = getDatabaseConnection().createStatement();
 
-                try {
-                    statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/auto-backup.db").getPath()
-                            .replace("'", "").replace("\"", "") + "';");
-                } catch (SQLException ignored) {
-                }
-
                 statement.executeUpdate("PRAGMA integrity_check;");
                 String shopParameters = "(id TEXT PRIMARY KEY NOT NULL, location TEXT NOT NULL, owner TEXT, assistants TEXT, buy_price REAL,"
                         + " sell_price REAL, stock INTEGER, shop_item TEXT, trade_item TEXT, limits LONGTEXT, shop_item_amount INTEGER, balance REAL,"
-                        + " command_only_mode NUMERIC, commands TEXT, change_time_stamp TEXT, description TEXT, base_material TEXT, extra_data TEXT)",
+                        + " command_only_mode NUMERIC, commands TEXT, change_time_stamp TEXT, description TEXT, appearance TEXT, extra_data TEXT)",
                         markRegionParameters = "(id TEXT PRIMARY KEY NOT NULL, point_one TEXT, point_two TEXT, renter TEXT, rent_time_stamp TEXT,"
                                 + " extended_duration INTEGER, extra_data TEXT)",
-                        playerDataParameters = "(uuid TEXT PRIMARY KEY NOT NULL, bbm_unlocks TEXT, cooldowns TEXT, transaction_limits TEXT, notify " +
-                                "TEXT)",
+                        playerDataParameters = "(uuid TEXT PRIMARY KEY NOT NULL, appearance_data TEXT, cooldowns TEXT, transaction_limits TEXT, notify TEXT)",
                         recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency REAL, item_amount INTEGER, item TEXT)";
-
                 fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, host);
-
             } else {
                 try {
                     Class.forName("com.mysql.cj.jdbc.Driver");
-                } catch (ClassNotFoundException | NoClassDefFoundError ignored) {
-                    Class.forName("com.mysql.jdbc.Driver");
-                }
+                } catch (ClassNotFoundException | NoClassDefFoundError ignored) {Class.forName("com.mysql.jdbc.Driver");}
                 final boolean useSSL = getConfig().getBoolean("mysql.use-ssl");
                 final String databaseName = getConfig().getString("mysql.database"), port = getConfig().getString("mysql.port"),
                         username = getConfig().getString("mysql.username"), password = getConfig().getString("mysql.password"),
@@ -391,19 +305,17 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
                 setDatabaseConnection(DriverManager.getConnection(syntax, username, password));
                 Statement statement = getDatabaseConnection().createStatement();
-
                 final String shopParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, location LONGTEXT NOT NULL, owner LONGTEXT, assistants " +
                         "LONGTEXT, buy_price DOUBLE, sell_price DOUBLE, stock INT, shop_item LONGTEXT, trade_item LONGTEXT, limits LONGTEXT, " +
                         "shop_item_amount INT, balance DOUBLE, command_only_mode BOOLEAN, commands LONGTEXT, change_time_stamp LONGTEXT, " +
-                        "description LONGTEXT, base_material LONGTEXT, extra_data LONGTEXT)",
+                        "description LONGTEXT, appearance LONGTEXT, extra_data LONGTEXT)",
                         markRegionParameters = "(id VARCHAR(100) PRIMARY KEY NOT NULL, point_one LONGTEXT, point_two LONGTEXT, renter LONGTEXT, " +
                                 "rent_time_stamp LONGTEXT, extended_duration INT, extra_data LONGTEXT)",
-                        playerDataParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, bbm_unlocks LONGTEXT, cooldowns LONGTEXT, " +
+                        playerDataParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, appearance_data LONGTEXT, cooldowns LONGTEXT, " +
                                 "transaction_limits LONGTEXT, notify LONGTEXT)",
                         recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency DOUBLE, item_amount INT, item LONGTEXT)";
 
                 fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, host);
-
                 exportMySQLDatabase();
             }
         } catch (ClassNotFoundException | SQLException | IOException e) {
@@ -443,15 +355,21 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         ResultSet rs = statement.executeQuery("SELECT * FROM player_data;");
+        if (hasColumn(rs, "bbm_unlocks")) {
+            statement.execute("ALTER TABLE player_data RENAME COLUMN bbm_unlocks TO appearance_data;");
+            rs.close();
+        }
+
+        rs = statement.executeQuery("SELECT * FROM player_data;");
         boolean hasTL = hasColumn(rs, "transaction_limits"), hasNotify = hasColumn(rs, "notify");
         if (!hasTL && !hasNotify) {
             statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
-            statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns) SELECT uuid, bbm_unlocks, cooldowns FROM player_data;");
+            statement.execute("INSERT INTO temp_player_data (uuid, appearance_data, cooldowns) SELECT uuid, bbm_unlocks, cooldowns FROM player_data;");
             statement.execute("DROP TABLE IF EXISTS player_data;");
             statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
         } else if (hasTL && !hasNotify) {
             statement.execute("CREATE TABLE IF NOT EXISTS temp_player_data " + playerDataParameters + ";");
-            statement.execute("INSERT INTO temp_player_data (uuid, bbm_unlocks, cooldowns, transaction_limits) SELECT uuid, bbm_unlocks, "
+            statement.execute("INSERT INTO temp_player_data (uuid, appearance_data, cooldowns, transaction_limits) SELECT uuid, bbm_unlocks, "
                     + "cooldowns, transaction_limits FROM player_data;");
             statement.execute("DROP TABLE IF EXISTS player_data;");
             statement.execute("ALTER TABLE temp_player_data RENAME TO player_data;");
@@ -460,20 +378,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         rs.close();
 
         ResultSet resultSet = statement.executeQuery("SELECT * FROM shops;");
-
-        if (!hasColumn(resultSet, "base_material") || hasColumn(resultSet, "base_location")
-                || !hasColumn(resultSet, "limits")) {
-
+        if (hasColumn(resultSet, "base_location") || !hasColumn(resultSet, "limits")
+                || !hasColumn(resultSet, "appearance")) {
             resultSet.close();
-
             log(Level.WARNING, "Database Structure Mismatch. Fixing Tables...");
-
-          /*  try {
-                statement.executeUpdate("BACKUP TO '" + new File(getDataFolder(), "/table-fix-backup.db").getPath()
-                        .replace("'", "").replace("\"", "") + "';");
-            } catch (SQLException e) {
-                log(Level.WARNING, "Unable to backup the 'table-fix-backup.db' file.");
-            }*/
 
             for (String tableName : new String[]{"shops", "market_regions", "player_data"}) {
                 statement.execute("CREATE TABLE IF NOT EXISTS temp_" + tableName + " "
@@ -493,7 +401,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             // statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
             // for (Shop shop : getManager().getShopMap().values()) shop.save(false);
             return true;
-
         } else resultSet.close();
 
         statement.close();
@@ -505,28 +412,26 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         long current = 0, count = 0, countPercentage = 0;
         try (PreparedStatement statement = getDatabaseConnection().prepareStatement("SELECT Count(*) FROM shops;");
              ResultSet rs = statement.executeQuery()) {
-
             count = (rs.next() ? rs.getInt(1) : 0);
             countPercentage = ((long) (count * 0.15));
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
         try {
-
             Statement statement = getDatabaseConnection().createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM shops;");
-
             while (resultSet.next()) {
-
                 final String id = resultSet.getString("id"), location = resultSet.getString("location"), owner = resultSet.getString("owner"),
                         assistants = resultSet.getString("assistants"), shopItem = resultSet.getString("shop_item"),
                         tradeItem = resultSet.getString("trade_item"), commands = resultSet.getString("commands"),
                         changeTimeStamp = resultSet.getString("change_time_stamp"), description = resultSet.getString("description"),
-                        baseMaterial = resultSet.getString("base_material"), extraData = resultSet.getString("extra_data"),
-                        limits = (resultSet.getInt("buy_limit") + ";" + resultSet.getInt("buy_counter") + ";" +
-                                resultSet.getInt("sell_limit") + ";" + resultSet.getInt("sell_counter") + ";0;0");
+                        baseMaterial = (!hasColumn(resultSet, "appearance") ? resultSet.getString("base_material")
+                                : resultSet.getString("appearance")),
+                        extraData = resultSet.getString("extra_data"),
+                        limits = (hasColumn(resultSet, "limits") ? resultSet.getString("limits")
+                                : (resultSet.getInt("buy_limit") + ";" + resultSet.getInt("buy_counter") + ";" +
+                                resultSet.getInt("sell_limit") + ";" + resultSet.getInt("sell_counter") + ";0;0"));
 
                 final double buyPrice = resultSet.getDouble("buy_price"), sellPrice = resultSet.getDouble("sell_price"),
                         balance = resultSet.getDouble("balance");
@@ -536,7 +441,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
                 final String syntax = "INSERT " + ((host == null || host.isEmpty()) ? "OR REPLACE" : "") + " INTO " + tableName + "(id, location, owner, assistants,"
                         + " buy_price, sell_price, stock, shop_item, trade_item, limits, shop_item_amount, balance, command_only_mode, commands, change_time_stamp,"
-                        + " description, base_material, extra_data) VALUES('" + id + "', '" + location + "', '" + owner + "', '" + assistants + "', " + buyPrice
+                        + " description, appearance, extra_data) VALUES('" + id + "', '" + location + "', '" + owner + "', '" + assistants + "', " + buyPrice
                         + ", " + sellPrice + ", " + stock + ", '" + shopItem + "', '" + tradeItem + "', '" + limits + "', " + shopItemAmount + ", " + balance
                         + ", '" + commandOnly + "', '" + commands + "', '" + changeTimeStamp + "', '" + description + "', '" + baseMaterial + "', '" + extraData + "');";
 
@@ -553,7 +458,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
             resultSet.close();
             statement.close();
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -626,6 +530,88 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         } catch (NoClassDefFoundError ignored) {}
         return false;
     }*/
+
+    public void setupRecipe() {
+        if (getConfig().getBoolean("shop-creation-item.craftable")) {
+            try {
+                ShapedRecipe shapedRecipe;
+                if (Math.floor(getServerVersion()) > 1_10) {
+                    org.bukkit.NamespacedKey namespacedKey = new org.bukkit.NamespacedKey(this, "shop");
+                    Recipe recipe = getServer().getRecipe(namespacedKey);
+                    if (recipe != null) getServer().removeRecipe(namespacedKey);
+
+                    shapedRecipe = new ShapedRecipe(namespacedKey, getManager().buildShopCreationItem(null, 1));
+                    if (Math.floor(getServerVersion()) >= 1_16 && getServer().getRecipe(namespacedKey) != null) return;
+                } else shapedRecipe = new ShapedRecipe(getManager().buildShopCreationItem(null, 1));
+                shapedRecipe.shape("abc", "def", "ghi");
+
+                String lineOne = getConfig().getString("shop-creation-item.recipe.line-one"),
+                        lineTwo = getConfig().getString("shop-creation-item.recipe.line-two"),
+                        lineThree = getConfig().getString("shop-creation-item.recipe.line-three");
+                if (lineOne != null && lineOne.contains(",")) {
+                    String[] lineSplit = lineOne.split(",");
+                    for (int i = -1; ++i < 3; ) {
+                        String materialLine = lineSplit[i];
+                        char recipeChar = ((i == 0) ? 'a' : (i == 1) ? 'b' : 'c');
+
+                        if (materialLine.contains(":")) {
+                            String[] materialSplit = materialLine.split(":");
+                            Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
+                            int durability = Integer.parseInt(materialSplit[1]);
+                            if (material != null) shapedRecipe.setIngredient(recipeChar, material, durability);
+                        } else {
+                            Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
+                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
+                        }
+                    }
+                }
+
+                if (lineTwo != null && lineTwo.contains(",")) {
+                    String[] lineSplit = lineTwo.split(",");
+                    for (int i = -1; ++i < 3; ) {
+                        String materialLine = lineSplit[i];
+                        char recipeChar = ((i == 0) ? 'd' : (i == 1) ? 'e' : 'f');
+
+                        if (materialLine.contains(":")) {
+                            String[] materialSplit = materialLine.split(":");
+                            Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
+                            int durability = Integer.parseInt(materialSplit[1]);
+                            if (material != null) shapedRecipe.setIngredient(recipeChar, material, durability);
+                        } else {
+                            Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
+                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
+                        }
+                    }
+                }
+
+                if (lineThree != null && lineThree.contains(",")) {
+                    String[] lineSplit = lineThree.split(",");
+                    for (int i = -1; ++i < 3; ) {
+                        String materialLine = lineSplit[i];
+                        char recipeChar = ((i == 0) ? 'g' : (i == 1) ? 'h' : 'i');
+
+                        if (materialLine.contains(":")) {
+                            String[] materialSplit = materialLine.split(":");
+                            Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
+                            if (material != null) {
+                                int durability = Integer.parseInt(materialSplit[1]);
+                                shapedRecipe.setIngredient(recipeChar, material, durability);
+                            }
+                        } else {
+                            Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
+                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
+                        }
+                    }
+                }
+
+                getServer().addRecipe(shapedRecipe);
+            } catch (Exception e) {
+                log(Level.WARNING, "Unable to create the custom recipe for the shop creation item. This is normally due to the version of Minecraft"
+                        + " not supporting the new 'NamespacedKey' API values. To avoid this issue entirely -> DISABLE THE 'craftable' OPTION IN THE 'shop-creation-item'"
+                        + " SECTION LOCATED IN THE 'config.yml' file.");
+            }
+        }
+    }
 
     /**
      * Gets the id associated to the item in the blocked-items.yml.
@@ -902,9 +888,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     public void fixConfig() {
         if (getServerVersion() < 1_13) {
-            final String shopBlock = getConfig().getString("shop-block-material");
+            /*final String shopBlock = getConfig().getString("shop-block-material");
             if (shopBlock == null || shopBlock.isEmpty() || shopBlock.toUpperCase().contains("END_PORTAL_FRAME"))
-                getConfig().set("shop-block-material", "ENDER_PORTAL_FRAME:0");
+                getConfig().set("shop-block-material", "ENDER_PORTAL_FRAME:0");*/
 
             ConfigurationSection recipeSection = getConfig().getConfigurationSection("recipe");
             if (recipeSection != null) for (Map.Entry<String, Object> entry : recipeSection.getValues(true).entrySet()) {
@@ -934,9 +920,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             return;
         }
 
-        final String shopBlock = getConfig().getString("shop-block-material");
+      /*  final String shopBlock = getConfig().getString("shop-block-material");
         if (shopBlock == null || shopBlock.isEmpty() || shopBlock.toUpperCase().contains("ENDER_PORTAL_FRAME"))
-            getConfig().set("shop-block-material", "END_PORTAL_FRAME:0");
+            getConfig().set("shop-block-material", "END_PORTAL_FRAME:0");*/
 
         ConfigurationSection recipeSection = getConfig().getConfigurationSection("recipe");
         if (recipeSection != null) for (Map.Entry<String, Object> entry : recipeSection.getValues(true).entrySet()) {

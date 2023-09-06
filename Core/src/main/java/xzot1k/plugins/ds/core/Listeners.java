@@ -161,13 +161,14 @@ public class Listeners implements Listener {
             return;
         }
 
-        final boolean editPrevention = getPluginInstance().getConfig().getBoolean("editor-prevention");
+        final boolean editPrevention = getPluginInstance().getConfig().getBoolean("editor-prevention"),
+                emptyShopEdit = getPluginInstance().getConfig().getBoolean("empty-shop-edit"),
+                quickActions = getPluginInstance().getConfig().getBoolean("quick-actions");
         if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
             if (handItem.getType() == Material.LAVA_BUCKET) getPluginInstance().getInSightTask().refreshShop(shop);
 
             if (e.getClickedBlock() != null) {
                 final String blockType = e.getClickedBlock().getType().name();
-
                 if (getPluginInstance().getServerVersion() > 1_13) {
                     if (e.getClickedBlock() instanceof org.bukkit.block.Container) {
                         getPluginInstance().getServer().getScheduler().runTaskLater(getPluginInstance(), () -> {
@@ -199,6 +200,8 @@ public class Listeners implements Listener {
                     setShopItem(e.getPlayer(), handItem, shop);
                     return;
                 }
+
+                if (!quickActions) return;
 
                 if (shop.isAdminShop() && shop.getStock() < 0) {
                     String message = getPluginInstance().getLangConfig().getString("shop-infinite-stock");
@@ -277,7 +280,7 @@ public class Listeners implements Listener {
                 dataPack.resetEditData();
                 getPluginInstance().getInSightTask().refreshShop(shop);
             } else {
-                if (shop.getShopItem() == null) {
+                if (shop.getShopItem() == null && !emptyShopEdit) {
                     String message = getPluginInstance().getLangConfig().getString("shop-invalid-item");
                     if (message != null && !message.equalsIgnoreCase(""))
                         getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
@@ -323,6 +326,13 @@ public class Listeners implements Listener {
                     return;
                 }
 
+                if (emptyShopEdit && shop.getShopItem() == null) {
+                    String message = getPluginInstance().getLangConfig().getString("empty-shop");
+                    if (message != null && !message.equalsIgnoreCase(""))
+                        getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                    return;
+                }
+
                 ShopTransactionEvent shopTransactionEvent = new ShopTransactionEvent(e.getPlayer(), shop);
                 getPluginInstance().getServer().getPluginManager().callEvent(shopTransactionEvent);
                 if (shopTransactionEvent.isCancelled()) return;
@@ -335,7 +345,7 @@ public class Listeners implements Listener {
                 getPluginInstance().runEventCommands("shop-open", e.getPlayer());
             }
         } else if (e.getAction() == Action.LEFT_CLICK_BLOCK) {
-            if (e.getPlayer().isSneaking() && shop.canEdit(e.getPlayer())) {
+            if (quickActions && e.getPlayer().isSneaking() && shop.canEdit(e.getPlayer())) {
                 if (getPluginInstance().getConfig().getBoolean("block-creative") && e.getPlayer().getGameMode() == GameMode.CREATIVE) {
                     String message = getPluginInstance().getLangConfig().getString("creative-blocked");
                     if (message != null && !message.equalsIgnoreCase(""))
@@ -418,7 +428,7 @@ public class Listeners implements Listener {
                 }
             }
 
-            if (shop.getShopItem() == null) {
+            if (shop.getShopItem() == null && !emptyShopEdit) {
                 String message = getPluginInstance().getLangConfig().getString("shop-invalid-item");
                 if (message != null && !message.equalsIgnoreCase(""))
                     getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
@@ -480,6 +490,13 @@ public class Listeners implements Listener {
                         }
                         shop.setCurrentEditor(null);
                     }
+                }
+
+                if (emptyShopEdit && shop.getShopItem() == null) {
+                    String message = getPluginInstance().getLangConfig().getString("empty-shop");
+                    if (message != null && !message.equalsIgnoreCase(""))
+                        getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                    return;
                 }
 
                 ShopTransactionEvent shopTransactionEvent = new ShopTransactionEvent(e.getPlayer(), shop);

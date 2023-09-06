@@ -186,10 +186,10 @@ public class Commands implements CommandExecutor {
                         runStock(commandSender, args);
                         return true;
                     } else if (args[0].equalsIgnoreCase("unlock")) {
-                        runBBMAccess(commandSender, true, args);
+                        runAppearanceAccess(commandSender, true, args);
                         return true;
                     } else if (args[0].equalsIgnoreCase("lock")) {
-                        runBBMAccess(commandSender, false, args);
+                        runAppearanceAccess(commandSender, false, args);
                         return true;
                     } else if (args[0].equalsIgnoreCase("rent") || args[0].equalsIgnoreCase("renew")) {
                         runRent(commandSender, args[1]);
@@ -227,6 +227,12 @@ public class Commands implements CommandExecutor {
                         return true;
                     } else if (args[0].equalsIgnoreCase("renewcost") || args[0].equalsIgnoreCase("rcost")) {
                         runRenewCost(commandSender, args[1], args[2]);
+                        return true;
+                    } else if (args[0].equalsIgnoreCase("unlock")) {
+                        runAppearanceAccess(commandSender, true, args);
+                        return true;
+                    } else if (args[0].equalsIgnoreCase("lock")) {
+                        runAppearanceAccess(commandSender, false, args);
                         return true;
                     }
                     break;
@@ -1097,9 +1103,9 @@ public class Commands implements CommandExecutor {
                 commandSender.sendMessage(getPluginInstance().getManager().color(message.replace("{world}", world.getName())));
     }
 
-    private void runBBMAccess(CommandSender commandSender, boolean isUnlock, String[] args) {
+    private void runAppearanceAccess(CommandSender commandSender, boolean isUnlock, String[] args) {
         boolean isPlayer = (commandSender instanceof Player);
-        if (!commandSender.hasPermission("displayshops.bbmaccess")) {
+        if (!commandSender.hasPermission("displayshops.bbmaccess") && !commandSender.hasPermission("displayshops.appearance")) {
             String message = getPluginInstance().getLangConfig().getString("no-permission");
             if (message != null && !message.equalsIgnoreCase(""))
                 if (isPlayer) getPluginInstance().getManager().sendMessage((Player) commandSender, message);
@@ -1116,16 +1122,42 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        final DataPack dataPack = getPluginInstance().getManager().getDataPack(player);
-        dataPack.getBaseBlockUnlocks().clear();
-        dataPack.updateAllBaseBlockAccess(isUnlock);
+        if (args.length == 2) {
+            final DataPack dataPack = getPluginInstance().getManager().getDataPack(player);
+            dataPack.updateUnlocks(isUnlock);
 
-        String message = getPluginInstance().getLangConfig().getString(isUnlock ? "bbm-unlocked" : "bbm-locked");
-        if (message != null && !message.equalsIgnoreCase(""))
-            if (isPlayer)
-                getPluginInstance().getManager().sendMessage((Player) commandSender, message.replace("{player}", player.getName()));
-            else
-                commandSender.sendMessage(getPluginInstance().getManager().color(message.replace("{player}", player.getName())));
+            String message = getPluginInstance().getLangConfig().getString("appearance-all-admin");
+            if (message != null && !message.equalsIgnoreCase("")) {
+                String status = getPluginInstance().getLangConfig().getString(isUnlock ? "unlocked" : "locked");
+                if (status != null) message = message.replace("{status}", status);
+                if (isPlayer) getPluginInstance().getManager().sendMessage((Player) commandSender, message.replace("{player}", player.getName()));
+                else commandSender.sendMessage(getPluginInstance().getManager().color(message.replace("{player}", player.getName())));
+            }
+        } else {
+            Appearance appearance = Appearance.getAppearance(args[2]);
+            if (appearance == null) {
+                String message = getPluginInstance().getLangConfig().getString("invalid-appearance");
+                if (message != null && !message.equalsIgnoreCase("")) {
+                    message = message.replace("{appearances}", new ArrayList<String>() {{
+                        Appearance.getAppearances().parallelStream().forEach(appearance -> add(appearance.getId()));
+                    }}.toString());
+                    if (isPlayer) getPluginInstance().getManager().sendMessage((Player) commandSender, message);
+                    else commandSender.sendMessage(getPluginInstance().getManager().color(message));
+                }
+                return;
+            }
+
+            final DataPack dataPack = getPluginInstance().getManager().getDataPack(player);
+            dataPack.updateAppearance(appearance.getId(), !dataPack.hasUnlockedAppearance(player, appearance.getId()));
+
+            String message = getPluginInstance().getLangConfig().getString("appearance-access-admin");
+            if (message != null && !message.equalsIgnoreCase("")) {
+                String status = getPluginInstance().getLangConfig().getString(isUnlock ? "unlocked" : "locked");
+                if (status != null) message = message.replace("{status}", status);
+                if (isPlayer) getPluginInstance().getManager().sendMessage((Player) commandSender, message.replace("{player}", player.getName()));
+                else commandSender.sendMessage(getPluginInstance().getManager().color(message.replace("{player}", player.getName())));
+            }
+        }
     }
 
     private void runAddCommand(CommandSender commandSender, String[] args) {
@@ -1349,6 +1381,9 @@ public class Commands implements CommandExecutor {
         // restart tasks
         getPluginInstance().setupTasks();
 
+        // reset recipe
+        getPluginInstance().setupRecipe();
+
         String message = getPluginInstance().getLangConfig().getString("clean-database");
         if (message != null && !message.equalsIgnoreCase(""))
             commandSender.sendMessage(getPluginInstance().getManager().color(message));
@@ -1400,9 +1435,6 @@ public class Commands implements CommandExecutor {
 
                 Location location = shop.getBaseLocation().asBukkitLocation();
                 if (location != null) {
-                    Block block = location.getBlock();
-                    if (block == null) continue;
-
                     if (location.getBlock().getType().name().contains("AIR")) {
                         shop.killAll();
                         shop.delete(true);

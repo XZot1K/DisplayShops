@@ -1,6 +1,14 @@
 package xzot1k.plugins.ds.api.objects;
 
+import org.bukkit.Axis;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.Orientable;
+import org.bukkit.block.data.Rotatable;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -10,7 +18,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.enums.Direction;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -18,8 +28,9 @@ import java.util.logging.Level;
 public class DAppearance extends Appearance {
     private final DisplayShops INSTANCE = DisplayShops.getPluginInstance();
 
-    public DAppearance(@NotNull String id, @NotNull String material, double price, @Nullable String permission, @Nullable String... requirement) {
-        super(id, material, price, permission, requirement);
+    public DAppearance(@NotNull String id, @NotNull String material, double price, @Nullable String permission,
+                       double @Nullable [] offset, @Nullable String... requirement) {
+        super(id, material, price, permission, offset, requirement);
         registerAppearance(this);
     }
 
@@ -29,8 +40,8 @@ public class DAppearance extends Appearance {
 
         Object appearanceObject = menu.getConfiguration().get("appearances");
         if (appearanceObject == null) {
-            DisplayShops.getPluginInstance().log(Level.WARNING, "No appearances section was found in the \"" + menu.getConfiguration().getName() +
-                    "\" file.");
+            DisplayShops.getPluginInstance().log(Level.WARNING, "No appearances section was found in the \""
+                    + menu.getConfiguration().getName() + "\" file.");
             return;
         }
 
@@ -65,6 +76,7 @@ public class DAppearance extends Appearance {
                 appearanceSection.set((id + ".price"), price);
                 appearanceSection.set((id + ".permission"), ("displayshops.bbm." + id));
                 appearanceSection.set((id + ".requirement"), requirement);
+                appearanceSection.set((id + ".offset"), "0.5,-0.2,0.5");
             }
 
             menu.save();
@@ -85,8 +97,20 @@ public class DAppearance extends Appearance {
                 continue;
             }
 
+            double[] offset = null;
+            String offsetString = appearanceOptions.getString("offset");
+            if (offsetString != null && offsetString.contains(",")) {
+                String[] args = offsetString.split(",");
+                if (args.length >= 3) {
+                    offset = new double[3];
+                    if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[0])) offset[0] = Double.parseDouble(args[0]);
+                    if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[1])) offset[1] = Double.parseDouble(args[1]);
+                    if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[2])) offset[2] = Double.parseDouble(args[2]);
+                }
+            }
+
             new DAppearance(id, material, appearanceOptions.getDouble("price"), appearanceOptions.getString("permission"),
-                    appearanceOptions.getStringList("requirement").toArray(new String[]{}));
+                    offset, appearanceOptions.getStringList("requirement").toArray(new String[]{}));
             counter++;
         }
 
@@ -94,62 +118,25 @@ public class DAppearance extends Appearance {
                 + (failed > 0 ? " " + failed + " appearances failed to load." : ""));
     }
 
-    private Pair<String, Integer> getCurrentMaterial(@NotNull Shop shop) {
-        String currentMaterial = (shop.getStoredBaseBlockMaterial() != null ? shop.getStoredBaseBlockMaterial()
-                : INSTANCE.getConfig().getString("shop-block-material"));
-        int currentDurability = -1;
-        if (currentMaterial != null) {
-            if (currentMaterial.contains(":")) {
-                String[] args = currentMaterial.split(":");
-                Material newMat = Material.getMaterial(args[0].toUpperCase().replace(" ", "_").replace("-", "_"));
-                if (newMat != null) currentMaterial = newMat.name();
-                else if (INSTANCE.isItemAdderInstalled()) {
-                    dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
-                    if (customBlock != null) currentMaterial = customBlock.getId();
-                }
-
-                currentDurability = Integer.parseInt(args[1]);
-            } else {
-                Material newMat = Material.getMaterial(currentMaterial.toUpperCase().replace(" ", "_").replace("-", "_"));
-                if (newMat != null) currentMaterial = newMat.name();
-                else if (INSTANCE.isItemAdderInstalled()) {
-                    dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(currentMaterial);
-                    if (customBlock != null) currentMaterial = customBlock.getId();
-                }
-            }
-        }
-        return new Pair<>(currentMaterial, currentDurability);
-    }
-
     @Override
     public ItemStack build(@NotNull Player player, @NotNull Shop shop) {
         ItemStack itemStack = null;
-        String material = null;
         if (getMaterial() != null && getMaterial().contains(":")) {
             final String[] args = getMaterial().split(":");
             Material mat = Material.getMaterial(args[0]);
             if (mat != null) {
-                material = mat.name();
                 int durability = Integer.parseInt(args[1]);
-                itemStack = INSTANCE.updateNBT(new ItemStack(mat, 1, (byte) (Math.max(durability, 0))), "ds-type", material);
+                itemStack = new ItemStack(mat, 1, (byte) (Math.max(durability, 0)));
             } else if (INSTANCE.isItemAdderInstalled()) {
                 dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
-                if (customBlock != null) {
-                    material = customBlock.getId();
-                    itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", material);
-                }
+                if (customBlock != null) itemStack = customBlock.getItemStack();
             }
         } else {
             Material mat = Material.getMaterial(getMaterial());
-            if (mat != null) {
-                material = mat.name();
-                itemStack = INSTANCE.updateNBT(new ItemStack(mat), "ds-type", material);
-            } else if (INSTANCE.isItemAdderInstalled()) {
+            if (mat != null) itemStack = new ItemStack(mat);
+            else if (INSTANCE.isItemAdderInstalled()) {
                 dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(getMaterial());
-                if (customBlock != null) {
-                    material = customBlock.getId();
-                    itemStack = INSTANCE.updateNBT(customBlock.getItemStack(), "ds-type", material);
-                }
+                if (customBlock != null) itemStack = customBlock.getItemStack();
             }
         }
 
@@ -159,15 +146,12 @@ public class DAppearance extends Appearance {
         final Menu menu = INSTANCE.getMenu("appearance");
         if (itemMeta == null || menu == null) return INSTANCE.updateNBT(itemStack, "ds-bbm", shop.getShopId().toString());
 
-        final Pair<String, Integer> current = getCurrentMaterial(shop);
-        if (material.equalsIgnoreCase(current.getKey()) && (current.getValue() == itemStack.getDurability() || current.getValue() <= -1)) {
+        if (shop.getAppearanceId() != null && shop.getAppearanceId().equalsIgnoreCase(getId())) {
             String selectedName = menu.getConfiguration().getString("selected-format.name");
             final List<String> selectedLore = menu.getConfiguration().getStringList("selected-format.lore");
 
             if (selectedName != null) {
-                Material mat = Material.getMaterial(material);
-                selectedName = selectedName.replace("{material}", (mat != null ? INSTANCE.getManager().getTranslatedName(mat)
-                        : getId().replace("_", " ")));
+                selectedName = selectedName.replace("{material}", getId().replace("_", " "));
                 itemMeta.setDisplayName(INSTANCE.getManager().color(selectedName));
             }
             itemMeta.setLore(new ArrayList<String>() {{
@@ -194,12 +178,10 @@ public class DAppearance extends Appearance {
                     lockedLore = menu.getConfiguration().getStringList("locked-format.lore");
 
             final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-            final boolean isUnlocked = dataPack.hasUnlockedBBM(getId());
+            final boolean isUnlocked = dataPack.hasUnlockedAppearance(player, getId());
             String name = menu.getConfiguration().getString((isUnlocked ? "unlocked" : "locked") + "-format.name");
             if (name != null) {
-                Material mat = Material.getMaterial(material);
-                name = name.replace("{material}", (mat != null ? INSTANCE.getManager().getTranslatedName(mat)
-                        : getId().replace("_", " ")));
+                name = name.replace("{material}", getId().replace("_", " "));
                 String newName = (isUnlocked ? unlockedName : lockedName);
                 if (newName != null) itemMeta.setDisplayName(INSTANCE.getManager().color(newName.replace("{material}", name)));
                 itemMeta.setLore(new ArrayList<String>() {{
@@ -207,6 +189,7 @@ public class DAppearance extends Appearance {
                     for (int i = -1; ++i < newLore.size(); ) {
                         String line = newLore.get(i);
                         if (!line.equalsIgnoreCase("{requirement}")) {
+                            if (line.contains("price}") && getPrice() <= 0) continue; // skip no price
                             add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
                                     .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
                                     .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
@@ -216,11 +199,14 @@ public class DAppearance extends Appearance {
                             if (getRequirement() != null && getRequirement().isEmpty()) {
                                 for (int j = -1; ++j < getRequirement().size(); ) {
                                     final String rLine = getRequirement().get(j);
-                                    if (rLine != null) add(INSTANCE.getManager().color(INSTANCE.papiText(player, rLine
-                                            .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                            .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                            .replace("{permission}", (getPermission() != null ? getPermission() : ""))
-                                            .replace("{id}", (getId() != null ? getId() : "")))));
+                                    if (rLine != null) {
+                                        if (line.contains("price}") && getPrice() <= 0) continue; // skip no price
+                                        add(INSTANCE.getManager().color(INSTANCE.papiText(player, rLine
+                                                .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
+                                                .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
+                                                .replace("{permission}", (getPermission() != null ? getPermission() : ""))
+                                                .replace("{id}", (getId() != null ? getId() : "")))));
+                                    }
                                 }
                             }
                         }
@@ -230,27 +216,99 @@ public class DAppearance extends Appearance {
             }
         }
 
-        return INSTANCE.updateNBT(itemStack, "ds-bbm", shop.getShopId().toString());
+        return INSTANCE.updateNBT(INSTANCE.updateNBT(itemStack, "ds-bbm", shop.getShopId().toString()), "ds-appearance", getId());
     }
 
-    public boolean hasValidMaterial(@NotNull String material) {
-        if (getMaterial() != null && getMaterial().contains(":")) {
-            final String[] args = getMaterial().split(":");
-            Material mat = Material.getMaterial(args[0]);
-            if (mat != null) return true;
-            else if (INSTANCE.isItemAdderInstalled()) {
-                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(args[0]);
-                return (customBlock != null);
+
+    @Override
+    public void apply(@NotNull Shop shop, @NotNull Player player) {
+        if (shop.getBaseLocation() == null) return;
+        final Location baseBlockLocation = shop.getBaseLocation().asBukkitLocation();
+        final Block block = baseBlockLocation.getBlock();
+
+        shop.setAppearanceId(getId());
+
+        String materialName = getMaterial();
+        int durability = 0;
+        if (materialName.contains(":")) {
+            String[] args = materialName.split(":");
+            materialName = args[0];
+            if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[1])) durability = Integer.parseInt(args[1]);
+        }
+
+        Material material = Material.getMaterial(materialName);
+        if (material != null) {
+            if (DisplayShops.getPluginInstance().isItemAdderInstalled()) dev.lone.itemsadder.api.CustomBlock.remove(baseBlockLocation);
+            block.setType(Material.AIR);
+            block.setType(material);
+
+            final boolean isOld = ((Math.floor(DisplayShops.getPluginInstance().getServerVersion()) <= 1_12));
+            if (isOld) try {
+                @SuppressWarnings("JavaReflectionMemberAccess") Method method = Block.class.getMethod("setData", byte.class);
+                method.invoke(baseBlockLocation.getBlock(), ((byte) (durability < 0 ? oppositeDirectionByte(Direction.getYaw(player)) : durability)));
+            } catch (Exception ignored) {}
+            else {
+                block.setBlockData(INSTANCE.getServer().createBlockData(material));
+                setBlock(block, material, (material.name().contains("SHULKER") ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(player).name())));
             }
-        } else {
-            Material mat = Material.getMaterial(getMaterial());
-            if (mat != null) return true;
-            else if (INSTANCE.isItemAdderInstalled()) {
-                dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(getMaterial());
-                return (customBlock != null);
+        } else if (DisplayShops.getPluginInstance().isItemAdderInstalled()) {
+            dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(materialName);
+            if (customBlock != null) {
+                block.setType(Material.AIR);
+                customBlock.place(baseBlockLocation);
             }
         }
-        return false;
+
+        String changeSound = INSTANCE.getConfig().getString("immersion-section.shop-bbm-sound");
+        if (changeSound != null && !changeSound.equalsIgnoreCase(""))
+            player.playSound(player.getLocation(), Sound.valueOf(changeSound.toUpperCase().replace(" ", "_")
+                    .replace("-", "_")), 1, 1);
+
+        String changeEffect = INSTANCE.getConfig().getString("immersion-section.shop-bbm-particle");
+        if (changeEffect != null && !changeEffect.equalsIgnoreCase(""))
+            INSTANCE.displayParticle(player, changeEffect.toUpperCase().replace(" ", "_").replace("-", "_"),
+                    baseBlockLocation.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 12);
+    }
+
+    private String convertBlockFaceToAxis(BlockFace face) {
+        switch (face) {
+            case NORTH:
+            case SOUTH:
+                return "Z";
+            case UP:
+            case DOWN:
+                return "Y";
+            case EAST:
+            case WEST:
+            default:
+                return "X";
+        }
+    }
+
+    private void setBlock(Block block, Material material, BlockFace blockFace) {
+        block.setType(material);
+
+        org.bukkit.block.data.BlockData blockData = block.getBlockData();
+        if (blockData instanceof Directional) {
+            ((Directional) blockData).setFacing(blockFace);
+            block.setBlockData(blockData);
+        }
+
+        if (blockData instanceof Orientable) {
+            ((Orientable) blockData).setAxis(Axis.valueOf(convertBlockFaceToAxis(blockFace)));
+            block.setBlockData(blockData);
+        }
+
+        if (blockData instanceof Rotatable) {
+            ((Rotatable) blockData).setRotation(blockFace);
+            block.setBlockData(blockData);
+        }
+    }
+
+    private byte oppositeDirectionByte(Direction direction) {
+        for (int i = -1; ++i < Direction.values().length; )
+            if (direction == Direction.values()[i]) return (byte) i;
+        return 4;
     }
 
     @Override

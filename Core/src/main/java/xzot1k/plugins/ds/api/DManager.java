@@ -61,7 +61,6 @@ public class DManager implements Manager {
         setMarketRegions(new ArrayList<>());
         hexPattern = Pattern.compile("#[a-fA-F\\d]{6}");
         uuidPattern = Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
-        defaultCurrencyItem = buildShopCurrencyItem(1);
     }
 
     /**
@@ -75,7 +74,7 @@ public class DManager implements Manager {
                 "SELECT * FROM player_data WHERE uuid = '" + player.getUniqueId() + "';");
              ResultSet resultSet = statement.executeQuery()) {
             if (resultSet.next()) {
-                dataPack = new DDataPack(getPluginInstance(), resultSet.getString("bbm_unlocks"));
+                dataPack = new DDataPack(getPluginInstance(), resultSet.getString("appearance_data"));
 
                 final String cooldownLine = resultSet.getString("cooldowns");
                 String[] cdArgs = cooldownLine.split(",");
@@ -116,8 +115,7 @@ public class DManager implements Manager {
                         final String[] cdLineArgs = cdArgs[i].split(":");
                         dataPack.getCooldownMap().put(cdLineArgs[0], Long.parseLong(cdLineArgs[1]));
                     }
-                } catch (ArrayIndexOutOfBoundsException ignored) {
-                }
+                } catch (ArrayIndexOutOfBoundsException ignored) {}
 
                 String notify = resultSet.getString("notify");
                 if (notify != null && !notify.isEmpty())
@@ -206,15 +204,15 @@ public class DManager implements Manager {
 
             final String host = getPluginInstance().getConfig().getString("mysql.host"), syntax;
             if (host == null || host.isEmpty())
-                syntax = "INSERT OR REPLACE INTO player_data(uuid, bbm_unlocks, cooldowns, transaction_limits, notify) VALUES('"
-                        + playerUniqueId + "', '" + dataPack.getBBMString() + "', '" + dataPack.cooldownsToString() + "', '"
+                syntax = "INSERT OR REPLACE INTO player_data(uuid, appearance_data, cooldowns, transaction_limits, notify) VALUES('"
+                        + playerUniqueId + "', '" + dataPack.getAppearanceData() + "', '" + dataPack.cooldownsToString() + "', '"
                         + dataPack.transactionLimitsToString() + "', '" + (dataPack.isTransactionNotify() ? 1 : 0) + "');";
             else
-                syntax = "INSERT INTO player_data(uuid, bbm_unlocks, cooldowns, transaction_limits, notify) VALUES( '"
-                        + playerUniqueId + "', '" + dataPack.getBBMString() + "', '" + dataPack.cooldownsToString() + "', '"
+                syntax = "INSERT INTO player_data(uuid, appearance_data, cooldowns, transaction_limits, notify) VALUES( '"
+                        + playerUniqueId + "', '" + dataPack.getAppearanceData() + "', '" + dataPack.cooldownsToString() + "', '"
                         + dataPack.transactionLimitsToString() + "', '" + (dataPack.isTransactionNotify() ? 1 : 0)
-                        + "') ON DUPLICATE KEY UPDATE uuid = '" + playerUniqueId + "', bbm_unlocks = '"
-                        + dataPack.getBaseBlockUnlocks() + "', cooldowns = '" + dataPack.cooldownsToString()
+                        + "') ON DUPLICATE KEY UPDATE uuid = '" + playerUniqueId + "', appearance_data = '"
+                        + dataPack.getAppearanceDataMap() + "', cooldowns = '" + dataPack.cooldownsToString()
                         + "', transaction_limits = '" + dataPack.transactionLimitsToString() + "', notify = '"
                         + (dataPack.isTransactionNotify() ? 1 : 0) + "';";
 
@@ -646,39 +644,6 @@ public class DManager implements Manager {
     }
 
     /**
-     * Obtains the price associated with the material and durability via base-block appearances.
-     *
-     * @param type       The material or ItemsAdder block id to check for.
-     * @param durability The durability to check.
-     * @return The price found.
-     */
-    public double getBBMPrice(String type, int durability) {
-        double foundPrice = 0;
-
-        final Menu menu = getPluginInstance().getMenu("appearance");
-        final List<String> availableMaterialList = menu.getConfiguration().getStringList("appearances");
-
-        for (int i = -1; ++i < availableMaterialList.size(); ) {
-            final String line = availableMaterialList.get(i);
-            if (!line.contains(":")) continue;
-
-            String[] lineArgs = line.split(":");
-            if (isNotNumeric(lineArgs[1])) continue;
-            final int foundDurability = Integer.parseInt(lineArgs[1]);
-
-            final String materialName = lineArgs[0].replace(" ", "_").replace("-", "_");
-            if (!type.equalsIgnoreCase(materialName) || !(foundDurability <= -1 || foundDurability == durability))
-                continue;
-
-            if (isNotNumeric(lineArgs[2])) continue;
-            foundPrice = Double.parseDouble(lineArgs[2]);
-            break;
-        }
-
-        return foundPrice;
-    }
-
-    /**
      * Colors the text passed.
      *
      * @param message The message to translate.
@@ -793,34 +758,6 @@ public class DManager implements Manager {
     }
 
     /**
-     * Gets the proper offsets based on configuration or defaults.
-     *
-     * @param shop The shop to obtain the offsets for.
-     * @return The array of X, Y, and Z offsets.
-     */
-    public Double[] getBaseBlockOffsets(Shop shop) {
-        if (shop.getStoredBaseBlockMaterial() != null) {
-            List<String> offsets = getPluginInstance().getConfig().getStringList("material-based-offsets");
-            for (int i = -1; ++i < offsets.size(); ) {
-                String offsetString = offsets.get(i);
-                if (!offsetString.contains(":") || !offsetString.contains(",")) continue;
-
-                String[] offsetMainSplit = offsetString.split(":");
-                if (!shop.getStoredBaseBlockMaterial().toUpperCase().contains(offsetMainSplit[0].toUpperCase()
-                        .replace(" ", "_").replace("-", "_"))) continue;
-
-                String[] offsetValueSplit = offsetString.replace(offsetMainSplit[0] + ":", "").split(",");
-                if (offsetValueSplit.length < 3) continue;
-
-                return new Double[]{Double.parseDouble(offsetValueSplit[0]), Double.parseDouble(offsetValueSplit[1]),
-                        Double.parseDouble(offsetValueSplit[2])};
-            }
-        }
-
-        return new Double[]{0.5, -0.25, 0.5};
-    }
-
-    /**
      * Attempts to get a shop object from the shop map by its ID.
      *
      * @param shopId The ID to get the shop from
@@ -851,9 +788,10 @@ public class DManager implements Manager {
      * @param sendCreationMessage Whether to send the creation message.
      * @return The shop object.
      */
-    public Shop createShop(Player player, Block block, int shopItemAmount, boolean doCreationEffects, boolean sendCreationMessage) {
+    public Shop createShop(@NotNull Player player, @NotNull Block block, int shopItemAmount, boolean doCreationEffects, boolean sendCreationMessage) {
+        Menu appearanceMenu = getPluginInstance().getMenu("appearance");
         DShop shop = new DShop(getPluginInstance().getManager().generateNewId(), player.getUniqueId(),
-                block.getLocation(), shopItemAmount, block.getType().name());
+                block.getLocation(), shopItemAmount, (appearanceMenu != null ? appearanceMenu.getConfiguration().getString("default-appearance") : "Default"));
         shop.register();
 
         if (doCreationEffects) {
@@ -899,6 +837,9 @@ public class DManager implements Manager {
                     shopCountPercentage = ((long) (shopCount * 0.15));
             resultSet.close();
 
+            Menu appearanceMenu = getPluginInstance().getMenu("appearance");
+            String defaultAppearance = appearanceMenu.getConfiguration().getString("default-appearance");
+
             statement = getPluginInstance().getDatabaseConnection().prepareStatement("SELECT * FROM shops;");
             resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -933,7 +874,8 @@ public class DManager implements Manager {
                     }
 
                     final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location")
-                            ? "base_" : "") + "location"), storedBaseBlockMaterialLine;
+                            ? "base_" : "") + "location");
+                    String appearance;
                     LClone baseLocation;
                     if (baseLocationString.contains(":")) {
                         final String[] locationStringArgsOuter = baseLocationString.split(":"),
@@ -942,15 +884,15 @@ public class DManager implements Manager {
                         baseLocation = new LClone(locationStringArgs[0], Double.parseDouble(locationStringArgs[1]),
                                 Double.parseDouble(locationStringArgs[2]), Double.parseDouble(locationStringArgs[3]),
                                 Float.parseFloat(locationStringArgs[4]), Float.parseFloat(locationStringArgs[5]));
-                        storedBaseBlockMaterialLine = locationStringArgsOuter[0].replace(",", ":");
+
+                        appearance = Appearance.findAppearance(locationStringArgsOuter[0].replace(",", ":"));
                     } else {
                         final String[] locationStringArgs = baseLocationString.split(",");
                         baseLocation = new LClone(locationStringArgs[0], Double.parseDouble(locationStringArgs[1]),
                                 Double.parseDouble(locationStringArgs[2]), Double.parseDouble(locationStringArgs[3]),
                                 Float.parseFloat(locationStringArgs[4]), Float.parseFloat(locationStringArgs[5]));
 
-                        storedBaseBlockMaterialLine = (getPluginInstance().hasColumn(resultSet, "base_material")
-                                ? resultSet.getString("base_material") : "STONE:0");
+                        appearance = resultSet.getString("appearance");
                     }
 
                     World world = getPluginInstance().getServer().getWorld(baseLocation.getWorldName());
@@ -974,7 +916,10 @@ public class DManager implements Manager {
                     if (tradeItemString != null && !tradeItemString.equalsIgnoreCase(""))
                         tradeItem = getPluginInstance().toItem(tradeItemString);
 
-                    DShop shop = new DShop(shopId, ownerId, shopItem, baseLocation, resultSet.getInt("shop_item_amount"), storedBaseBlockMaterialLine);
+                    if (appearance == null || appearance.isEmpty() || Appearance.getAppearance(appearance) == null)
+                        appearance = (defaultAppearance != null ? defaultAppearance : "Default");
+
+                    DShop shop = new DShop(shopId, ownerId, shopItem, baseLocation, resultSet.getInt("shop_item_amount"), appearance);
                     shop.setTradeItem(tradeItem);
                     shop.setDescription(resultSet.getString("description"));
                     shop.setBuyPrice(resultSet.getDouble("buy_price"));
@@ -1624,7 +1569,16 @@ public class DManager implements Manager {
      * @return The shop creation physical item stack.
      */
     public ItemStack buildShopCreationItem(Player player, int amount) {
-        final String materialName = getPluginInstance().getConfig().getString("shop-block-material");
+        Menu appearanceMenu = getPluginInstance().getMenu("appearance");
+        if (appearanceMenu == null) return null;
+
+        Appearance appearance = Appearance.getAppearance(appearanceMenu.getConfiguration().getString("default-appearance"));
+        if (appearance == null) {
+            getPluginInstance().log(Level.WARNING, "The default appearance in the \"" + appearanceMenu.getFileName() + "\" is invalid.");
+            return null;
+        }
+
+        final String materialName = appearance.getMaterial();
         final boolean isEnchanted = getPluginInstance().getConfig().getBoolean("shop-creation-item.enchanted");
 
         CustomItem item;

@@ -14,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
+import xzot1k.plugins.ds.api.objects.Appearance;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.util.ArrayList;
@@ -28,8 +29,13 @@ public class DPacket implements DisplayPacket {
     public DPacket(@NotNull DisplayShops pluginInstance, @NotNull Player player, @NotNull Shop shop, boolean showHolograms) {
         if (!player.isOnline() || player.getWorld() == null) return;
         this.setPluginInstance(pluginInstance);
-        Double[] offsets = this.getPluginInstance().getManager().getBaseBlockOffsets(shop);
-        double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
+
+        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
+        if (appearance == null) return;
+
+        final double[] offsets = appearance.getOffset();
+        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
+
         PlayerConnection playerConnection = ((CraftPlayer) player).getHandle().playerConnection;
         NBTTagCompound compoundTag = new NBTTagCompound();
         compoundTag.setBoolean("Marker", true);

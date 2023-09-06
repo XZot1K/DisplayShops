@@ -8,6 +8,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.objects.Appearance;
 import xzot1k.plugins.ds.api.objects.MarketRegion;
 
 import java.util.ArrayList;
@@ -24,12 +25,10 @@ public class TabCompleter implements org.bukkit.command.TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender commandSender, Command command, String label, String[] args) {
-
         if (command.getName().equalsIgnoreCase("displayshops")) {
             List<String> contents = new ArrayList<>();
-
             switch (args.length) {
-                case 1:
+                case 1: {
                     if (commandSender.hasPermission("displayshops.bbmaccess"))
                         if ("lock".startsWith(args[0].toLowerCase())) contents.add("lock");
                         else if ("unlock".startsWith(args[0].toLowerCase())) contents.add("unlock");
@@ -104,8 +103,8 @@ public class TabCompleter implements org.bukkit.command.TabCompleter {
                         else if ("rcost".startsWith(args[0].toLowerCase())) contents.add("rcost");
                     }
                     break;
-
-                case 2:
+                }
+                case 2: {
                     if ((args[0].equalsIgnoreCase("bal") || args[0].equalsIgnoreCase("balance"))) {
                         if (commandSender.hasPermission("displayshops.balwithdraw") && "withdraw".startsWith(args[1].toLowerCase()))
                             contents.add("withdraw");
@@ -114,11 +113,12 @@ public class TabCompleter implements org.bukkit.command.TabCompleter {
                     }
 
                     if ((commandSender.hasPermission("displayshops.give") && args[0].equalsIgnoreCase("give"))
-                            || (commandSender.hasPermission("displayshops.bbmaccess") && (args[0].equalsIgnoreCase("lock")
-                            || args[0].equalsIgnoreCase("unlock"))))
+                            || ((commandSender.hasPermission("displayshops.bbmaccess") || commandSender.hasPermission("displayshops.appearance"))
+                            && (args[0].equalsIgnoreCase("lock") || args[0].equalsIgnoreCase("unlock")))) {
                         for (Player player : getPluginInstance().getServer().getOnlinePlayers())
                             if (player.getName().toLowerCase().startsWith(args[1].toLowerCase()))
                                 contents.add(player.getName());
+                    }
 
                     if ((commandSender.hasPermission("displayshops.cost") && "cost".startsWith(args[0].toLowerCase()))
                             || (commandSender.hasPermission("displayshops.rcost") && ("renewcost".startsWith(args[0].toLowerCase())
@@ -130,6 +130,14 @@ public class TabCompleter implements org.bukkit.command.TabCompleter {
                         }
 
                     break;
+                }
+                case 3: {
+                    if (((commandSender.hasPermission("displayshops.bbmaccess") || commandSender.hasPermission("displayshops.appearance"))
+                            && (args[0].equalsIgnoreCase("lock") || args[0].equalsIgnoreCase("unlock"))))
+                        Appearance.getAppearances().parallelStream().filter(appearance -> (appearance.getId().toLowerCase().startsWith(args[2].toLowerCase())))
+                                .forEach(appearance -> contents.add(appearance.getId()));
+                    break;
+                }
             }
 
             if (!contents.isEmpty()) Collections.sort(contents);
@@ -140,11 +148,7 @@ public class TabCompleter implements org.bukkit.command.TabCompleter {
     }
 
     // getters & setters
-    private DisplayShops getPluginInstance() {
-        return pluginInstance;
-    }
+    private DisplayShops getPluginInstance() {return pluginInstance;}
 
-    private void setPluginInstance(DisplayShops pluginInstance) {
-        this.pluginInstance = pluginInstance;
-    }
+    private void setPluginInstance(DisplayShops pluginInstance) {this.pluginInstance = pluginInstance;}
 }

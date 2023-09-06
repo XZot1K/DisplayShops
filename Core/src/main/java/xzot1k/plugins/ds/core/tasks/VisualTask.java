@@ -32,8 +32,8 @@ public class VisualTask extends BukkitRunnable {
     @Override
     public void run() {
         if (getPluginInstance().getManager().getShopMap() != null && !getPluginInstance().getManager().getShopMap().isEmpty()) {
-            for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
-                if (player == null || !player.isOnline()) continue;
+            getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(player -> {
+                if (player == null || !player.isOnline()) return;
 
                 for (Shop shop : new ArrayList<>(getPluginInstance().getManager().getShopMap().values())) {
                     if (shop == null || shop.getBaseLocation() == null) continue;
@@ -61,7 +61,7 @@ public class VisualTask extends BukkitRunnable {
                 }
 
                 getPlayersToRefresh().remove(player.getUniqueId());
-                if (isAlwaysDisplay()) continue;
+                if (isAlwaysDisplay()) return;
 
                 Shop tempCurrentShop = null;
                 if (!getPluginInstance().getShopMemory().isEmpty() && getPluginInstance().getShopMemory().containsKey(player.getUniqueId())) {
@@ -75,11 +75,11 @@ public class VisualTask extends BukkitRunnable {
                 if (foundShopAtLocation == null) {
                     if (currentShop != null) getPluginInstance().sendDisplayPacket(currentShop, player, false);
                     getPluginInstance().getShopMemory().remove(player.getUniqueId());
-                    continue;
+                    return;
                 }
 
                 if (currentShop != null && currentShop.getShopId().toString().equals(foundShopAtLocation.getShopId().toString()))
-                    continue;
+                    return;
 
                 if (currentShop != null) getPluginInstance().sendDisplayPacket(currentShop, player, false);
 
@@ -88,7 +88,7 @@ public class VisualTask extends BukkitRunnable {
 
                 getPluginInstance().sendDisplayPacket(foundShopAtLocation, player, true);
                 getPluginInstance().getShopMemory().put(player.getUniqueId(), foundShopAtLocation.getShopId());
-            }
+            });
 
             if (getPluginInstance().getConfig().getBoolean("run-gc-immediately") && getGcCounter() >= 15) {
                 setGcCounter(0);

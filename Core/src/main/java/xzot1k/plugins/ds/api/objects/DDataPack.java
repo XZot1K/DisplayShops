@@ -4,6 +4,7 @@
 
 package xzot1k.plugins.ds.api.objects;
 
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -16,7 +17,7 @@ import java.util.*;
 public class DDataPack implements DataPack {
     private DisplayShops pluginInstance;
     private HashMap<Integer, List<ItemStack>> pageMap;
-    private LinkedHashMap<String, Boolean> baseBlockUnlocks;
+    private LinkedHashMap<String, Boolean> appearanceDataMap;
     private int currentPage;
     private final HashMap<String, Long> cooldownMap;
     private final HashMap<UUID, Long[]> transactionLimitMap;
@@ -26,14 +27,14 @@ public class DDataPack implements DataPack {
     private Shop selectedShop;
     private Region selectedRegion;
 
-    public DDataPack(DisplayShops pluginInstance, @Nullable String baseBlockUnlocks) {
+    public DDataPack(DisplayShops pluginInstance, @Nullable String appearanceData) {
         this.setPluginInstance(pluginInstance);
         this.transactionLimitMap = new HashMap<>();
         this.cooldownMap = new HashMap<>();
         setTransactionNotify(true);
         setPageMap(new LinkedHashMap<>());
-        setBaseBlockUnlocks(new LinkedHashMap<>());
-        loadBBM(baseBlockUnlocks);
+        setAppearanceDataMap(new LinkedHashMap<>());
+        loadAppearanceData(appearanceData);
     }
 
     /**
@@ -45,11 +46,8 @@ public class DDataPack implements DataPack {
      */
     public void updateCurrentTransactionLimitCounter(@NotNull Shop shop, boolean isBuy, long amount) {
         final Long[] counters = getTransactionLimitMap().getOrDefault(shop.getShopId(), new Long[]{0L, 0L});
-        if (isBuy) {
-            counters[0] = amount;
-        } else {
-            counters[1] = amount;
-        }
+        if (isBuy) counters[0] = amount;
+        else counters[1] = amount;
         getTransactionLimitMap().put(shop.getShopId(), counters);
     }
 
@@ -106,73 +104,87 @@ public class DDataPack implements DataPack {
     }
 
     @Override
-    public boolean hasUnlockedBBM(@NotNull String unlockId) {
-        return getBaseBlockUnlocks().getOrDefault(fixUnlockId(unlockId).toUpperCase(), false);
-    }
-
-    @Override
-    public void unlockBaseBlock(@NotNull String unlockId) {
-        getBaseBlockUnlocks().put(fixUnlockId(unlockId).toUpperCase(), true);
-    }
-
-    @Override
-    public void lockBaseBlock(@NotNull String unlockId) {
-        getBaseBlockUnlocks().put(fixUnlockId(unlockId).toUpperCase(), false);
-    }
-
-    @Override
-    public void updateAllBaseBlockAccess(boolean unlockAll) {
-        String defaultMaterial = getPluginInstance().getConfig().getString("shop-block-material");
-        if (defaultMaterial == null) defaultMaterial = "STONE";
-
+    public boolean canUnlockAppearance(@NotNull Player player, @NotNull String appearanceId) {
         Menu menu = getPluginInstance().getMenu("appearance");
+        if (menu == null) return false;
+        Appearance appearance = Appearance.getAppearance(appearanceId);
+        if (appearance != null) {
+            return (appearance.getPermission() == null || appearance.getPermission().isEmpty()
+                    || player.hasPermission(appearance.getPermission()) || player.hasPermission("displayshops.bbm.*")
+                    || player.hasPermission("displayshops.appearance.*"));
+        } else return false;
+    }
 
-        for (String line : menu.getConfiguration().getStringList("appearances")) {
-            if (line == null || !line.contains(":")) continue;
-            final String[] lineArgs = line.split(":");
-            final String unlockId = (lineArgs[0] + ":" + lineArgs[1]).toUpperCase();
-            getBaseBlockUnlocks().putIfAbsent(unlockId, (defaultMaterial.toUpperCase().startsWith(unlockId) ||
-                    (defaultMaterial.toUpperCase().startsWith(lineArgs[0])
-                            && lineArgs[1].equalsIgnoreCase("-1")) || unlockAll));
+    @Override
+    public boolean hasUnlockedAppearance(@NotNull Player player, @NotNull String appearanceId) {
+        Menu menu = getPluginInstance().getMenu("appearance");
+        if (menu != null && menu.getConfiguration().getBoolean("permission-unlock-mode"))
+            return canUnlockAppearance(player, appearanceId);
+        return getAppearanceDataMap().getOrDefault(appearanceId, false);
+    }
+
+    @Override
+    public void updateAppearance(@NotNull String appearanceId, boolean unlocked) {getAppearanceDataMap().put(appearanceId, unlocked);}
+
+    @Override
+    public void updateUnlocks(boolean unlockAll) {
+        final Menu menu = getPluginInstance().getMenu("appearance");
+        if (menu == null) return;
+
+        ConfigurationSection appearanceSection = menu.getConfiguration().getConfigurationSection("appearances");
+        if (appearanceSection != null) {
+            for (String appearanceId : appearanceSection.getKeys(false)) {
+                ConfigurationSection appearanceSettings = menu.getConfiguration().getConfigurationSection(appearanceId);
+                if (appearanceSettings == null) continue;
+                getAppearanceDataMap().putIfAbsent(appearanceId, unlockAll);
+            }
         }
     }
 
-    private String fixUnlockId(@NotNull String unlockId) {
-        String[] split = unlockId.split(":");
-
-        Menu menu = getPluginInstance().getMenu("appearance");
-
-        for (String line : menu.getConfiguration().getStringList("appearances"))
-            if (line.toUpperCase().startsWith(split[0].toUpperCase())
-                    && line.split(":")[1].equalsIgnoreCase("-1")) {
-                unlockId = unlockId.replace(split[1], "-1");
-                break;
-            }
-        return unlockId;
-    }
-
     @Override
-    public String getBBMString() {
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, Boolean> entry : getBaseBlockUnlocks().entrySet()) {
+    public String getAppearanceData() {
+        final StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Boolean> entry : getAppearanceDataMap().entrySet()) {
             if (sb.length() > 0) sb.append(",");
             sb.append(entry.getKey()).append("/").append(entry.getValue() ? 1 : 0);
         }
         return sb.toString();
     }
 
+    private void loadAppearanceDataLine(@NotNull String appearanceDataLine) {
+        if (appearanceDataLine.contains("/")) {
+            String[] data = appearanceDataLine.split("/");
+            if (data.length < 2) return;
+
+            String appearanceId = data[0];
+            if (appearanceId.contains(":")) appearanceId = Appearance.findAppearance(appearanceId);
+            if (appearanceId == null || appearanceId.isEmpty()) return;
+
+            if (Appearance.doesAppearanceExist(appearanceId)) getAppearanceDataMap().put(data[0], data[1].equals("-1"));
+        } else {
+            if (appearanceDataLine.contains(":")) appearanceDataLine = Appearance.findAppearance(appearanceDataLine);
+            if (appearanceDataLine == null || appearanceDataLine.isEmpty()) return;
+
+            if (Appearance.doesAppearanceExist(appearanceDataLine)) getAppearanceDataMap().put(appearanceDataLine, false);
+        }
+    }
+
     @Override
-    public void loadBBM(@Nullable String loadString) {
-        if (loadString == null || !loadString.contains(",")) {
-            updateAllBaseBlockAccess(false);
+    public void loadAppearanceData(@Nullable String appearanceData) {
+        Menu menu = getPluginInstance().getMenu("appearance");
+        if (menu != null && menu.getConfiguration().getBoolean("permission-unlock-mode")) return;
+
+        if (appearanceData == null || appearanceData.isEmpty()) {
+            updateUnlocks(false);
             return;
         }
-        for (String line : loadString.split(",")) {
-            String[] data = line.split("/");
-            if (data.length < 2) continue;
-            getBaseBlockUnlocks().put(data[0].toUpperCase(), data[1].equalsIgnoreCase("1"));
+
+        if (!getAppearanceData().contains(",")) {
+            loadAppearanceDataLine(getAppearanceData());
+            return;
         }
-        updateAllBaseBlockAccess(false);
+
+        Arrays.stream(getAppearanceData().split(",")).parallel().forEach(this::loadAppearanceDataLine);
     }
 
     @Override
@@ -209,13 +221,13 @@ public class DDataPack implements DataPack {
     }
 
     @Override
-    public LinkedHashMap<String, Boolean> getBaseBlockUnlocks() {
-        return this.baseBlockUnlocks;
+    public LinkedHashMap<String, Boolean> getAppearanceDataMap() {
+        return this.appearanceDataMap;
     }
 
     @Override
-    public void setBaseBlockUnlocks(LinkedHashMap<String, Boolean> baseBlockUnlocks) {
-        this.baseBlockUnlocks = baseBlockUnlocks;
+    public void setAppearanceDataMap(LinkedHashMap<String, Boolean> appearanceDataMap) {
+        this.appearanceDataMap = appearanceDataMap;
     }
 
     private DisplayShops getPluginInstance() {

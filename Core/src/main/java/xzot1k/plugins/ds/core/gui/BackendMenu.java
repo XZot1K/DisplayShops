@@ -157,6 +157,23 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             }
         }
 
+        if (getMenuName().equals("appearance")) {
+            ConfigurationSection baseSection = getConfigurationSection("");
+            if (baseSection != null) {
+                if (!baseSection.contains("permission-unlock-mode")) baseSection.set("permission-unlock-mode", false);
+
+                ConfigurationSection appearancesSection = baseSection.getConfigurationSection("appearances");
+                if (appearancesSection != null) {
+                    if (!baseSection.contains("default-appearance")) {
+                        String defaultAppearance = "Default";
+                        if (!appearancesSection.contains(defaultAppearance))
+                            defaultAppearance = appearancesSection.getKeys(false).stream().findFirst().orElse("Default");
+                        baseSection.set("default-appearance", defaultAppearance);
+                    }
+                }
+            }
+        }
+
         for (Map.Entry<String, Object> entry : getValues(true).entrySet()) {
             final String key = entry.getKey().toLowerCase();
             if (key.endsWith("material")) {
@@ -301,17 +318,35 @@ public class BackendMenu extends YamlConfiguration implements Menu {
      * @return The created menu.
      */
     public Inventory build(@NotNull Player player, @Nullable String... searchText) {
+        final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
+        final Shop shop = dataPack.getSelectedShop();
+
+        // check and update appearance, if incorrectly set
+        if (shop != null && getMenuName().contains("appearance")) {
+            if (shop.getBaseLocation() != null) {
+                final Location baseLocation = shop.getBaseLocation().asBukkitLocation();
+                if (shop.getAppearanceId() != null && !shop.getAppearanceId().isEmpty()) {
+                    Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
+                    if (!appearance.getMaterial().contains(baseLocation.getBlock().getType().name())) {
+                        String newAppearanceId = Appearance.findAppearance(baseLocation.getBlock().getType().name());
+                        if (newAppearanceId != null) {
+                            Appearance newAppearance = Appearance.getAppearance(newAppearanceId);
+                            if (newAppearance != null) newAppearance.apply(shop, player);
+                            else appearance.apply(shop, player);
+                        } else appearance.apply(shop, player);
+                    }
+                }
+            }
+        }
+
         final Inventory inventory = ((getSize() <= 5) ? INSTANCE.getServer().createInventory(null, InventoryType.HOPPER, getTitle())
                 : INSTANCE.getServer().createInventory(null, getSize(), getTitle()));
 
         ArrayList<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
         buildButtons(player, inventory, emptySlots, stitchSearchText(searchText));
 
-        if (getMenuName().contains("amount-selector")) {
-            final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-            final Shop shop = dataPack.getSelectedShop();
+        if (getMenuName().contains("amount-selector") && shop != null) {
             double finalAmount = 0;
-
             if (dataPack.getInteractionValue() != null) {
                 finalAmount = (double) dataPack.getInteractionValue();
                 dataPack.setInteractionValue(null);
@@ -362,15 +397,12 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 amountItem.setItemMeta(itemMeta);
                 inventory.setItem(amountSlot, INSTANCE.updateNBT(amountItem, "ds-amount", String.valueOf(finalAmount)));
             }
-
         }
 
         // fill empty slots. If defined, fill defined slots
         fillEmptySlots(inventory, emptySlots);
 
-        final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-        final Shop shop = dataPack.getSelectedShop();
-
+        final boolean isAppearance = getMenuName().contains("appearance");
         if (shop != null) {
             if (getMenuName().contains("edit")) {
                 final int saleSlot = getInt("sale-item-slot"), tradeSlot = getInt("trade-item-slot");
@@ -451,7 +483,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
             if (!dataPack.getPageMap().isEmpty()) switchPage(inventory, player, dataPack.getCurrentPage());
 
-        } else if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
+        } else if (isAppearance || getMenuName().contains("assistants")) {
             updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
                     shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
 

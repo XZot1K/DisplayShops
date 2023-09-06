@@ -24,6 +24,7 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
+import xzot1k.plugins.ds.api.objects.Appearance;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.lang.reflect.Field;
@@ -62,11 +63,14 @@ public class DPacket implements DisplayPacket {
         if (!player.isOnline()) return;
         setPluginInstance(pluginInstance);
 
-        final Double[] offsets = getPluginInstance().getManager().getBaseBlockOffsets(shop);
-        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
-
         final PlayerConnection playerConnection = getPlayerConnection(player);
         if (playerConnection == null) return;
+
+        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
+        if (appearance == null) return;
+
+        final double[] offsets = appearance.getOffset();
+        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
 
         if (!getPluginInstance().getConfig().getBoolean("hide-glass")) {
             double x = (shop.getBaseLocation().getX() + offsetX),

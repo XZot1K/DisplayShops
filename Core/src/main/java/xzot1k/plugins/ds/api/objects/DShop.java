@@ -40,14 +40,14 @@ public class DShop implements Shop {
     private int stock, shopItemAmount, globalBuyCounter, globalSellCounter, playerBuyLimit,
             playerSellLimit, globalBuyLimit, globalSellLimit, dynamicBuyPriceCounter, dynamicSellPriceCounter;
     private long changeTimeStamp, lastBuyTimeStamp, lastSellTimeStamp;
-    private String description, storedBaseBlockMaterial, currencyType;
+    private String description, appearanceId, currencyType;
     private BigDecimal buyPrice, sellPrice, storedBalance;
     private boolean commandOnlyMode, dynamicPriceChange;
     private List<String> commands;
     private List<UUID> assistants;
     private LocationClone baseLocation;
 
-    public DShop(UUID shopId, UUID ownerUniqueId, LocationClone baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
+    public DShop(UUID shopId, UUID ownerUniqueId, LocationClone baseLocation, int shopItemAmount, String appearanceId) {
         this.INSTANCE = DisplayShops.getPluginInstance();
 
         reset();
@@ -56,10 +56,10 @@ public class DShop implements Shop {
         setShopItemAmount(shopItemAmount);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(baseLocation);
-        setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setAppearanceId(appearanceId);
     }
 
-    public DShop(UUID shopId, UUID ownerUniqueId, Location baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
+    public DShop(UUID shopId, UUID ownerUniqueId, Location baseLocation, int shopItemAmount, String appearanceId) {
         this.INSTANCE = DisplayShops.getPluginInstance();
 
         reset();
@@ -68,10 +68,10 @@ public class DShop implements Shop {
         setShopItemAmount(shopItemAmount);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(new LClone(baseLocation));
-        setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setAppearanceId(appearanceId);
     }
 
-    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, Location baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
+    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, Location baseLocation, int shopItemAmount, String appearanceId) {
         this.INSTANCE = DisplayShops.getPluginInstance();
 
         reset();
@@ -79,12 +79,12 @@ public class DShop implements Shop {
         setShopId(shopId);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(new LClone(baseLocation));
-        setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setAppearanceId(appearanceId);
         setShopItem(shopItem);
         setShopItemAmount(shopItemAmount);
     }
 
-    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, LocationClone baseLocation, int shopItemAmount, String storedBaseBlockMaterial) {
+    public DShop(UUID shopId, UUID ownerUniqueId, ItemStack shopItem, LocationClone baseLocation, int shopItemAmount, String appearanceId) {
         this.INSTANCE = DisplayShops.getPluginInstance();
 
         reset();
@@ -92,7 +92,7 @@ public class DShop implements Shop {
         setShopId(shopId);
         setOwnerUniqueId(ownerUniqueId);
         setBaseLocation(baseLocation);
-        setStoredBaseBlockMaterial(storedBaseBlockMaterial);
+        setAppearanceId(appearanceId);
         setShopItem(shopItem);
         setShopItemAmount(shopItemAmount);
     }
@@ -291,31 +291,27 @@ public class DShop implements Shop {
                     "\\\""), extraDataLine = (canDynamicPriceChange() + ";" + getLastBuyTimeStamp() + ":" + getDynamicBuyCounter() + ";" + getLastSellTimeStamp()
                     + ":" + getDynamicSellCounter() + ";" + getCurrencyType()), syntax,
 
-                    valuesString = (getShopId().toString() + "', '" + getBaseLocation().toString() + "',"
-                            + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', '" + assistants + "', " + getBuyPrice(false)
-                            + ", " + getSellPrice(false) + ", " + getStock() + ", '" + (shopItem != null ? shopItem : "") + "', '" + (tradeItem != null ? tradeItem : "")
-                            + "', '" + limits + "', " + getShopItemAmount() + ", " + getStoredBalance() + ", '" + (isCommandOnlyMode() ? 1 : 0) +
-                            "', '" + commandString + "', '"
-                            + getChangeTimeStamp() + "', '" + (getDescription() == null ? "" : getDescription().replace("'", "").replace("\"", ""))
-                            + "', '" + getStoredBaseBlockMaterial() + "', '" + extraDataLine.replace("'", "").replace("\"", ""));
+                    valuesString = (getShopId().toString() + "', '" + getBaseLocation().toString() + "'," + " '" + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "")
+                            + "', '" + assistants + "', " + getBuyPrice(false) + ", " + getSellPrice(false) + ", " + getStock() + ", '"
+                            + (shopItem != null ? shopItem : "") + "', '" + (tradeItem != null ? tradeItem : "") + "', '" + limits + "', " + getShopItemAmount() + ", "
+                            + getStoredBalance() + ", '" + (isCommandOnlyMode() ? 1 : 0) + "', '" + commandString + "', '" + getChangeTimeStamp() + "', '"
+                            + (getDescription() == null ? "" : getDescription().replace("'", "").replace("\"", "")) + "', '"
+                            + getAppearanceId() + "', '" + extraDataLine.replace("'", "").replace("\"", ""));
 
             if (host == null || host.isEmpty())
                 syntax = "INSERT OR REPLACE INTO shops(id, location, owner, assistants, buy_price, sell_price, stock, shop_item,"
                         + " trade_item, limits, shop_item_amount, balance, command_only_mode, commands, change_time_stamp,"
-                        + " description, base_material, extra_data) VALUES('" + valuesString + "');";
+                        + " description, appearance, extra_data) VALUES('" + valuesString + "');";
             else
                 syntax = "INSERT INTO shops(id, location, owner, assistants, buy_price, sell_price, stock, shop_item, trade_item, limits, " +
-                        "shop_item_amount, "
-                        + " balance, command_only_mode, commands, change_time_stamp, description, base_material, extra_data) VALUES( '" + valuesString + "')"
-                        + " ON DUPLICATE KEY UPDATE id = '" + getShopId().toString() + "', location = '" + getBaseLocation().toString() + "', owner" +
-                        " = '" + (getOwnerUniqueId() != null
-                        ? getOwnerUniqueId().toString() : "") + "', buy_price = '" + getBuyPrice(false) + "', " + "sell_price = '" + getSellPrice(false)
-                        + "', stock = '" + getStock() + "', shop_item = '" + (shopItem != null ? shopItem : "") + "', trade_item = '" + (tradeItem != null ? tradeItem : "")
-                        + "', limits = '" + limits + "', shop_item_amount = '" + getShopItemAmount() + "', balance = '" + getStoredBalance() + "', " +
-                        "command_only_mode = '"
-                        + (isCommandOnlyMode() ? 1 : 0) + "', commands = '" + commandString + "'," + " change_time_stamp = '" + getChangeTimeStamp() + "', description = '"
-                        + (getDescription() == null ? "" : getDescription().replace("'", "").replace("\"", "")) + "', base_material = '"
-                        + getStoredBaseBlockMaterial() + "', extra_data = '" + extraDataLine + "';";
+                        "shop_item_amount,  balance, command_only_mode, commands, change_time_stamp, description, appearance, extra_data) VALUES( '" + valuesString + "')"
+                        + " ON DUPLICATE KEY UPDATE id = '" + getShopId().toString() + "', location = '" + getBaseLocation().toString() + "', owner = '"
+                        + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', buy_price = '" + getBuyPrice(false) + "', sell_price = '"
+                        + getSellPrice(false) + "', stock = '" + getStock() + "', shop_item = '" + (shopItem != null ? shopItem : "") + "', trade_item = '"
+                        + (tradeItem != null ? tradeItem : "") + "', limits = '" + limits + "', shop_item_amount = '" + getShopItemAmount() + "', balance = '"
+                        + getStoredBalance() + "', command_only_mode = '" + (isCommandOnlyMode() ? 1 : 0) + "', commands = '" + commandString + "'," + " change_time_stamp = '"
+                        + getChangeTimeStamp() + "', description = '" + (getDescription() == null ? "" : getDescription().replace("'", "")
+                        .replace("\"", "")) + "', appearance = '" + getAppearanceId() + "', extra_data = '" + extraDataLine + "';";
 
             Statement statement = INSTANCE.getDatabaseConnection().createStatement();
             statement.executeUpdate(syntax);
@@ -683,6 +679,9 @@ public class DShop implements Shop {
     public void reset() {
         checkCurrencyType(null);
 
+        Menu appearanceMenu = INSTANCE.getMenu("appearance");
+        if (appearanceMenu != null) setAppearanceId(appearanceMenu.getConfiguration().getString("default-appearance"));
+
         setStock(0);
         setStoredBalance(0);
         setShopItemAmount(1);
@@ -896,14 +895,6 @@ public class DShop implements Shop {
         this.description = description;
     }
 
-    public String getStoredBaseBlockMaterial() {
-        return storedBaseBlockMaterial;
-    }
-
-    public void setStoredBaseBlockMaterial(@NotNull String storedBaseBlockMaterial) {
-        this.storedBaseBlockMaterial = (!storedBaseBlockMaterial.contains(":") ? (storedBaseBlockMaterial + ":0") : storedBaseBlockMaterial);
-    }
-
     public long getLastBuyTimeStamp() {
         return lastBuyTimeStamp;
     }
@@ -964,4 +955,7 @@ public class DShop implements Shop {
 
     public void setCurrencyType(@NotNull String currencyType) {this.currencyType = currencyType;}
 
+    public String getAppearanceId() {return appearanceId;}
+
+    public void setAppearanceId(String appearanceId) {this.appearanceId = appearanceId;}
 }

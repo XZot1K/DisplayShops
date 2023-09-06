@@ -3,12 +3,8 @@ package xzot1k.plugins.ds.core.gui;
 import net.md_5.bungee.api.ChatColor;
 import net.wesjd.anvilgui.AnvilGUI;
 import org.apache.commons.lang.WordUtils;
-import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.Directional;
-import org.bukkit.block.data.Orientable;
-import org.bukkit.block.data.Rotatable;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -25,7 +21,10 @@ import org.bukkit.inventory.meta.PotionMeta;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.eco.EcoHook;
-import xzot1k.plugins.ds.api.enums.*;
+import xzot1k.plugins.ds.api.enums.EconomyCallType;
+import xzot1k.plugins.ds.api.enums.EditType;
+import xzot1k.plugins.ds.api.enums.InteractionType;
+import xzot1k.plugins.ds.api.enums.ShopActionType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.events.ShopDeletionEvent;
 import xzot1k.plugins.ds.api.events.ShopEditEvent;
@@ -995,81 +994,42 @@ public class MenuListener implements Listener {
         if (e.getCurrentItem().getItemMeta() == null || !e.getCurrentItem().getItemMeta().hasDisplayName()) return;
 
         String shopId = INSTANCE.getNBT(e.getCurrentItem(), "ds-bbm"),
-                typeId = INSTANCE.getNBT(e.getCurrentItem(), "ds-type");
-        if (shopId == null || typeId == null || shopId.isEmpty() || typeId.isEmpty()) return;
+                appearanceId = INSTANCE.getNBT(e.getCurrentItem(), "ds-appearance");
+        if (shopId == null || appearanceId == null || shopId.isEmpty() || appearanceId.isEmpty()) return;
+
+        Appearance appearance = Appearance.getAppearance(appearanceId);
+        if (appearance == null) return;
 
         playClickSound(player);
 
-        final Location baseBlockLocation = shop.getBaseLocation().asBukkitLocation();
-        final Block block = baseBlockLocation.getBlock();
-
-        final boolean hasStarPerm = player.hasPermission("displayshops.bbm.*");
-        if (!hasStarPerm && !player.hasPermission("displayshops.bbm." + typeId)) {
-            String message = INSTANCE.getLangConfig().getString("missing-bbm-requirement");
+        if (!dataPack.canUnlockAppearance(player, appearance.getId())) {
+            String message = INSTANCE.getLangConfig().getString("missing-appearance-requirement");
             if (message != null && !message.equalsIgnoreCase("")) INSTANCE.getManager().sendMessage(player, message);
             return;
         }
 
-        final String unlockId = (typeId + ":" + e.getCurrentItem().getDurability());
-
         // call edit event
-        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.APPEARANCE_CHANGE, unlockId);
+        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.APPEARANCE_CHANGE, appearance.getId());
         INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
         if (shopEditEvent.isCancelled()) return;
 
-        if (!dataPack.hasUnlockedBBM(unlockId)) {
-            final double foundPrice = INSTANCE.getManager().getBBMPrice(typeId, e.getCurrentItem().getDurability());
-
-            final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.APPEARANCE, foundPrice);
+        if (!dataPack.hasUnlockedAppearance(player, appearance.getId())) {
+            final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.APPEARANCE, appearance.getPrice());
             if (economyCallEvent.failed()) {
                 player.closeInventory();
                 dataPack.resetEditData();
                 return;
             }
 
-            dataPack.unlockBaseBlock(unlockId);
+            dataPack.updateAppearance(appearance.getId(), true);
         }
 
-        if (shop.getStoredBaseBlockMaterial().equalsIgnoreCase(unlockId)) return;
-        else shop.setStoredBaseBlockMaterial(unlockId);
+        if (shop.getAppearanceId() != null && shop.getAppearanceId().equalsIgnoreCase(appearance.getId())) return;
 
-        Material material = Material.getMaterial(typeId.toUpperCase().replace(" ", "_").replace("-", "_"));
-        if (material != null) {
-            if (INSTANCE.isItemAdderInstalled()) dev.lone.itemsadder.api.CustomBlock.remove(baseBlockLocation);
-            block.setType(Material.AIR);
-            block.setType(material);
-
-            final boolean isOld = ((Math.floor(this.INSTANCE.getServerVersion()) <= 1_12));
-            if (isOld) try {
-                @SuppressWarnings("JavaReflectionMemberAccess") Method method = Block.class.getMethod("setData", byte.class);
-                method.invoke(baseBlockLocation.getBlock(), ((byte) (e.getCurrentItem().getDurability() < 0
-                        ? oppositeDirectionByte(Direction.getYaw(player)) : e.getCurrentItem().getDurability())));
-            } catch (Exception ignored) {}
-            else {
-                block.setBlockData(INSTANCE.getServer().createBlockData(material));
-                setBlock(block, material, (material.name().contains("SHULKER") ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(player).name())));
-            }
-        } else if (INSTANCE.isItemAdderInstalled()) {
-            dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(typeId);
-            if (customBlock != null) {
-                block.setType(Material.AIR);
-                customBlock.place(baseBlockLocation);
-            }
-        }
-
-        String changeSound = INSTANCE.getConfig().getString("immersion-section.shop-bbm-sound");
-        if (changeSound != null && !changeSound.equalsIgnoreCase(""))
-            player.playSound(player.getLocation(), Sound.valueOf(changeSound.toUpperCase().replace(" ", "_")
-                    .replace("-", "_")), 1, 1);
-
-        String changeEffect = INSTANCE.getConfig().getString("immersion-section.shop-bbm-particle");
-        if (changeEffect != null && !changeEffect.equalsIgnoreCase(""))
-            INSTANCE.displayParticle((Player) e.getWhoClicked(), changeEffect.toUpperCase()
-                            .replace(" ", "_").replace("-", "_"),
-                    baseBlockLocation.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 12);
-
+        appearance.apply(shop, player);
         dataPack.resetEditData();
         player.closeInventory();
+
         INSTANCE.getInSightTask().refreshShop(shop);
         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("base-block-set"));
     }
@@ -2295,47 +2255,6 @@ public class MenuListener implements Listener {
         final String message = INSTANCE.getLangConfig().getString("shop-edit-invalid");
         if (message != null && !message.equalsIgnoreCase("")) INSTANCE.getManager().sendMessage(player, message);
         return false;
-    }
-
-    private void setBlock(Block block, Material material, BlockFace blockFace) {
-        block.setType(material);
-
-        org.bukkit.block.data.BlockData blockData = block.getBlockData();
-        if (blockData instanceof Directional) {
-            ((Directional) blockData).setFacing(blockFace);
-            block.setBlockData(blockData);
-        }
-
-        if (blockData instanceof Orientable) {
-            ((Orientable) blockData).setAxis(Axis.valueOf(convertBlockFaceToAxis(blockFace)));
-            block.setBlockData(blockData);
-        }
-
-        if (blockData instanceof Rotatable) {
-            ((Rotatable) blockData).setRotation(blockFace);
-            block.setBlockData(blockData);
-        }
-    }
-
-    private String convertBlockFaceToAxis(BlockFace face) {
-        switch (face) {
-            case NORTH:
-            case SOUTH:
-                return "Z";
-            case UP:
-            case DOWN:
-                return "Y";
-            case EAST:
-            case WEST:
-            default:
-                return "X";
-        }
-    }
-
-    private byte oppositeDirectionByte(Direction direction) {
-        for (int i = -1; ++i < Direction.values().length; )
-            if (direction == Direction.values()[i]) return (byte) i;
-        return 4;
     }
 
     private void updateTransactionButtons(@NotNull Player player, @NotNull Inventory clickedInventory, @NotNull Shop shop, @NotNull Menu menu, int unitCount) {
