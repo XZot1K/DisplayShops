@@ -320,7 +320,7 @@ public class Listeners implements Listener {
                     dataPack.setSelectedShop(shop);
 
                     final Menu editMenu = getPluginInstance().getMenu("edit");
-                    if (editMenu != null) e.getPlayer().openInventory(editMenu.build(e.getPlayer()));
+                    if (editMenu != null) editMenu.build(e.getPlayer());
 
                     getPluginInstance().runEventCommands("shop-edit", e.getPlayer());
                     return;
@@ -340,7 +340,7 @@ public class Listeners implements Listener {
                 dataPack.setSelectedShop(shop);
 
                 final Menu editMenu = getPluginInstance().getMenu("transaction");
-                if (editMenu != null) e.getPlayer().openInventory(editMenu.build(e.getPlayer()));
+                if (editMenu != null) editMenu.build(e.getPlayer());
 
                 getPluginInstance().runEventCommands("shop-open", e.getPlayer());
             }
@@ -465,7 +465,7 @@ public class Listeners implements Listener {
                 dataPack.setSelectedShop(shop);
 
                 final Menu editMenu = getPluginInstance().getMenu("edit");
-                if (editMenu != null) e.getPlayer().openInventory(editMenu.build(e.getPlayer()));
+                if (editMenu != null) editMenu.build(e.getPlayer());
 
                 getPluginInstance().runEventCommands("shop-edit", e.getPlayer());
             } else {
@@ -506,7 +506,7 @@ public class Listeners implements Listener {
                 dataPack.setSelectedShop(shop);
 
                 final Menu editMenu = getPluginInstance().getMenu("transaction");
-                if (editMenu != null) e.getPlayer().openInventory(editMenu.build(e.getPlayer()));
+                if (editMenu != null) editMenu.build(e.getPlayer());
 
                 getPluginInstance().runEventCommands("shop-open", e.getPlayer());
             }

@@ -31,6 +31,8 @@ import xzot1k.plugins.ds.api.objects.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 public class BackendMenu extends YamlConfiguration implements Menu {
@@ -61,7 +63,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             final String title = getString("title");
             setTitle(INSTANCE.getManager().color((title != null && !title.isEmpty()) ? title : ""));
             setSize(getInt("size"));
-        } catch (IOException | InvalidConfigurationException e) {INSTANCE.getServer().getLogger().warning(e.getMessage());}
+        } catch (IOException | InvalidConfigurationException e) {
+            INSTANCE.getServer().getLogger().warning(e.getMessage());
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -237,7 +241,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         try {
             getConfiguration().save(getFile());
             reload();
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
     }
 
     public void addSectionFromJarConfig(@NotNull String configPathInJar, @NotNull String sectionName) {
@@ -297,7 +302,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     }
 
     @Override
-    public boolean matches(@Nullable String title) {return ChatColor.stripColor(getTitle()).equals(ChatColor.stripColor(title));}
+    public boolean matches(@Nullable String title) {
+        return ChatColor.stripColor(getTitle()).equals(ChatColor.stripColor(title));
+    }
 
     /**
      * Gets the location of the button being looked for.
@@ -311,13 +318,12 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     }
 
     /**
-     * Builds the menu using a defined search text alongside the player.
+     * Builds and opens the menu using a defined search text alongside the player.
      *
      * @param player     The player to base properties around.
      * @param searchText The searched text, if applicable.
-     * @return The created menu.
      */
-    public Inventory build(@NotNull Player player, @Nullable String... searchText) {
+    public void build(@NotNull Player player, @Nullable String... searchText) {
         final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
         final Shop shop = dataPack.getSelectedShop();
 
@@ -341,9 +347,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
         final Inventory inventory = ((getSize() <= 5) ? INSTANCE.getServer().createInventory(null, InventoryType.HOPPER, getTitle())
                 : INSTANCE.getServer().createInventory(null, getSize(), getTitle()));
+        final String stitchedSearchText = stitchSearchText(searchText);
 
         ArrayList<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
-        buildButtons(player, inventory, emptySlots, stitchSearchText(searchText));
+        buildButtons(player, inventory, emptySlots);
 
         if (getMenuName().contains("amount-selector") && shop != null) {
             double finalAmount = 0;
@@ -402,7 +409,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         // fill empty slots. If defined, fill defined slots
         fillEmptySlots(inventory, emptySlots);
 
-        final boolean isAppearance = getMenuName().contains("appearance");
         if (shop != null) {
             if (getMenuName().contains("edit")) {
                 final int saleSlot = getInt("sale-item-slot"), tradeSlot = getInt("trade-item-slot");
@@ -423,8 +429,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
                             shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
                 }
-                return inventory;
 
+                player.openInventory(inventory);
+                return;
             } else if (getMenuName().contains("transaction")) {
                 ItemStack previewItem = dataPack.getSelectedShop().getShopItem().clone();
                 if (dataPack.getSelectedShop().getCurrencyType().equals("item-for-item")) {
@@ -470,27 +477,23 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     }
                 }
 
-                return inventory;
+                player.openInventory(inventory);
+                return;
             }
         }
 
-        if (getMenuName().contains("visit")) {
-            final String buyType = getString("visit-types.both");
-            updateButton(player, inventory, getConfiguration().getInt("buttons.type.slot"), shop, null, ("{type}:" + buyType));
+        player.openInventory(inventory);
 
-            updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
-                    shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
+        if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
+            refreshPageButtons(player, dataPack, inventory, null);
+            loadPages(player, dataPack, shop, stitchedSearchText, null, inventory);
+        } else if (getMenuName().contains("visit")) {
+            final String bothType = getString("visit-types.both");
+            updateButton(player, inventory, getConfiguration().getInt("buttons.type.slot"), shop, null, ("{type}:" + bothType));
 
-            if (!dataPack.getPageMap().isEmpty()) switchPage(inventory, player, dataPack.getCurrentPage());
-
-        } else if (isAppearance || getMenuName().contains("assistants")) {
-            updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
-                    shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
-
-            if (!dataPack.getPageMap().isEmpty()) switchPage(inventory, player, dataPack.getCurrentPage());
+            refreshPageButtons(player, dataPack, inventory, null);
+            loadPages(player, dataPack, null, stitchedSearchText, null, inventory);
         }
-
-        return inventory;
     }
 
     public void updateButton(@NotNull Player player, @NotNull Inventory inventory, int slot, @Nullable Shop shop,
@@ -514,7 +517,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         }
     }
 
-    private void buildButtons(@NotNull Player player, @NotNull Inventory inventory, @Nullable List<Integer> emptySlots, @Nullable String searchText) {
+    private void buildButtons(@NotNull Player player, @NotNull Inventory inventory, @Nullable List<Integer> emptySlots) {
         ConfigurationSection mainSection = getConfigurationSection("buttons");
         if (mainSection != null) {
             final Collection<String> buttonActions = mainSection.getKeys(false);
@@ -525,13 +528,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 final boolean isPageMenu = (getMenuName().contains("appearance")
                         || getMenuName().contains("visit") || getMenuName().contains("assistants"));
 
-                if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) loadPages(player, dataPack, shop, searchText, null);
-                else if (getMenuName().contains("visit")) loadPages(player, dataPack, null, searchText, null);
-
                 buttonActions.parallelStream().forEach(buttonAction -> {
                     // checks whether to add the next and/or previous buttons for page menus
                     if ((isPageMenu && (buttonAction.equals("next") && !dataPack.hasNextPage() || buttonAction.equals("previous") && !dataPack.hasPreviousPage()))
-                            || (!shouldShowTradeContent(shop) && buttonAction.contains("trade")) || !mainSection.contains(buttonAction)
+                            || (shop != null && !shouldShowTradeContent(shop) && buttonAction.contains("trade")) || !mainSection.contains(buttonAction)
                             /* || (buttonAction.equals("custom-amount") && INSTANCE.isGeyserInstalled()
                             && org.geysermc.geyser.api.GeyserApi.api().isBedrockPlayer(player.getUniqueId()))*/) return;
                     buildButton(mainSection, buttonAction, player, inventory, shop, emptySlots);
@@ -588,50 +588,52 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
     @Override
     public void switchPage(@NotNull Inventory inventory, @NotNull Player player, int page) {
-        List<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
-        for (int i = -1; ++i < inventory.getSize(); ) {
-            if (emptySlots.contains(i)) inventory.setItem(i, null);
-        }
+        List<Integer> emptySlots = getIntegerList("empty-slots");
+        emptySlots.parallelStream().forEach(slot -> {
+            if (slot > -1 && slot < inventory.getSize()) inventory.setItem(slot, null);
+        });
 
         final DDataPack dataPack = (DDataPack) INSTANCE.getManager().getDataPack(player);
-        final Shop shop = dataPack.getSelectedShop();
+        if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
+            final Shop shop = dataPack.getSelectedShop();
+            if (page > dataPack.getCurrentPage() && dataPack.getPageMap().containsKey(page)) {
+                dataPack.setCurrentPage(page);
+                updatePageButtons(player, inventory, dataPack, shop, emptySlots);
+            } else if (page < dataPack.getCurrentPage() && dataPack.getPageMap().containsKey(page)) {
+                dataPack.setCurrentPage(page);
+                updatePageButtons(player, inventory, dataPack, shop, emptySlots);
+            }
 
-        if (page > dataPack.getCurrentPage() && dataPack.getPageMap().containsKey(page)) {
-            dataPack.setCurrentPage(page);
-            updatePageButtons(player, inventory, dataPack, shop, emptySlots);
-        } else if (page < dataPack.getCurrentPage() && dataPack.getPageMap().containsKey(page)) {
-            dataPack.setCurrentPage(page);
-            updatePageButtons(player, inventory, dataPack, shop, emptySlots);
-        }
-
-        if (dataPack.getPageMap().containsKey(page)) {
-            final List<ItemStack> buttons = dataPack.getPageMap().get(page);
-            for (int i = -1; ++i < buttons.size(); ) {
-                final ItemStack button = buttons.get(i);
-                inventory.addItem(button);
+            if (dataPack.getPageMap().containsKey(page)) {
+                final List<ItemStack> buttons = dataPack.getPageMap().get(page);
+                for (int i = -1; ++i < buttons.size(); ) {
+                    final ItemStack button = buttons.get(i);
+                    inventory.addItem(button);
+                }
             }
         }
     }
 
+    private void clearEmptySlots(@NotNull Inventory inventory) {
+        List<Integer> emptySlots = getIntegerList("empty-slots");
+        emptySlots.parallelStream().forEach(slot -> {
+            if (slot > -1 && slot < inventory.getSize()) inventory.setItem(slot, null);
+        });
+    }
+
     @SuppressWarnings("UnnecessaryUnicodeEscape")
     @Override
-    public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText, @Nullable ItemStack typeItem) {
+    public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText, @Nullable ItemStack typeItem,
+                          @NotNull Inventory inventory) {
         dataPack.getPageMap().clear();
 
         final boolean forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
-        final int[] currentPage = {1};
-        List<ItemStack> pageContents = new ArrayList<>();
         switch (getMenuName()) {
             case "visit": {
                 final boolean showAdminShop = getBoolean("show-admin-shops");
 
-                OfflinePlayer offlinePlayer = null;
-                if (searchText != null && !searchText.isEmpty()) {
-                    OfflinePlayer op = INSTANCE.getServer().getOfflinePlayer(searchText);
-                    if (op.hasPlayedBefore()) offlinePlayer = op;
-                }
-
-                final ShopActionType actionType = (typeItem != null ? ShopActionType.getTypeFromItem(typeItem, this) : null);
+                ShopActionType actionType = (typeItem != null ? ShopActionType.getTypeFromItem(typeItem, this) : null);
+                if (actionType != null) actionType = actionType.getNext();
 
                 final double visitCost = getDouble("visit-charge");
                 final String adminType = getString("visit-icon.type-admin"),
@@ -639,136 +641,160 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         shopNameFormat = getString("visit-icon.name");
                 final List<String> loreFormat = getStringList("visit-icon.lore");
 
-                int counter = 0;
+                AtomicInteger counter = new AtomicInteger();
+                final ShopActionType finalActionType = actionType;
+                CompletableFuture.supplyAsync(() -> {
+                    final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
+                    int currentPage = 1;
+                    List<ItemStack> pageContents = new ArrayList<>();
 
-                List<Map.Entry<UUID, Shop>> shopList = new ArrayList<>(INSTANCE.getManager().getShopMap().entrySet());
-                for (int i = -1; ++i < shopList.size(); ) {
-                    final Shop currentShop = shopList.get(i).getValue();
-
-                    if (currentShop == null || currentShop.getBaseLocation() == null || (!showAdminShop && currentShop.isAdminShop()) || currentShop.getShopItem() == null
-                            || currentShop.getStock() == 0 || currentShop.getStock() < currentShop.getShopItemAmount()) continue;
-
-                    if (actionType != null && actionType.failsCheck(currentShop)) continue;
-
+                    OfflinePlayer offlinePlayer = null;
                     if (searchText != null && !searchText.isEmpty()) {
-                        if (offlinePlayer != null) {
-                            if (currentShop.getOwnerUniqueId() == null || !currentShop.getOwnerUniqueId().toString().equals(offlinePlayer.getUniqueId().toString()))
-                                continue;
-
-                            OfflinePlayer op = INSTANCE.getServer().getOfflinePlayer(currentShop.getOwnerUniqueId());
-                            if (op.hasPlayedBefore() && op.getName() != null && !op.getName().equalsIgnoreCase(offlinePlayer.getName())) continue;
-                        } else if (currentShop.getShopItem().getItemMeta() != null
-                                && !ChatColor.stripColor(currentShop.getShopItem().getItemMeta().getDisplayName().toLowerCase()).contains(searchText.toLowerCase())
-                                && !currentShop.getShopItem().getType().name().toLowerCase().replace("_", " ").contains(searchText.toLowerCase())
-                                && !currentShop.getDescription().toLowerCase().contains(searchText.toLowerCase())
-                                && !(currentShop.getBuyPrice(false) + " " + currentShop.getSellPrice(false)).contains(searchText))
-                            continue;
-
-                        counter++;
+                        OfflinePlayer op = INSTANCE.getServer().getOfflinePlayer(searchText);
+                        if (op.hasPlayedBefore()) offlinePlayer = op;
                     }
 
-                    final Location location = currentShop.getBaseLocation().asBukkitLocation();
-                    ItemStack itemStack = new ItemStack(currentShop.getShopItem().getType(), 1, currentShop.getShopItem().getDurability());
+                    List<Map.Entry<UUID, Shop>> shopList = new ArrayList<>(INSTANCE.getManager().getShopMap().entrySet());
+                    for (int i = -1; ++i < shopList.size(); ) {
+                        final Shop currentShop = shopList.get(i).getValue();
 
-                    itemStack = INSTANCE.updateNBT(itemStack, "currentShop-id", currentShop.getShopId().toString());
-                    ItemMeta itemMeta = itemStack.getItemMeta();
-                    if (itemMeta != null) {
-                        itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
-                        final String itemName = (currentShop.getShopItem() != null ? INSTANCE.getManager().getItemName(currentShop.getShopItem()) : ""),
-                                tradeItemName = (currentShop.getCurrencyType().equals("item-for-item") ? ((!forceUse && currentShop.getTradeItem() != null)
-                                        ? INSTANCE.getManager().getItemName(currentShop.getTradeItem())
-                                        : INSTANCE.getManager().getItemName(INSTANCE.getManager().buildShopCurrencyItem(1))) : "");
+                        if (currentShop == null || currentShop.getBaseLocation() == null || (!showAdminShop && currentShop.isAdminShop()) || currentShop.getShopItem() == null
+                                || currentShop.getStock() == 0 || currentShop.getStock() < currentShop.getShopItemAmount()
+                                || (finalActionType != null && finalActionType.failsCheck(currentShop))) continue;
 
-                        itemMeta.setDisplayName(INSTANCE.getManager().color(INSTANCE.papiText(player,
-                                Objects.requireNonNull(shopNameFormat).replace("{item}", itemName).replace("{trade}", tradeItemName))));
-                        itemMeta.setLore(new ArrayList<String>() {{
-                            OfflinePlayer offlinePlayer = (currentShop.getOwnerUniqueId() == null ? null :
-                                    INSTANCE.getServer().getOfflinePlayer(currentShop.getOwnerUniqueId()));
-                            for (int i = -1; ++i < loreFormat.size(); ) {
-                                final String line = loreFormat.get(i);
-                                if ((line.contains("{owner}") && currentShop.getOwnerUniqueId() == null)
-                                        || (line.contains("{buy}") && currentShop.getBuyPrice(false) <= 0)
-                                        || (line.contains("{sell}") && currentShop.getSellPrice(false) <= 0)) continue;
+                        if (searchText != null && !searchText.isEmpty()) {
+                            if (offlinePlayer != null) {
+                                if (currentShop.getOwnerUniqueId() == null || !currentShop.getOwnerUniqueId().toString().equals(offlinePlayer.getUniqueId().toString()))
+                                    continue;
 
-                                if (line.toLowerCase().contains("{enchants}")) {
-                                    if (currentShop.getShopItem() == null) continue;
+                                OfflinePlayer op = INSTANCE.getServer().getOfflinePlayer(currentShop.getOwnerUniqueId());
+                                if (op.hasPlayedBefore() && op.getName() != null && !op.getName().equalsIgnoreCase(offlinePlayer.getName())) continue;
+                            } else if (currentShop.getShopItem().getItemMeta() != null
+                                    && !ChatColor.stripColor(currentShop.getShopItem().getItemMeta().getDisplayName().toLowerCase()).contains(searchText.toLowerCase())
+                                    && !currentShop.getShopItem().getType().name().toLowerCase().replace("_", " ").contains(searchText.toLowerCase())
+                                    && !currentShop.getDescription().toLowerCase().contains(searchText.toLowerCase())
+                                    && !(currentShop.getBuyPrice(false) + " " + currentShop.getSellPrice(false)).contains(searchText))
+                                continue;
 
-                                    if (currentShop.getShopItem().getType() == Material.ENCHANTED_BOOK) {
-                                        EnchantmentStorageMeta bookMeta = (EnchantmentStorageMeta) currentShop.getShopItem().getItemMeta();
-                                        if (bookMeta != null) for (Map.Entry<Enchantment, Integer> entry : bookMeta.getStoredEnchants().entrySet())
-                                            add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                                    .replace("{enchants}", (INSTANCE.getManager().getTranslatedName(entry.getKey())
-                                                            + " " + INSTANCE.getManager().getRomanNumeral(entry.getValue()))))));
-                                    } else if (!currentShop.getShopItem().getEnchantments().isEmpty()) {
-                                        for (Map.Entry<Enchantment, Integer> entry : currentShop.getShopItem().getEnchantments().entrySet())
-                                            add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                                    .replace("{enchants}", (INSTANCE.getManager().getTranslatedName(entry.getKey()) + " "
-                                                            + INSTANCE.getManager().getRomanNumeral(entry.getValue()))))));
-                                    }
+                            counter.getAndIncrement();
+                        }
 
-                                    if (currentShop.getShopItem().getType().name().contains("POTION")) {
-                                        PotionMeta potionMeta = (PotionMeta) currentShop.getShopItem().getItemMeta();
-                                        if (potionMeta != null) {
-                                            final String translatedName = INSTANCE.getManager().getTranslatedName(potionMeta.getBasePotionData().getType());
-                                            if (!translatedName.equalsIgnoreCase("Uncraftable"))
-                                                add(INSTANCE.getManager().color(INSTANCE
-                                                        .papiText(player, line.replace("{enchants}", (translatedName)))));
-                                            for (PotionEffect potionEffect : potionMeta.getCustomEffects())
+                        final Location location = currentShop.getBaseLocation().asBukkitLocation();
+                        ItemStack itemStack = new ItemStack(currentShop.getShopItem().getType(), 1, currentShop.getShopItem().getDurability());
+
+                        itemStack = INSTANCE.updateNBT(itemStack, "currentShop-id", currentShop.getShopId().toString());
+                        ItemMeta itemMeta = itemStack.getItemMeta();
+                        if (itemMeta != null) {
+                            itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
+                            final String itemName = (currentShop.getShopItem() != null ? INSTANCE.getManager().getItemName(currentShop.getShopItem()) : ""),
+                                    tradeItemName = (currentShop.getCurrencyType().equals("item-for-item") ? ((!forceUse && currentShop.getTradeItem() != null)
+                                            ? INSTANCE.getManager().getItemName(currentShop.getTradeItem())
+                                            : INSTANCE.getManager().getItemName(INSTANCE.getManager().buildShopCurrencyItem(1))) : "");
+
+                            itemMeta.setDisplayName(INSTANCE.getManager().color(INSTANCE.papiText(player,
+                                    Objects.requireNonNull(shopNameFormat).replace("{item}", itemName).replace("{trade}", tradeItemName))));
+                            itemMeta.setLore(new ArrayList<String>() {{
+                                OfflinePlayer offlinePlayer = (currentShop.getOwnerUniqueId() == null ? null :
+                                        INSTANCE.getServer().getOfflinePlayer(currentShop.getOwnerUniqueId()));
+                                for (int i = -1; ++i < loreFormat.size(); ) {
+                                    final String line = loreFormat.get(i);
+                                    if ((line.contains("{owner}") && currentShop.getOwnerUniqueId() == null)
+                                            || (line.contains("{buy}") && currentShop.getBuyPrice(false) <= 0)
+                                            || (line.contains("{sell}") && currentShop.getSellPrice(false) <= 0)) continue;
+
+                                    if (line.toLowerCase().contains("{enchants}")) {
+                                        if (currentShop.getShopItem() == null) continue;
+
+                                        if (currentShop.getShopItem().getType() == Material.ENCHANTED_BOOK) {
+                                            EnchantmentStorageMeta bookMeta = (EnchantmentStorageMeta) currentShop.getShopItem().getItemMeta();
+                                            if (bookMeta != null) for (Map.Entry<Enchantment, Integer> entry : bookMeta.getStoredEnchants().entrySet())
                                                 add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                                        .replace("{enchants}", (WordUtils.capitalize(potionEffect.getType().getName().toLowerCase().replace("_", " "))
-                                                                + " " + INSTANCE.getManager().getRomanNumeral(potionEffect.getAmplifier() + 1)
-                                                                + " " + (potionEffect.getDuration() / 20) + "s")))));
+                                                        .replace("{enchants}", (INSTANCE.getManager().getTranslatedName(entry.getKey())
+                                                                + " " + INSTANCE.getManager().getRomanNumeral(entry.getValue()))))));
+                                        } else if (!currentShop.getShopItem().getEnchantments().isEmpty()) {
+                                            for (Map.Entry<Enchantment, Integer> entry : currentShop.getShopItem().getEnchantments().entrySet())
+                                                add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
+                                                        .replace("{enchants}", (INSTANCE.getManager().getTranslatedName(entry.getKey()) + " "
+                                                                + INSTANCE.getManager().getRomanNumeral(entry.getValue()))))));
                                         }
+
+                                        if (currentShop.getShopItem().getType().name().contains("POTION")) {
+                                            PotionMeta potionMeta = (PotionMeta) currentShop.getShopItem().getItemMeta();
+                                            if (potionMeta != null) {
+                                                final String translatedName = INSTANCE.getManager().getTranslatedName(potionMeta.getBasePotionData().getType());
+                                                if (!translatedName.equalsIgnoreCase("Uncraftable"))
+                                                    add(INSTANCE.getManager().color(INSTANCE
+                                                            .papiText(player, line.replace("{enchants}", (translatedName)))));
+                                                for (PotionEffect potionEffect : potionMeta.getCustomEffects())
+                                                    add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
+                                                            .replace("{enchants}", (WordUtils.capitalize(potionEffect.getType().getName().toLowerCase().replace("_", " "))
+                                                                    + " " + INSTANCE.getManager().getRomanNumeral(potionEffect.getAmplifier() + 1)
+                                                                    + " " + (potionEffect.getDuration() / 20) + "s")))));
+                                            }
+                                            continue;
+                                        }
+
                                         continue;
                                     }
 
-                                    continue;
+                                    add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
+                                            .replace("{owner}", ((currentShop.getOwnerUniqueId() != null
+                                                    && offlinePlayer != null) ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
+                                            .replace("{balance}", (currentShop.getStoredBalance() < 0 ? "\u221E"
+                                                    : INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(), currentShop.getStoredBalance())))
+                                            .replace("{stock}", (currentShop.getStock() < 0 ? "\u221E"
+                                                    : INSTANCE.getManager().formatNumber(currentShop.getStock(), false)))
+                                            .replace("{description}", ((currentShop.getDescription() != null && !currentShop.getDescription().isEmpty())
+                                                    ? currentShop.getDescription() : "---"))
+                                            .replace("{world}", Objects.requireNonNull(location.getWorld()).getName())
+                                            .replace("{x}", INSTANCE.getManager().formatNumber(location.getBlockX(), false))
+                                            .replace("{y}", INSTANCE.getManager().formatNumber(location.getBlockY(), false))
+                                            .replace("{z}", INSTANCE.getManager().formatNumber(location.getBlockZ(), false))
+                                            .replace("{buy}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(),
+                                                    currentShop.getBuyPrice(currentShop.canDynamicPriceChange())))
+                                            .replace("{sell}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(),
+                                                    currentShop.getSellPrice(currentShop.canDynamicPriceChange())))
+                                            .replace("{cost}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(), visitCost))
+                                            .replace("{type}", (Objects.requireNonNull(currentShop.isAdminShop() ? adminType : playerType)))
+                                            .replace("{amount}", INSTANCE.getManager().formatNumber(currentShop.getShopItemAmount(), false))
+                                            .replace("{item}", itemName).replace("{trade}", tradeItemName))));
                                 }
+                            }});
+                            itemStack.setItemMeta(itemMeta);
+                        }
 
-                                add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                        .replace("{owner}", ((currentShop.getOwnerUniqueId() != null
-                                                && offlinePlayer != null) ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
-                                        .replace("{balance}", (currentShop.getStoredBalance() < 0 ? "\u221E"
-                                                : INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(), currentShop.getStoredBalance())))
-                                        .replace("{stock}", (currentShop.getStock() < 0 ? "\u221E"
-                                                : INSTANCE.getManager().formatNumber(currentShop.getStock(), false)))
-                                        .replace("{description}", ((currentShop.getDescription() != null && !currentShop.getDescription().isEmpty())
-                                                ? currentShop.getDescription() : "---"))
-                                        .replace("{world}", Objects.requireNonNull(location.getWorld()).getName())
-                                        .replace("{x}", INSTANCE.getManager().formatNumber(location.getBlockX(), false))
-                                        .replace("{y}", INSTANCE.getManager().formatNumber(location.getBlockY(), false))
-                                        .replace("{z}", INSTANCE.getManager().formatNumber(location.getBlockZ(), false))
-                                        .replace("{buy}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(),
-                                                currentShop.getBuyPrice(currentShop.canDynamicPriceChange())))
-                                        .replace("{sell}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(),
-                                                currentShop.getSellPrice(currentShop.canDynamicPriceChange())))
-                                        .replace("{cost}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(), visitCost))
-                                        .replace("{type}", (Objects.requireNonNull(currentShop.isAdminShop() ? adminType : playerType)))
-                                        .replace("{amount}", INSTANCE.getManager().formatNumber(currentShop.getShopItemAmount(), false))
-                                        .replace("{item}", itemName).replace("{trade}", tradeItemName))));
+                        if (pageContents.size() >= (getSize() - 9)) {
+                            pageMap.put(currentPage, new ArrayList<>(pageContents));
+                            pageContents.clear();
+                            currentPage += 1;
+                        }
+
+                        pageContents.add(INSTANCE.updateNBT(itemStack, "shop-id", currentShop.getShopId().toString()));
+                    }
+
+                    if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));
+                    return pageMap;
+                }).thenAccept(dataPack::setPageMap).thenRunAsync(() -> {
+                    if (player.isOnline()) {
+                        if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
+                            refreshPageButtons(player, dataPack, inventory, null);
+
+                            if (searchText != null && !searchText.isEmpty()) {
+                                final int searchSlot = getConfiguration().getInt("buttons.search.slot");
+                                updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + searchText));
+
+                                ItemStack searchItem = inventory.getItem(searchSlot);
+                                if (searchItem != null) inventory.setItem(searchSlot, INSTANCE.updateNBT(searchItem, "ds-search", searchText));
+
+                                final String message = INSTANCE.getLangConfig().getString((counter.get() > 0) ? "visit-filter-count" : "visit-filter-none");
+                                if (message != null && !message.equalsIgnoreCase(""))
+                                    INSTANCE.getManager().sendMessage(player, message
+                                            .replace("{count}", INSTANCE.getManager().formatNumber(counter.get(), false))
+                                            .replace("{filter}", searchText));
                             }
-                        }});
-                        itemStack.setItemMeta(itemMeta);
+                        } else clearEmptySlots(inventory);
                     }
-
-                    if (pageContents.size() >= (getSize() - 9)) {
-                        dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-                        pageContents.clear();
-                        currentPage[0] += 1;
-                    }
-
-                    pageContents.add(INSTANCE.updateNBT(itemStack, "shop-id", currentShop.getShopId().toString()));
-                }
-
-                if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-
-                if (searchText != null && !searchText.isEmpty()) {
-                    final String message = INSTANCE.getLangConfig().getString((counter > 0) ? "visit-filter-count" : "visit-filter-none");
-                    if (message != null && !message.equalsIgnoreCase(""))
-                        INSTANCE.getManager().sendMessage(player, message
-                                .replace("{count}", INSTANCE.getManager().formatNumber(counter, false))
-                                .replace("{filter}", searchText));
-                }
+                });
                 break;
             }
             case "assistants": {
@@ -777,71 +803,116 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                             inActiveColor = getString("inactive-color");
                     final List<String> loreFormat = getStringList("head-lore");
 
-                    shop.getAssistants().parallelStream().forEach(uuid -> {
-                        OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
-                        if (!offlinePlayer.hasPlayedBefore()) return;
+                    CompletableFuture.supplyAsync(() -> {
+                        final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
+                        int currentPage = 1;
+                        List<ItemStack> pageContents = new ArrayList<>();
 
-                        if (searchText != null && !searchText.isEmpty()
-                                && !(offlinePlayer.getName() != null && offlinePlayer.getName().toLowerCase().startsWith(searchText.toLowerCase()))
-                                && !offlinePlayer.getUniqueId().toString().startsWith(searchText)) return;
+                        List<UUID> assistants = new ArrayList<>(shop.getAssistants());
+                        for (int i = -1; ++i < assistants.size(); ) {
+                            final UUID uuid = assistants.get(i);
+                            OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
+                            if (!offlinePlayer.hasPlayedBefore()) continue;
 
-                        final CustomItem item = new CustomItem(("HEAD:" + offlinePlayer.getName()), 0, 1)
-                                .setDisplayName(player, shop, (shop.getAssistants().contains(offlinePlayer.getUniqueId())
-                                        ? (activeColor + offlinePlayer.getName()) : (inActiveColor + offlinePlayer.getName())))
-                                .setLore(null, loreFormat, ("{player}:" + offlinePlayer.getName()));
+                            if (searchText != null && !searchText.isEmpty()
+                                    && !(offlinePlayer.getName() != null && offlinePlayer.getName().toLowerCase().startsWith(searchText.toLowerCase()))
+                                    && !offlinePlayer.getUniqueId().toString().startsWith(searchText)) continue;
 
-                        if (pageContents.size() >= (getSize() - 9)) {
-                            dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-                            pageContents.clear();
-                            currentPage[0] += 1;
+                            final CustomItem item = new CustomItem(("HEAD:" + offlinePlayer.getName()), 0, 1)
+                                    .setDisplayName(player, shop, (shop.getAssistants().contains(offlinePlayer.getUniqueId())
+                                            ? (activeColor + offlinePlayer.getName()) : (inActiveColor + offlinePlayer.getName())))
+                                    .setLore(null, loreFormat, ("{player}:" + offlinePlayer.getName()));
+
+                            if (pageContents.size() >= (getSize() - 9)) {
+                                pageMap.put(currentPage, new ArrayList<>(pageContents));
+                                pageContents.clear();
+                                currentPage += 1;
+                            }
+
+                            pageContents.add(INSTANCE.updateNBT(item.get(), "uuid", uuid.toString()));
                         }
 
-                        pageContents.add(INSTANCE.updateNBT(item.get(), "uuid", uuid.toString()));
-                    });
+                        if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));
+                        return pageMap;
+                    }).thenAccept(dataPack::setPageMap).thenRunAsync(() -> {
+                        if (player.isOnline()) {
+                            if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
+                                refreshPageButtons(player, dataPack, inventory, null);
+                                if (searchText != null) {
+                                    final int searchSlot = getConfiguration().getInt("buttons.search.slot");
+                                    updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + searchText));
 
-                    if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
+                                    ItemStack searchItem = inventory.getItem(searchSlot);
+                                    if (searchItem != null) inventory.setItem(searchSlot, INSTANCE.updateNBT(searchItem, "ds-search", searchText));
+                                }
+                            } else clearEmptySlots(inventory);
+                        }
+                    });
                 }
                 break;
             }
             case "appearance": {
                 if (shop != null) {
-                    final List<Appearance> appearances = new ArrayList<>(Appearance.getAppearances());
-                    if (getBoolean("sort-alphabetically")) Collections.sort(appearances); // sort appearances alphabetically
+                    CompletableFuture.supplyAsync(() -> {
+                        final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
+                        int currentPage = 1;
+                        List<ItemStack> pageContents = new ArrayList<>();
 
-                    for (int i = -1; ++i < appearances.size(); ) {
-                        Appearance appearance = appearances.get(i);
-                        if (appearance == null) continue;
+                        final List<Appearance> appearances = new ArrayList<>(Appearance.getAppearances());
+                        if (getBoolean("sort-alphabetically")) Collections.sort(appearances); // sort appearances alphabetically
 
-                        if (pageContents.size() >= (getSize() - 9)) {
-                            dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
-                            pageContents.clear();
-                            currentPage[0] += 1;
+                        for (int i = -1; ++i < appearances.size(); ) {
+                            Appearance appearance = appearances.get(i);
+                            if (appearance == null || (searchText != null && !searchText.isEmpty()
+                                    && !appearance.getId().toLowerCase().contains(searchText.toLowerCase()))
+                                    && !appearance.getMaterial().toLowerCase().contains(searchText.toLowerCase())) continue;
+
+                            if (pageContents.size() >= (getSize() - 9)) {
+                                pageMap.put(currentPage, new ArrayList<>(pageContents));
+                                pageContents.clear();
+                                currentPage += 1;
+                            }
+
+                            ItemStack itemStack = appearance.build(player, shop);
+                            if (itemStack != null) pageContents.add(itemStack);
                         }
 
-                        ItemStack itemStack = appearance.build(player, shop);
-                        if (itemStack != null) pageContents.add(itemStack);
-                    }
+                        if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));
+                        return pageMap;
+                    }).thenAccept(dataPack::setPageMap).thenRunAsync(() -> {
+                        if (player.isOnline()) {
+                            if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
+                                refreshPageButtons(player, dataPack, inventory, null);
+                                if (searchText != null) {
+                                    final int searchSlot = getConfiguration().getInt("buttons.search.slot");
+                                    updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + searchText));
 
-                    if (!pageContents.isEmpty()) dataPack.getPageMap().put(currentPage[0], new ArrayList<>(pageContents));
+                                    ItemStack searchItem = inventory.getItem(searchSlot);
+                                    if (searchItem != null) inventory.setItem(searchSlot, INSTANCE.updateNBT(searchItem, "ds-search", searchText));
+                                }
+                            } else clearEmptySlots(inventory);
+                        }
+                    });
                     break;
                 }
             }
-            default: {break;}
+            default: {
+                break;
+            }
         }
 
         dataPack.setCurrentPage(1);
     }
 
-    public void updateSearchItem(@NotNull Inventory inventory, @NotNull String searchText) {
-        final int searchItemSlot = getConfiguration().getInt("buttons.search.slot");
-        if (searchItemSlot >= 0 && searchItemSlot < getSize()) {
-            final ItemStack searchItem = inventory.getItem(searchItemSlot);
-            if (searchItem != null && searchItem.getItemMeta() != null) {
-                final ItemMeta itemMeta = searchItem.getItemMeta();
-                itemMeta.setDisplayName(itemMeta.getDisplayName().replace("{search-text}", searchText));
-                searchItem.setItemMeta(itemMeta);
-                inventory.setItem(searchItemSlot, searchItem);
-            }
+    private void refreshPageButtons(@NotNull Player player, @NotNull DataPack dataPack, @NotNull Inventory inventory, @Nullable Shop shop) {
+        if (getMenuName().contains("visit")) {
+            updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
+                    shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
+            switchPage(inventory, player, dataPack.getCurrentPage());
+        } else if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
+            updateButton(player, inventory, getConfiguration().getInt("buttons.search.slot"),
+                    shop, null, ("{search-text}:" + INSTANCE.getLangConfig().getString("not-applicable")));
+            switchPage(inventory, player, dataPack.getCurrentPage());
         }
     }
 
@@ -990,6 +1061,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         this.title = title;
     }
 
-    public boolean shouldShowTradeContent(@NotNull Shop shop) {return (getMenuName().equals("edit") && shop.getCurrencyType().equalsIgnoreCase("item-for-item"));}
+    public boolean shouldShowTradeContent(@NotNull Shop shop) {
+        return (getMenuName().equals("edit") && shop.getCurrencyType().equalsIgnoreCase("item-for-item"));
+    }
 
 }

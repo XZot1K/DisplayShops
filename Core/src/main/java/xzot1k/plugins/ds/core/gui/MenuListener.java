@@ -32,6 +32,7 @@ import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MenuListener implements Listener {
 
@@ -150,7 +151,9 @@ public class MenuListener implements Listener {
             if (!checkInteractiveTouches(e)) return;
             operateVisitMenu(e, e.getClickedInventory(), menu, player);
         } else if (menu.getMenuName().startsWith("deposit")) {
-            if (e.getSlot() >= (e.getInventory().getSize() - 9)) {if (!checkInteractiveTouches(e)) return;}
+            if (e.getSlot() >= (e.getInventory().getSize() - 9)) {
+                if (!checkInteractiveTouches(e)) return;
+            }
             operateDepositMenu(e, e.getClickedInventory(), menu, player, (menu.getMenuName().contains("stock") ? DepositType.STOCK : DepositType.BALANCE));
         }
     }
@@ -352,7 +355,7 @@ public class MenuListener implements Listener {
                 final String title = menu.getConfiguration().getString("description-entry.title");
                 if (title != null) new AnvilGUI.Builder()
                         .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                                menu.build(stateSnapshot.getPlayer()), 1))
                         .onClick((slot, stateSnapshot) -> {
                             if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
@@ -547,10 +550,12 @@ public class MenuListener implements Listener {
                     }
                 }
             }
-            default: {return;}
+            default: {
+                return;
+            }
         }
 
-        if (tempMenu != null) player.openInventory(tempMenu.build(player));
+        if (tempMenu != null) tempMenu.build(player);
         playClickSound(player);
     }
 
@@ -906,7 +911,9 @@ public class MenuListener implements Listener {
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("unit-count-decreased"));
                 break;
             }
-            default: {break;}
+            default: {
+                break;
+            }
         }
     }
 
@@ -947,44 +954,59 @@ public class MenuListener implements Listener {
                     if (dataPack.hasNextPage()) menu.switchPage(inventory, player, (dataPack.getCurrentPage() + 1));
                     return;
                 }
-
                 case "previous": {
                     playClickSound(player);
                     if (dataPack.hasPreviousPage()) menu.switchPage(inventory, player, (dataPack.getCurrentPage() - 1));
                     return;
                 }
-
                 case "search": {
                     playClickSound(player);
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
-                    if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(menu.build(player, stateSnapshot.getText().trim())), 1))
-                            .onClick((slot, stateSnapshot) -> {
-                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+                    if (title != null) {
+                        AtomicBoolean rebuild = new AtomicBoolean(false);
+                        new AnvilGUI.Builder()
+                                .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                {
+                                    if (!rebuild.get()) stateSnapshot.getPlayer().openInventory(inventory);
+                                }, 1))
+                                .onClick((slot, stateSnapshot) -> {
+                                    if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
-                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
-                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                    final String search = stateSnapshot.getText();
+                                    if (search == null || search.isEmpty() || search.trim().isEmpty()) {
+                                        rebuild.set(true);
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.run(() -> menu.build(player)));
+                                    }
 
-                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                            })
-                            .text(" ")
-                            .title(INSTANCE.getManager().color(title))
-                            .plugin(INSTANCE).open(player);
+                                    menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim(), null, inventory);
+
+                                    final int searchSlot = menu.getConfiguration().getInt("buttons.search.slot");
+                                    menu.updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + stateSnapshot.getText().trim()));
+
+                                    ItemStack searchItem = inventory.getItem(searchSlot);
+                                    if (searchItem != null)
+                                        inventory.setItem(searchSlot, INSTANCE.updateNBT(searchItem, "ds-search", stateSnapshot.getText().trim()));
+
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                })
+                                .text(" ")
+                                .title(INSTANCE.getManager().color(title))
+                                .plugin(INSTANCE).open(player);
+                    }
                     return;
                 }
-
-                case "return": {
+                case "return":
+                case "close": {
                     playClickSound(player);
 
                     final Menu managementMenu = INSTANCE.getMenu("edit");
-                    player.openInventory(managementMenu.build(player));
+                    managementMenu.build(player);
 
                     dataPack.setInteractionType(null);
                     dataPack.setInteractionValue(null);
                     return;
                 }
-
                 default: {
                     break;
                 }
@@ -1082,16 +1104,31 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("assistant-entry.title");
                     if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                                    stateSnapshot.getPlayer().openInventory(inventory), 1))
                             .onClick((slot, stateSnapshot) -> {
                                 if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                final String search = stateSnapshot.getText();
+                                if (search == null || search.isEmpty() || search.trim().isEmpty())
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.run(() -> menu.build(player)));
 
                                 final String entry = stateSnapshot.getText().trim();
                                 if (INSTANCE.getManager().getUUIDPattern().matcher(entry).matches()) {
                                     final UUID uuid = UUID.fromString(entry);
 
+                                    OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
+                                    if (!offlinePlayer.hasPlayedBefore()) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("player-invalid"));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
+                                    if (shop.getOwnerUniqueId() != null && uuid.toString().equals(shop.getOwnerUniqueId().toString())) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-owner"),
+                                                ("{owner}:" + offlinePlayer.getName()));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
                                     if (shop.getAssistants().contains(uuid)) {
-                                        OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(uuid);
                                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-access"),
                                                 ("{player}:" + offlinePlayer.getName()));
                                         return Collections.singletonList(AnvilGUI.ResponseAction.close());
@@ -1113,28 +1150,34 @@ public class MenuListener implements Listener {
                                     if (!offlinePlayer.hasPlayedBefore()) {
                                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("player-invalid"));
                                         return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                                    } else {
-                                        if (shop.getAssistants().contains(offlinePlayer.getUniqueId())) {
-                                            INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-access"),
-                                                    ("{player}:" + offlinePlayer.getName()));
-                                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                                        }
-
-                                        // call edit event
-                                        ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.ASSISTANT_ADD, offlinePlayer.getUniqueId().toString());
-                                        INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
-                                        if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
-
-                                        shop.getAssistants().add(offlinePlayer.getUniqueId());
                                     }
+
+                                    if (shop.getOwnerUniqueId() != null && offlinePlayer.getUniqueId().toString().equals(shop.getOwnerUniqueId().toString())) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-owner"),
+                                                ("{owner}:" + offlinePlayer.getName()));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
+                                    if (shop.getAssistants().contains(offlinePlayer.getUniqueId())) {
+                                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-access"),
+                                                ("{player}:" + offlinePlayer.getName()));
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                    }
+
+                                    // call edit event
+                                    ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.ASSISTANT_ADD, offlinePlayer.getUniqueId().toString());
+                                    INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
+                                    if (shopEditEvent.isCancelled()) return Collections.singletonList(AnvilGUI.ResponseAction.close());
+
+                                    shop.getAssistants().add(offlinePlayer.getUniqueId());
                                 }
 
                                 shop.save(true);
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-added"),
                                         ("{player}:" + stateSnapshot.getText().trim()));
 
-                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
-                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null, inventory);  // TODO FIX
+                                //menu.switchPage(inventory, player, dataPack.getCurrentPage());
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")
@@ -1148,9 +1191,13 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("assistant-entry.title");
                     if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE,
-                                    () -> stateSnapshot.getPlayer().openInventory(menu.build(player)), 1))
+                                    () -> menu.build(stateSnapshot.getPlayer()), 1))
                             .onClick((slot, stateSnapshot) -> {
                                 if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+
+                                final String search = stateSnapshot.getText();
+                                if (search == null || search.isEmpty() || search.trim().isEmpty())
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.run(() -> menu.build(player)));
 
                                 final String entry = stateSnapshot.getText().trim();
                                 if (INSTANCE.getManager().getUUIDPattern().matcher(entry).matches()) {
@@ -1198,8 +1245,8 @@ public class MenuListener implements Listener {
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-removed"),
                                         ("{player}:" + stateSnapshot.getText().trim()));
 
-                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
-                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null, inventory);  // TODO FIX
+                                //menu.switchPage(inventory, player, dataPack.getCurrentPage());
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")
@@ -1212,27 +1259,46 @@ public class MenuListener implements Listener {
                 case "search": {
                     playClickSound(player);
                     final String title = menu.getConfiguration().getString("search-entry.title");
-                    if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                    stateSnapshot.getPlayer().openInventory(menu.build(player, stateSnapshot.getText().trim())), 1))
-                            .onClick((slot, stateSnapshot) -> {
-                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+                    if (title != null) {
+                        AtomicBoolean rebuild = new AtomicBoolean(false);
+                        new AnvilGUI.Builder()
+                                .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
+                                {
+                                    if (!rebuild.get()) stateSnapshot.getPlayer().openInventory(inventory);
+                                }, 1))
+                                .onClick((slot, stateSnapshot) -> {
+                                    if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
-                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null);
-                                menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                    final String search = stateSnapshot.getText();
+                                    if (search == null || search.isEmpty() || search.trim().isEmpty()) {
+                                        rebuild.set(true);
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.run(() -> menu.build(player)));
+                                    }
 
-                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                            })
-                            .text(" ")
-                            .title(INSTANCE.getManager().color(title))
-                            .plugin(INSTANCE).open(player);
+                                    menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null, inventory);
+
+                                    final int searchSlot = menu.getConfiguration().getInt("buttons.search.slot");
+                                    menu.updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + stateSnapshot.getText().trim()));
+
+                                    ItemStack searchItem = inventory.getItem(searchSlot);
+                                    if (searchItem != null)
+                                        inventory.setItem(searchSlot, INSTANCE.updateNBT(searchItem, "ds-search", stateSnapshot.getText().trim()));
+
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                })
+                                .text(" ")
+                                .title(INSTANCE.getManager().color(title))
+                                .plugin(INSTANCE).open(player);
+                    }
                     return;
                 }
 
-                case "return": {
+                case "return":
+                case "close": {
                     playClickSound(player);
 
                     final Menu managementMenu = INSTANCE.getMenu("edit");
-                    player.openInventory(managementMenu.build(player));
+                    managementMenu.build(player);
 
                     dataPack.setInteractionType(null);
                     dataPack.setInteractionValue(null);
@@ -1327,16 +1393,14 @@ public class MenuListener implements Listener {
                     if (currentType != null && itemMeta != null) {
                         final ShopActionType nextType = currentType.getNext();
 
-                        itemMeta.setDisplayName(INSTANCE.getManager().color(typeButtonName.replace("{type}", nextType.getName(menu))));
-                        itemStack.setItemMeta(itemMeta);
-                        e.getClickedInventory().setItem(e.getSlot(), itemStack);
-
                         String currentSearchText = null;
                         final ItemStack searchItem = inventory.getItem(menu.getConfiguration().getInt("buttons.search.slot"));
                         if (searchItem != null) currentSearchText = INSTANCE.getNBT(searchItem, "ds-search");
+                        menu.loadPages(player, dataPack, null, currentSearchText, e.getCurrentItem(), inventory); // TODO FIX
 
-                        menu.loadPages(player, dataPack, null, currentSearchText, e.getCurrentItem());
-                        menu.switchPage(inventory, player, 1);
+                        itemMeta.setDisplayName(INSTANCE.getManager().color(typeButtonName.replace("{type}", nextType.getName(menu))));
+                        itemStack.setItemMeta(itemMeta);
+                        inventory.setItem(e.getSlot(), itemStack);
                     }
                     return;
                 }
@@ -1346,39 +1410,48 @@ public class MenuListener implements Listener {
 
                     final String title = menu.getConfiguration().getString("search-entry.title");
                     if (title != null && !title.isEmpty()) {
+                        AtomicBoolean rebuild = new AtomicBoolean(false);
                         new AnvilGUI.Builder()
                                 .onClose(stateSnapshot -> INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () ->
-                                        stateSnapshot.getPlayer().openInventory(inventory), 1))
+                                {
+                                    if (!rebuild.get()) stateSnapshot.getPlayer().openInventory(inventory);
+                                }, 1))
                                 .onClick((slot, stateSnapshot) -> {
                                     if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
+                                    final String search = stateSnapshot.getText();
+                                    if (search == null || search.isEmpty() || search.trim().isEmpty()) {
+                                        rebuild.set(true);
+                                        return Collections.singletonList(AnvilGUI.ResponseAction.run(() -> menu.build(player)));
+                                    }
+
                                     final ItemStack typeItem = inventory.getItem(menu.getConfiguration().getInt("buttons.type.slot"));
-                                    menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), typeItem);
-                                    menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                    menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), typeItem, inventory);
+                                    //menu.switchPage(inventory, player, dataPack.getCurrentPage());
 
                                     final int searchSlot = menu.getConfiguration().getInt("buttons.search.slot");
                                     menu.updateButton(player, inventory, searchSlot, null, null, ("{search-text}:" + stateSnapshot.getText().trim()));
 
                                     ItemStack searchItem = inventory.getItem(searchSlot);
-                                    if (searchItem != null) INSTANCE.updateNBT(searchItem, "ds-search", stateSnapshot.getText().trim());
+                                    if (searchItem != null)
+                                        inventory.setItem(searchSlot, INSTANCE.updateNBT(searchItem, "ds-search", stateSnapshot.getText().trim()));
 
                                     return Collections.singletonList(AnvilGUI.ResponseAction.close());
                                 })
-                                .text("")
+                                .text(" ")
                                 .title(INSTANCE.getManager().color(title))
                                 .plugin(INSTANCE).open(player);
                     }
                     return;
                 }
 
-                case "return": {
+                case "return":
+                case "close": {
                     playClickSound(player);
-
-                    final Menu managementMenu = INSTANCE.getMenu("edit");
-                    player.openInventory(managementMenu.build(player));
 
                     dataPack.setInteractionType(null);
                     dataPack.setInteractionValue(null);
+                    player.closeInventory();
                     return;
                 }
 
@@ -1473,7 +1546,9 @@ public class MenuListener implements Listener {
                         break;
                     }
 
-                    default: {break;}
+                    default: {
+                        break;
+                    }
                 }
 
                 amountItem.setAmount((int) Math.max(1, Math.min(maxAmount, amountItem.getMaxStackSize())));
@@ -1502,7 +1577,9 @@ public class MenuListener implements Listener {
                         break;
                     }
 
-                    default: {break;}
+                    default: {
+                        break;
+                    }
                 }
 
                 finalAmount = (foundAmount + amount);
@@ -1589,6 +1666,83 @@ public class MenuListener implements Listener {
                                 return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(negativeText != null ? negativeText : ""));
                             }
 
+                            if (text.equalsIgnoreCase("all")) {
+                                double maxAmount = 0;
+                                switch (dataPack.getInteractionType()) {
+                                    case AMOUNT_BUY_PRICE: {
+                                        maxAmount = INSTANCE.getConfig().getDouble("buy-price-limit");
+                                        break;
+                                    }
+
+                                    case AMOUNT_SELL_PRICE: {
+                                        maxAmount = INSTANCE.getConfig().getDouble("sell-price-limit");
+                                        break;
+                                    }
+
+                                    case SHOP_ITEM_AMOUNT: {
+                                        maxAmount = INSTANCE.getConfig().getDouble("max-item-stack-size");
+                                        break;
+                                    }
+
+                                    case AMOUNT_STOCK: {
+                                        maxAmount = (shop.getStock() + INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem()));
+                                        break;
+                                    }
+
+                                    case AMOUNT_BALANCE: {
+                                        maxAmount = (shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop));
+                                        break;
+                                    }
+
+                                    case AMOUNT_PLAYER_BUY_LIMIT:
+                                    case AMOUNT_GLOBAL_BUY_LIMIT: {
+                                        maxAmount = INSTANCE.getConfig().getLong("buy-limit-cap");
+                                        break;
+                                    }
+
+                                    case AMOUNT_GLOBAL_SELL_LIMIT:
+                                    case AMOUNT_PLAYER_SELL_LIMIT: {
+                                        maxAmount = INSTANCE.getConfig().getLong("sell-limit-cap");
+                                        break;
+                                    }
+
+                                    default: {
+                                        break;
+                                    }
+                                }
+                                dataPack.setInteractionValue(maxAmount);
+                                amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
+                                updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, ((Double) dataPack.getInteractionValue()).intValue());
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                            } else if (text.equalsIgnoreCase("clear") || text.equalsIgnoreCase("reset")) {
+                                double finalAmount;
+                                amountItem.setAmount(1);
+                                switch (dataPack.getInteractionType()) {
+                                    case AMOUNT_GLOBAL_BUY_LIMIT:
+                                    case AMOUNT_GLOBAL_SELL_LIMIT:
+                                    case AMOUNT_PLAYER_BUY_LIMIT:
+                                    case AMOUNT_PLAYER_SELL_LIMIT:
+                                    case AMOUNT_BUY_PRICE:
+                                    case AMOUNT_SELL_PRICE: {
+                                        finalAmount = -1;
+                                        break;
+                                    }
+
+                                    case SHOP_ITEM_AMOUNT: {
+                                        finalAmount = 1;
+                                        break;
+                                    }
+
+                                    default: {
+                                        finalAmount = 0;
+                                        break;
+                                    }
+                                }
+                                amountItem.setAmount((int) Math.max(Math.min(amountItem.getType().getMaxStackSize(), finalAmount), 1));
+                                updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, finalAmount);
+                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                            }
+
                             if (INSTANCE.getManager().isNotNumeric(text)) {
                                 final String invalidText = menu.getConfiguration().getString("custom-amount-entry.invalid");
                                 return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(invalidText != null ? invalidText : ""));
@@ -1596,6 +1750,8 @@ public class MenuListener implements Listener {
 
                             dataPack.setInteractionValue(Math.max((dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK
                                     && !player.hasPermission("displayshops.admin") ? 0 : -1), Double.parseDouble(text)));
+
+
                             amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
                             updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, ((Double) dataPack.getInteractionValue()).intValue());
                             return Collections.singletonList(AnvilGUI.ResponseAction.close());
@@ -1962,7 +2118,9 @@ public class MenuListener implements Listener {
                         menuToOpen = INSTANCE.getMenu("edit");
                         break;
                     }
-                    default: {break;}
+                    default: {
+                        break;
+                    }
                 }
 
                 playClickSound(player);
@@ -1972,14 +2130,15 @@ public class MenuListener implements Listener {
                 player.closeInventory();
                 dataPack.setSelectedShop(shop);
 
-                if (menuToOpen != null) player.openInventory(menuToOpen.build(player));
+                if (menuToOpen != null) menuToOpen.build(player);
                 break;
             }
 
-            case "return": {
-                final Menu editMenu = INSTANCE.getMenu("edit");
-                player.openInventory(editMenu.build(player));
+            case "return":
+            case "close": {
                 playClickSound(player);
+                final Menu editMenu = INSTANCE.getMenu("edit");
+                editMenu.build(player);
                 break;
             }
 
@@ -2180,7 +2339,7 @@ public class MenuListener implements Listener {
 
                     INSTANCE.getInSightTask().refreshShop(shop);
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sale-item-cleared"));
-                    player.openInventory(INSTANCE.getMenu("edit").build(player));
+                    INSTANCE.getMenu("edit").build(player);
                 } else if (dataPack.getInteractionType() == InteractionType.CLEAR_TRADE_ITEM) {
                     // call edit event
                     ShopEditEvent shopEditEvent = new ShopEditEvent(player, shop, EditType.CLEAR_TRADE_ITEM, INSTANCE.toString(shop.getTradeItem()));
@@ -2196,7 +2355,7 @@ public class MenuListener implements Listener {
 
                     INSTANCE.getInSightTask().refreshShop(shop);
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("trade-item-cleared"));
-                    player.openInventory(INSTANCE.getMenu("edit").build(player));
+                    INSTANCE.getMenu("edit").build(player);
                 }
                 break;
             }
@@ -2204,7 +2363,7 @@ public class MenuListener implements Listener {
             case "deny": {
                 if (dataPack.getInteractionType() == InteractionType.DELETE) {
                     final Menu editMenu = INSTANCE.getMenu("edit");
-                    player.openInventory(editMenu.build(player));
+                    editMenu.build(player);
                 }
 
                 dataPack.setInteractionType(null);
@@ -2212,7 +2371,9 @@ public class MenuListener implements Listener {
                 break;
             }
 
-            default: {return;}
+            default: {
+                return;
+            }
         }
 
         playClickSound(player);

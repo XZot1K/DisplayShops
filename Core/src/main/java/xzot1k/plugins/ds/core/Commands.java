@@ -1998,7 +1998,7 @@ public class Commands implements CommandExecutor {
         }
 
         Menu visitMenu = getPluginInstance().getMenu("visit");
-        if (visitMenu != null) player.openInventory(visitMenu.build(player, filter));
+        if (visitMenu != null) visitMenu.build(player, filter);
     }
 
     private void runGive(CommandSender commandSender, String[] args) {
