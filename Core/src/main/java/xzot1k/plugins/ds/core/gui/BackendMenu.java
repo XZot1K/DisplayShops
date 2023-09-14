@@ -349,151 +349,147 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                 : INSTANCE.getServer().createInventory(null, getSize(), getTitle()));
         final String stitchedSearchText = stitchSearchText(searchText);
 
-        ArrayList<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
-        buildButtons(player, inventory, emptySlots);
+        CompletableFuture.runAsync(() -> {
+            ArrayList<Integer> emptySlots = new ArrayList<>(getIntegerList("empty-slots"));
+            buildButtons(player, inventory, emptySlots);
 
-        if (getMenuName().contains("amount-selector") && shop != null) {
-            double finalAmount = 0;
-            if (dataPack.getInteractionValue() != null) {
-                finalAmount = (double) dataPack.getInteractionValue();
-                dataPack.setInteractionValue(null);
+            if (getMenuName().contains("amount-selector") && shop != null) {
+                double finalAmount = 0;
+                if (dataPack.getInteractionValue() != null) {
+                    finalAmount = (double) dataPack.getInteractionValue();
+                    dataPack.setInteractionValue(null);
+                }
+
+                final int amountSlot = getInt("buttons.amount.slot");
+                final ItemStack amountItem = inventory.getItem(amountSlot);
+                if (amountItem != null && amountItem.getItemMeta() != null) {
+                    final ItemMeta itemMeta = amountItem.getItemMeta();
+
+                    if (finalAmount == 0) {
+                        if (dataPack.getInteractionType() == InteractionType.AMOUNT_BUY_PRICE) {
+                            finalAmount = shop.getBuyPrice(false);
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_SELL_PRICE) {
+                            finalAmount = shop.getSellPrice(false);
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK) {
+                            finalAmount = shop.getStock();
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE) {
+                            finalAmount = shop.getStoredBalance();
+                        } else if (dataPack.getInteractionType() == InteractionType.SHOP_ITEM_AMOUNT) {
+                            finalAmount = shop.getShopItemAmount();
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_PLAYER_BUY_LIMIT) {
+                            finalAmount = shop.getPlayerBuyLimit();
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_PLAYER_SELL_LIMIT) {
+                            finalAmount = shop.getPlayerSellLimit();
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_GLOBAL_BUY_LIMIT) {
+                            finalAmount = shop.getGlobalBuyLimit();
+                        } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_GLOBAL_SELL_LIMIT) {
+                            finalAmount = shop.getGlobalSellLimit();
+                        }
+                    }
+
+                    final String name = getString("buttons.amount.name");
+                    if (name != null) {
+                        String disabled = INSTANCE.getLangConfig().getString("disabled");
+                        if (disabled == null) disabled = "";
+
+                        final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE") || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE),
+                                isLimit = dataPack.getInteractionType().name().contains("LIMIT");
+                        if (!isDecimal) amountItem.setAmount((int) Math.max(1, Math.min(finalAmount, amountItem.getType().getMaxStackSize())));
+                        itemMeta.setDisplayName(INSTANCE.getManager().color(name
+                                .replace("{amount}", (!isLimit ? (isDecimal ? INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalAmount)
+                                        : INSTANCE.getManager().formatNumber(finalAmount, false))
+                                        : ((finalAmount < 0) ? disabled : INSTANCE.getManager().formatNumber(finalAmount, false))))));
+                    }
+
+                    amountItem.setAmount((int) Math.min(amountItem.getType().getMaxStackSize(), Math.max(1, finalAmount)));
+                    amountItem.setItemMeta(itemMeta);
+                    inventory.setItem(amountSlot, INSTANCE.updateNBT(amountItem, "ds-amount", String.valueOf(finalAmount)));
+                }
             }
 
-            final int amountSlot = getInt("buttons.amount.slot");
-            final ItemStack amountItem = inventory.getItem(amountSlot);
-            if (amountItem != null && amountItem.getItemMeta() != null) {
-                final ItemMeta itemMeta = amountItem.getItemMeta();
+            // fill empty slots. If defined, fill defined slots
+            fillEmptySlots(inventory, emptySlots);
 
-                if (finalAmount == 0) {
-                    if (dataPack.getInteractionType() == InteractionType.AMOUNT_BUY_PRICE) {
-                        finalAmount = shop.getBuyPrice(false);
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_SELL_PRICE) {
-                        finalAmount = shop.getSellPrice(false);
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK) {
-                        finalAmount = shop.getStock();
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE) {
-                        finalAmount = shop.getStoredBalance();
-                    } else if (dataPack.getInteractionType() == InteractionType.SHOP_ITEM_AMOUNT) {
-                        finalAmount = shop.getShopItemAmount();
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_PLAYER_BUY_LIMIT) {
-                        finalAmount = shop.getPlayerBuyLimit();
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_PLAYER_SELL_LIMIT) {
-                        finalAmount = shop.getPlayerSellLimit();
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_GLOBAL_BUY_LIMIT) {
-                        finalAmount = shop.getGlobalBuyLimit();
-                    } else if (dataPack.getInteractionType() == InteractionType.AMOUNT_GLOBAL_SELL_LIMIT) {
-                        finalAmount = shop.getGlobalSellLimit();
+            if (shop != null) {
+                if (getMenuName().contains("edit")) {
+                    final int saleSlot = getInt("sale-item-slot"), tradeSlot = getInt("trade-item-slot");
+
+                    if (saleSlot >= 0 && saleSlot < inventory.getSize()) {
+                        if (shop.getShopItem() != null) {
+                            final ItemStack clonedItem = dataPack.getSelectedShop().getShopItem().clone();
+                            clonedItem.setAmount(dataPack.getSelectedShop().getShopItemAmount());
+                            inventory.setItem(saleSlot, clonedItem);
+                        } else inventory.setItem(saleSlot, null);
                     }
-                }
 
-                final String name = getString("buttons.amount.name");
-                if (name != null) {
-                    String disabled = INSTANCE.getLangConfig().getString("disabled");
-                    if (disabled == null) disabled = "";
+                    if (shouldShowTradeContent(shop) && tradeSlot >= 0 && tradeSlot < inventory.getSize())
+                        inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
 
-                    final boolean isDecimal = (dataPack.getInteractionType().name().contains("PRICE") || dataPack.getInteractionType() == InteractionType.AMOUNT_BALANCE),
-                            isLimit = dataPack.getInteractionType().name().contains("LIMIT");
-                    if (!isDecimal) amountItem.setAmount((int) Math.max(1, Math.min(finalAmount, amountItem.getType().getMaxStackSize())));
-                    itemMeta.setDisplayName(INSTANCE.getManager().color(name
-                            .replace("{amount}", (!isLimit ? (isDecimal ? INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), finalAmount)
-                                    : INSTANCE.getManager().formatNumber(finalAmount, false))
-                                    : ((finalAmount < 0) ? disabled : INSTANCE.getManager().formatNumber(finalAmount, false))))));
-                }
-
-                amountItem.setAmount((int) Math.min(amountItem.getType().getMaxStackSize(), Math.max(1, finalAmount)));
-                amountItem.setItemMeta(itemMeta);
-                inventory.setItem(amountSlot, INSTANCE.updateNBT(amountItem, "ds-amount", String.valueOf(finalAmount)));
-            }
-        }
-
-        // fill empty slots. If defined, fill defined slots
-        fillEmptySlots(inventory, emptySlots);
-
-        if (shop != null) {
-            if (getMenuName().contains("edit")) {
-                final int saleSlot = getInt("sale-item-slot"), tradeSlot = getInt("trade-item-slot");
-
-                if (saleSlot >= 0 && saleSlot < inventory.getSize()) {
-                    if (shop.getShopItem() != null) {
-                        final ItemStack clonedItem = dataPack.getSelectedShop().getShopItem().clone();
-                        clonedItem.setAmount(dataPack.getSelectedShop().getShopItemAmount());
-                        inventory.setItem(saleSlot, clonedItem);
-                    } else inventory.setItem(saleSlot, null);
-                }
-
-                if (shouldShowTradeContent(shop) && tradeSlot >= 0 && tradeSlot < inventory.getSize())
-                    inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
-
-                if (getConfiguration().contains("buttons.currency-type")) {
-                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                    if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
-                            shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
-                }
-
-                player.openInventory(inventory);
-                return;
-            } else if (getMenuName().contains("transaction")) {
-                ItemStack previewItem = dataPack.getSelectedShop().getShopItem().clone();
-                if (dataPack.getSelectedShop().getCurrencyType().equals("item-for-item")) {
-                    ItemMeta itemMeta = previewItem.getItemMeta();
-                    if (itemMeta != null) {
-                        List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()),
-                                previewLore = getStringList("trade-item-lore");
-                        for (int i = -1; ++i < previewLore.size(); ) lore.add(INSTANCE.getManager().color(previewLore.get(i)));
-                        itemMeta.setLore(lore);
-                        previewItem.setItemMeta(itemMeta);
+                    if (getConfiguration().contains("buttons.currency-type")) {
+                        final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
+                        if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
+                                shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
                     }
-                }
+                } else if (getMenuName().contains("transaction")) {
+                    ItemStack previewItem = dataPack.getSelectedShop().getShopItem().clone();
+                    if (dataPack.getSelectedShop().getCurrencyType().equals("item-for-item")) {
+                        ItemMeta itemMeta = previewItem.getItemMeta();
+                        if (itemMeta != null) {
+                            List<String> lore = itemMeta.getLore() == null ? new ArrayList<>() : new ArrayList<>(itemMeta.getLore()),
+                                    previewLore = getStringList("trade-item-lore");
+                            for (int i = -1; ++i < previewLore.size(); ) lore.add(INSTANCE.getManager().color(previewLore.get(i)));
+                            itemMeta.setLore(lore);
+                            previewItem.setItemMeta(itemMeta);
+                        }
+                    }
 
-                final int previewSlot = getInt("preview-slot");
-                if (previewSlot >= 0 && previewSlot < inventory.getSize()) {
-                    previewItem.setAmount(Math.min(dataPack.getSelectedShop().getShopItemAmount(), previewItem.getMaxStackSize()));
-                    inventory.setItem(previewSlot, previewItem);
-                }
+                    final int previewSlot = getInt("preview-slot");
+                    if (previewSlot >= 0 && previewSlot < inventory.getSize()) {
+                        previewItem.setAmount(Math.min(dataPack.getSelectedShop().getShopItemAmount(), previewItem.getMaxStackSize()));
+                        inventory.setItem(previewSlot, previewItem);
+                    }
 
-                // ((int) (unitCountItem.getType().getMaxStackSize() * 0.25))
+                    // ((int) (unitCountItem.getType().getMaxStackSize() * 0.25))
 
-                if (getConfiguration().contains("buttons.unit")) {
-                    final int unitSlot = getInt("buttons.unit.slot");
-                    if (unitSlot >= 0 && unitSlot < inventory.getSize()) {
-                        ItemStack unitItem = inventory.getItem(unitSlot);
-                        if (unitItem != null) {
-                            if (getConfiguration().contains("buttons.unit-increase-more")) {
-                                final int unitMoreSlot = getInt("buttons.unit-increase-more.slot");
-                                if (unitMoreSlot >= 0 && unitMoreSlot < inventory.getSize()) {
-                                    ItemStack itemStack = inventory.getItem(unitMoreSlot);
-                                    if (itemStack != null) itemStack.setAmount((int) (unitItem.getType().getMaxStackSize() * 0.25));
+                    if (getConfiguration().contains("buttons.unit")) {
+                        final int unitSlot = getInt("buttons.unit.slot");
+                        if (unitSlot >= 0 && unitSlot < inventory.getSize()) {
+                            ItemStack unitItem = inventory.getItem(unitSlot);
+                            if (unitItem != null) {
+                                if (getConfiguration().contains("buttons.unit-increase-more")) {
+                                    final int unitMoreSlot = getInt("buttons.unit-increase-more.slot");
+                                    if (unitMoreSlot >= 0 && unitMoreSlot < inventory.getSize()) {
+                                        ItemStack itemStack = inventory.getItem(unitMoreSlot);
+                                        if (itemStack != null) itemStack.setAmount((int) (unitItem.getType().getMaxStackSize() * 0.25));
+                                    }
                                 }
-                            }
 
-                            if (getConfiguration().contains("buttons.unit-decrease-more")) {
-                                final int unitMoreSlot = getInt("buttons.unit-decrease-more.slot");
-                                if (unitMoreSlot >= 0 && unitMoreSlot < inventory.getSize()) {
-                                    ItemStack itemStack = inventory.getItem(unitMoreSlot);
-                                    if (itemStack != null) itemStack.setAmount((int) (unitItem.getType().getMaxStackSize() * 0.25));
+                                if (getConfiguration().contains("buttons.unit-decrease-more")) {
+                                    final int unitMoreSlot = getInt("buttons.unit-decrease-more.slot");
+                                    if (unitMoreSlot >= 0 && unitMoreSlot < inventory.getSize()) {
+                                        ItemStack itemStack = inventory.getItem(unitMoreSlot);
+                                        if (itemStack != null) itemStack.setAmount((int) (unitItem.getType().getMaxStackSize() * 0.25));
+                                    }
                                 }
                             }
                         }
                     }
                 }
-
-                player.openInventory(inventory);
-                return;
             }
-        }
+        }).thenRun(() -> {
+            if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
+                refreshPageButtons(player, dataPack, inventory, null);
+                loadPages(player, dataPack, shop, stitchedSearchText, null, inventory);
+            } else if (getMenuName().contains("visit")) {
+                final String bothType = getString("visit-types.both");
+                updateButton(player, inventory, getConfiguration().getInt("buttons.type.slot"), shop, null, ("{type}:" + bothType));
+
+                refreshPageButtons(player, dataPack, inventory, null);
+                loadPages(player, dataPack, null, stitchedSearchText, null, inventory);
+            }
+        });
 
         player.openInventory(inventory);
-
-        if (getMenuName().contains("appearance") || getMenuName().contains("assistants")) {
-            refreshPageButtons(player, dataPack, inventory, null);
-            loadPages(player, dataPack, shop, stitchedSearchText, null, inventory);
-        } else if (getMenuName().contains("visit")) {
-            final String bothType = getString("visit-types.both");
-            updateButton(player, inventory, getConfiguration().getInt("buttons.type.slot"), shop, null, ("{type}:" + bothType));
-
-            refreshPageButtons(player, dataPack, inventory, null);
-            loadPages(player, dataPack, null, stitchedSearchText, null, inventory);
-        }
     }
 
     public void updateButton(@NotNull Player player, @NotNull Inventory inventory, int slot, @Nullable Shop shop,

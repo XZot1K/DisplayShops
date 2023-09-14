@@ -112,11 +112,11 @@ public class DShop implements Shop {
      * Kills the shop's display packets entirely for ALL players.
      */
     public synchronized void killAll() {
-        for (Player player : INSTANCE.getServer().getOnlinePlayers()) {
+        INSTANCE.getServer().getOnlinePlayers().parallelStream().forEach(player -> {
             DisplayPacket displayPacket = INSTANCE.getDisplayPacket(this, player);
             if (displayPacket != null) displayPacket.hide(player);
             INSTANCE.removeDisplayPacket(this, player);
-        }
+        });
     }
 
     /**
@@ -316,7 +316,9 @@ public class DShop implements Shop {
             Statement statement = INSTANCE.getDatabaseConnection().createStatement();
             statement.executeUpdate(syntax);
             statement.close();
-        } catch (Exception e) {INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() + ").");}
+        } catch (Exception e) {
+            INSTANCE.log(Level.WARNING, "There was an issue saving the shop '" + getShopId().toString() + "' to the database (" + e.getMessage() + ").");
+        }
     }
 
     /**
@@ -513,35 +515,47 @@ public class DShop implements Shop {
             Statement statement = INSTANCE.getDatabaseConnection().createStatement();
             statement.executeUpdate("delete from shops where id = '" + getShopId() + "'");
             statement.close();
-        } catch (SQLException e) {INSTANCE.log(Level.WARNING, "There was an issue deleting the shop " + getShopId() + " from the database (" + e.getMessage() + ").");}
+        } catch (SQLException e) {
+            INSTANCE.log(Level.WARNING, "There was an issue deleting the shop " + getShopId() + " from the database (" + e.getMessage() + ").");
+        }
     }
 
     /**
      * Registers the shop into the manager.
      */
-    public void register() {INSTANCE.getManager().getShopMap().put(getShopId(), this);}
+    public void register() {
+        INSTANCE.getManager().getShopMap().put(getShopId(), this);
+    }
 
     /**
      * Unregisters the shop from the manager.
      */
-    public void unRegister() {INSTANCE.getManager().getShopMap().remove(getShopId());}
+    public void unRegister() {
+        INSTANCE.getManager().getShopMap().remove(getShopId());
+    }
 
     /**
      * Gets if a shop is an admin shop or not.
      *
      * @return Whether the shop is admin or not.
      */
-    public boolean isAdminShop() {return getOwnerUniqueId() == null;}
+    public boolean isAdminShop() {
+        return getOwnerUniqueId() == null;
+    }
 
     /**
      * Sets the owner to null to initiate admin shop mode.
      */
-    public void makeAdminShop() {setOwnerUniqueId(null);}
+    public void makeAdminShop() {
+        setOwnerUniqueId(null);
+    }
 
     /**
      * Updates the shop change time stamp (Used for the purge system).
      */
-    public void updateTimeStamp() {setChangeTimeStamp(System.currentTimeMillis());}
+    public void updateTimeStamp() {
+        setChangeTimeStamp(System.currentTimeMillis());
+    }
 
     /**
      * Updates the shop buy or sell time stamp (Used for the dynamic price changing system).
@@ -889,7 +903,9 @@ public class DShop implements Shop {
         this.changeTimeStamp = changeTimeStamp;
     }
 
-    public String getDescription() {return (description != null ? description.replace("[q1]", "'").replace("[q2]]", "\"") : null);}
+    public String getDescription() {
+        return (description != null ? description.replace("[q1]", "'").replace("[q2]]", "\"") : null);
+    }
 
     public void setDescription(String description) {
         this.description = description;
@@ -907,55 +923,97 @@ public class DShop implements Shop {
         return lastSellTimeStamp;
     }
 
-    public void setLastSellTimeStamp(long lastSellTimeStamp) {this.lastSellTimeStamp = lastSellTimeStamp;}
+    public void setLastSellTimeStamp(long lastSellTimeStamp) {
+        this.lastSellTimeStamp = lastSellTimeStamp;
+    }
 
-    public List<UUID> getAssistants() {return assistants;}
+    public List<UUID> getAssistants() {
+        return assistants;
+    }
 
-    private void setAssistants(List<UUID> assistants) {this.assistants = assistants;}
+    private void setAssistants(List<UUID> assistants) {
+        this.assistants = assistants;
+    }
 
     /**
      * Gets  the player unique ID of whom is currently editing the shop.
      *
      * @return The current editor's unique ID.
      */
-    public UUID getCurrentEditor() {return currentEditor;}
+    public UUID getCurrentEditor() {
+        return currentEditor;
+    }
 
     /**
      * Sets the current editor.
      *
      * @param currentEditor The unique ID of the player editing.
      */
-    public void setCurrentEditor(UUID currentEditor) {this.currentEditor = currentEditor;}
+    public void setCurrentEditor(UUID currentEditor) {
+        this.currentEditor = currentEditor;
+    }
 
-    public int getPlayerBuyLimit() {return playerBuyLimit;}
+    public int getPlayerBuyLimit() {
+        return playerBuyLimit;
+    }
 
-    public void setPlayerBuyLimit(int playerBuyLimit) {this.playerBuyLimit = playerBuyLimit;}
+    public void setPlayerBuyLimit(int playerBuyLimit) {
+        this.playerBuyLimit = playerBuyLimit;
+    }
 
-    public int getPlayerSellLimit() {return playerSellLimit;}
+    public int getPlayerSellLimit() {
+        return playerSellLimit;
+    }
 
-    public void setPlayerSellLimit(int playerSellLimit) {this.playerSellLimit = playerSellLimit;}
+    public void setPlayerSellLimit(int playerSellLimit) {
+        this.playerSellLimit = playerSellLimit;
+    }
 
-    public int getGlobalBuyLimit() {return globalBuyLimit;}
+    public int getGlobalBuyLimit() {
+        return globalBuyLimit;
+    }
 
-    public void setGlobalBuyLimit(int globalBuyLimit) {this.globalBuyLimit = globalBuyLimit;}
+    public void setGlobalBuyLimit(int globalBuyLimit) {
+        this.globalBuyLimit = globalBuyLimit;
+    }
 
-    public int getGlobalSellLimit() {return globalSellLimit;}
+    public int getGlobalSellLimit() {
+        return globalSellLimit;
+    }
 
-    public void setGlobalSellLimit(int globalSellLimit) {this.globalSellLimit = globalSellLimit;}
+    public void setGlobalSellLimit(int globalSellLimit) {
+        this.globalSellLimit = globalSellLimit;
+    }
 
-    public int getGlobalBuyCounter() {return globalBuyCounter;}
+    public int getGlobalBuyCounter() {
+        return globalBuyCounter;
+    }
 
-    public void setGlobalBuyCounter(int globalBuyCounter) {this.globalBuyCounter = globalBuyCounter;}
+    public void setGlobalBuyCounter(int globalBuyCounter) {
+        this.globalBuyCounter = globalBuyCounter;
+    }
 
-    public int getGlobalSellCounter() {return globalSellCounter;}
+    public int getGlobalSellCounter() {
+        return globalSellCounter;
+    }
 
-    public void setGlobalSellCounter(int globalSellCounter) {this.globalSellCounter = globalSellCounter;}
+    public void setGlobalSellCounter(int globalSellCounter) {
+        this.globalSellCounter = globalSellCounter;
+    }
 
-    public String getCurrencyType() {return currencyType;}
+    public String getCurrencyType() {
+        return currencyType;
+    }
 
-    public void setCurrencyType(@NotNull String currencyType) {this.currencyType = currencyType;}
+    public void setCurrencyType(@NotNull String currencyType) {
+        this.currencyType = currencyType;
+    }
 
-    public String getAppearanceId() {return appearanceId;}
+    public String getAppearanceId() {
+        return appearanceId;
+    }
 
-    public void setAppearanceId(String appearanceId) {this.appearanceId = appearanceId;}
+    public void setAppearanceId(String appearanceId) {
+        this.appearanceId = appearanceId;
+    }
 }

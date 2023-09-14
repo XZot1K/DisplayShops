@@ -1092,7 +1092,8 @@ public class Commands implements CommandExecutor {
                                 getPluginInstance().getShopMemory().remove(player.getUniqueId());
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         });
         String message = getPluginInstance().getLangConfig().getString("world-cleared");
@@ -1739,26 +1740,10 @@ public class Commands implements CommandExecutor {
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
         getPluginInstance().getMenuListener().updateChangeItem();
 
-        // reload market regions
-        getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
-            getPluginInstance().getManager().saveMarketRegions();
-            getPluginInstance().getManager().getMarketRegions().clear();
-            getPluginInstance().getManager().loadMarketRegions(false);
-        });
-
-        // reload shops
-        getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
-            List<Shop> shopList = new ArrayList<>(getPluginInstance().getManager().getShopMap().values());
-            for (Shop shop : shopList) {
-                if (getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId())) {
-                    shop.killAll();
-                    shop.save(false);
-                }
-            }
-
-            getPluginInstance().getManager().getShopMap().clear();
-            getPluginInstance().getManager().loadShops(true, false);
-        });
+        getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () ->
+                getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
+                    entry.getValue().killAll();
+                }));
 
         // restart tasks
         getPluginInstance().setupTasks();
@@ -1994,7 +1979,8 @@ public class Commands implements CommandExecutor {
                     shop.visit(player, true);
                     return;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         Menu visitMenu = getPluginInstance().getMenu("visit");
