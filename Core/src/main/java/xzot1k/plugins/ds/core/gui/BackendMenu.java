@@ -327,6 +327,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         final DataPack dataPack = INSTANCE.getManager().getDataPack(player);
         final Shop shop = dataPack.getSelectedShop();
 
+        if (dataPack.getPageMap() != null) dataPack.getPageMap().clear();
+
         // check and update appearance, if incorrectly set
         if (shop != null && getMenuName().contains("appearance")) {
             if (shop.getBaseLocation() != null) {
@@ -425,9 +427,10 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     if (shouldShowTradeContent(shop) && tradeSlot >= 0 && tradeSlot < inventory.getSize())
                         inventory.setItem(tradeSlot, dataPack.getSelectedShop().getCurrencyItem().clone());
 
-                    if (getConfiguration().contains("buttons.currency-type")) {
+                    final int currencyTypeSlot = getConfiguration().getInt("buttons.currency-type.slot");
+                    if (getConfiguration().contains("buttons.currency-type") && currencyTypeSlot > -1) {
                         final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                        if (ecoHook != null) updateButton(player, inventory, getConfiguration().getInt("buttons.currency-type.slot"),
+                        if (ecoHook != null) updateButton(player, inventory, currencyTypeSlot,
                                 shop, null, ("{type}:" + (shop.getCurrencyType().equals("item-for-item") ? shop.getTradeItemName() : ecoHook.getName())));
                     }
                 } else if (getMenuName().contains("transaction")) {
@@ -621,8 +624,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     @Override
     public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText, @Nullable ItemStack typeItem,
                           @NotNull Inventory inventory) {
-        dataPack.getPageMap().clear();
-
         final boolean forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
         switch (getMenuName()) {
             case "visit": {
@@ -639,7 +640,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
                 AtomicInteger counter = new AtomicInteger();
                 final ShopActionType finalActionType = actionType;
-                CompletableFuture.supplyAsync(() -> {
+
+                INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () -> {
                     final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
                     int currentPage = 1;
                     List<ItemStack> pageContents = new ArrayList<>();
@@ -695,8 +697,20 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                                 for (int i = -1; ++i < loreFormat.size(); ) {
                                     final String line = loreFormat.get(i);
                                     if ((line.contains("{owner}") && currentShop.getOwnerUniqueId() == null)
-                                            || (line.contains("{buy}") && currentShop.getBuyPrice(false) <= 0)
-                                            || (line.contains("{sell}") && currentShop.getSellPrice(false) <= 0)) continue;
+                                            || (line.contains("{buy}") && !line.contains("{sell}") && currentShop.getBuyPrice(false) <= 0)
+                                            || (line.contains("{sell}") && !line.contains("{buy}") && currentShop.getSellPrice(false) <= 0)) continue;
+
+                                    if (line.equalsIgnoreCase("{description}")) {
+                                        if ((currentShop.getDescription() == null || currentShop.getDescription().isEmpty())) {
+                                            add("");
+                                            continue;
+                                        }
+
+                                        add("");
+                                        add(INSTANCE.getManager().color(currentShop.getDescription()));
+                                        add("");
+                                        continue;
+                                    }
 
                                     if (line.toLowerCase().contains("{enchants}")) {
                                         if (currentShop.getShopItem() == null) continue;
@@ -769,8 +783,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     }
 
                     if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));
-                    return pageMap;
-                }).thenAccept(dataPack::setPageMap).thenRunAsync(() -> {
+                    dataPack.setPageMap(pageMap);
+
                     if (player.isOnline()) {
                         if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
                             refreshPageButtons(player, dataPack, inventory, null);
@@ -799,7 +813,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                             inActiveColor = getString("inactive-color");
                     final List<String> loreFormat = getStringList("head-lore");
 
-                    CompletableFuture.supplyAsync(() -> {
+                    INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () -> {
                         final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
                         int currentPage = 1;
                         List<ItemStack> pageContents = new ArrayList<>();
@@ -829,8 +843,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         }
 
                         if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));
-                        return pageMap;
-                    }).thenAccept(dataPack::setPageMap).thenRunAsync(() -> {
+                        dataPack.setPageMap(pageMap);
+
                         if (player.isOnline()) {
                             if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
                                 refreshPageButtons(player, dataPack, inventory, null);
@@ -849,7 +863,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             }
             case "appearance": {
                 if (shop != null) {
-                    CompletableFuture.supplyAsync(() -> {
+                    INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () -> {
                         final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
                         int currentPage = 1;
                         List<ItemStack> pageContents = new ArrayList<>();
@@ -874,8 +888,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         }
 
                         if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));
-                        return pageMap;
-                    }).thenAccept(dataPack::setPageMap).thenRunAsync(() -> {
+                        dataPack.setPageMap(pageMap);
+
                         if (player.isOnline()) {
                             if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
                                 refreshPageButtons(player, dataPack, inventory, null);

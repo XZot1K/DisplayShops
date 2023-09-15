@@ -100,16 +100,18 @@ public class CustomItem {
                 }
             }
         } else if (materialName.toUpperCase().startsWith("TEXTURE") && materialName.contains(":")) {
-            final String[] materialArgs = replacedMaterial.split(":");
+            final String[] materialArgs = materialName.split(":");
             Material mat = Material.getMaterial(isNew ? "PLAYER_HEAD" : "SKULL_ITEM");
             mat = (mat != null ? mat : Material.STONE);
             itemStack = new ItemStack(mat, amount, (isNew ? 0 : (short) 3));
 
             SkullMeta skullMeta = (SkullMeta) itemStack.getItemMeta();
             if (skullMeta != null && materialArgs[1] != null && !materialArgs[1].equalsIgnoreCase("")) {
+                String base64 = materialArgs[1];
+                UUID uuid = new UUID(base64.substring(base64.length() - 20).hashCode(), base64.substring(base64.length() - 10).hashCode());
 
-                GameProfile profile = new GameProfile(UUID.randomUUID(), "");
-                profile.getProperties().put("textures", new Property("textures", materialArgs[1]));
+                GameProfile profile = new GameProfile(uuid, "Player");
+                profile.getProperties().put("textures", new Property("textures", base64));
 
                 Field profileField;
                 try {
@@ -122,7 +124,6 @@ public class CustomItem {
 
                 itemStack.setItemMeta(skullMeta);
             }
-
         } else {
             String itemMat;
             if (materialName.contains(":")) {
@@ -269,7 +270,8 @@ public class CustomItem {
                 try {
                     final ItemFlag flag = ItemFlag.valueOf(flagName);
                     itemMeta.addItemFlags(flag);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
             get().setItemMeta(itemMeta);
         }
@@ -285,11 +287,19 @@ public class CustomItem {
         return this;
     }
 
-    private boolean isNew() {return isNew;}
+    private boolean isNew() {
+        return isNew;
+    }
 
-    private DisplayShops getPluginInstance() {return pluginInstance;}
+    private DisplayShops getPluginInstance() {
+        return pluginInstance;
+    }
 
-    public ItemStack get() {return itemStack;}
+    public ItemStack get() {
+        return itemStack;
+    }
 
-    private Shop getShop() {return shop;}
+    private Shop getShop() {
+        return shop;
+    }
 }

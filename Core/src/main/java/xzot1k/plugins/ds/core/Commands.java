@@ -1740,10 +1740,11 @@ public class Commands implements CommandExecutor {
         getPluginInstance().getListeners().creationItem = getPluginInstance().getManager().buildShopCreationItem(null, 1);
         getPluginInstance().getMenuListener().updateChangeItem();
 
-        getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () ->
-                getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
-                    entry.getValue().killAll();
-                }));
+        Appearance.getAppearances().clear();
+        getPluginInstance().getServer().getScheduler().runTaskAsynchronously(getPluginInstance(), () -> {
+            getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> entry.getValue().killAll());
+            DAppearance.loadAppearances();
+        });
 
         // restart tasks
         getPluginInstance().setupTasks();

@@ -39,6 +39,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
@@ -48,16 +49,16 @@ public class DManager implements Manager {
 
     private DisplayShops pluginInstance;
 
-    private HashMap<UUID, Shop> shopMap;
+    private ConcurrentHashMap<UUID, Shop> shopMap;
     private List<MarketRegion> marketRegions;
     private final Pattern hexPattern, uuidPattern;
-    private HashMap<UUID, DataPack> dataPackMap;
+    private ConcurrentHashMap<UUID, DataPack> dataPackMap;
     public ItemStack defaultCurrencyItem;
 
     public DManager(DisplayShops pluginInstance) {
         setPluginInstance(pluginInstance);
-        setShopMap(new HashMap<>());
-        setDataPackMap(new HashMap<>());
+        setShopMap(new ConcurrentHashMap<>());
+        setDataPackMap(new ConcurrentHashMap<>());
         setMarketRegions(new ArrayList<>());
         hexPattern = Pattern.compile("#[a-fA-F\\d]{6}");
         uuidPattern = Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
@@ -115,7 +116,8 @@ public class DManager implements Manager {
                         final String[] cdLineArgs = cdArgs[i].split(":");
                         dataPack.getCooldownMap().put(cdLineArgs[0], Long.parseLong(cdLineArgs[1]));
                     }
-                } catch (ArrayIndexOutOfBoundsException ignored) {}
+                } catch (ArrayIndexOutOfBoundsException ignored) {
+                }
 
                 String notify = resultSet.getString("notify");
                 if (notify != null && !notify.isEmpty())
@@ -763,7 +765,9 @@ public class DManager implements Manager {
      * @param shopId The ID to get the shop from
      * @return the shop object. (Can return NULL if the object does not exist)
      */
-    public Shop getShopById(@NotNull UUID shopId) {return getShopMap().getOrDefault(shopId, null);}
+    public Shop getShopById(@NotNull UUID shopId) {
+        return getShopMap().getOrDefault(shopId, null);
+    }
 
     /**
      * Get a shop from the passed chest if possible.
@@ -1016,7 +1020,9 @@ public class DManager implements Manager {
                     PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement("DELETE FROM shops WHERE id = '" + id + "';");
                     statement.executeUpdate();
                     statement.close();
-                } catch (SQLException e) {getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");}
+                } catch (SQLException e) {
+                    getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
+                }
             }
 
         if (loadedShops <= 0) getPluginInstance().log(Level.INFO, "No shops were found.");
@@ -1663,11 +1669,11 @@ public class DManager implements Manager {
         this.pluginInstance = pluginInstance;
     }
 
-    public HashMap<UUID, Shop> getShopMap() {
+    public ConcurrentHashMap<UUID, Shop> getShopMap() {
         return shopMap;
     }
 
-    private void setShopMap(HashMap<UUID, Shop> shopMap) {
+    private void setShopMap(ConcurrentHashMap<UUID, Shop> shopMap) {
         this.shopMap = shopMap;
     }
 
@@ -1679,14 +1685,16 @@ public class DManager implements Manager {
         this.marketRegions = marketRegions;
     }
 
-    public HashMap<UUID, DataPack> getDataPackMap() {
+    public ConcurrentHashMap<UUID, DataPack> getDataPackMap() {
         return dataPackMap;
     }
 
-    private void setDataPackMap(HashMap<UUID, DataPack> dataPackMap) {
+    private void setDataPackMap(ConcurrentHashMap<UUID, DataPack> dataPackMap) {
         this.dataPackMap = dataPackMap;
     }
 
-    public Pattern getUUIDPattern() {return uuidPattern;}
+    public Pattern getUUIDPattern() {
+        return uuidPattern;
+    }
 
 }
