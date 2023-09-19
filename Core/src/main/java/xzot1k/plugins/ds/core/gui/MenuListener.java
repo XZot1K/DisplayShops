@@ -475,7 +475,15 @@ public class MenuListener implements Listener {
                     tempMenu = INSTANCE.getMenu("deposit-stock");
                 else {*/
             case "balance":
-            case "stock":
+            case "stock": {
+                if (shop.isAdminShop() && (buttonName.equals("stock") ? (shop.getStock() == -1) : (shop.getStoredBalance() <= 0))) {
+                    playClickSound(player);
+                    player.closeInventory();
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-infinite-" + buttonName));
+                    return;
+                }
+                // falls to the next switch statement entry
+            }
             case "buy-price":
             case "sell-price":
             case "shop-item-amount":
@@ -1525,12 +1533,12 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_STOCK: {
-                        maxAmount = (shop.getStock() + INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem()));
+                        maxAmount = Math.min((shop.getStock() + INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem())), shop.getMaxStock());
                         break;
                     }
 
                     case AMOUNT_BALANCE: {
-                        maxAmount = (shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop));
+                        maxAmount = Math.min((shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop)), INSTANCE.getConfig().getDouble("max-stored-currency"));
                         break;
                     }
 
@@ -1841,6 +1849,11 @@ public class MenuListener implements Listener {
                         break;
                     }
                     case AMOUNT_BALANCE: {
+                        if (shop.isAdminShop() && shop.getStock() == -1) {
+                            INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-infinite-stock"));
+                            return;
+                        }
+
                         if (amount == shop.getStoredBalance()) {
                             amountItem.setAmount((int) Math.max(1, Math.min(shop.getStoredBalance(), amountItem.getMaxStackSize())));
                             updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, shop.getStoredBalance());

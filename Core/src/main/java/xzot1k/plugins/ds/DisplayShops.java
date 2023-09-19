@@ -36,6 +36,7 @@ import xzot1k.plugins.ds.core.gui.MenuListener;
 import xzot1k.plugins.ds.core.hooks.*;
 import xzot1k.plugins.ds.core.tasks.CleanupTask;
 import xzot1k.plugins.ds.core.tasks.ManagementTask;
+import xzot1k.plugins.ds.core.tasks.VisitItemTask;
 import xzot1k.plugins.ds.core.tasks.VisualTask;
 
 import java.io.*;
@@ -87,6 +88,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private VisualTask inSightTask;
     private ManagementTask managementTask;
     private CleanupTask cleanupTask;
+    private VisitItemTask visitItemTask;
 
     // Data handlers
     private Connection databaseConnection;
@@ -123,7 +125,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
         try {
             setup();
-        } catch (ClassNotFoundException e) {e.printStackTrace();}
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
 
         setPaperSpigot(false);
         Method[] methods = World.class.getMethods();
@@ -275,7 +279,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         if (getDatabaseConnection() != null)
             try {
                 getDatabaseConnection().close();
-            } catch (SQLException e) {e.printStackTrace();}
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
 
         try {
             final String host = getConfig().getString("mysql.host");
@@ -296,7 +302,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             } else {
                 try {
                     Class.forName("com.mysql.cj.jdbc.Driver");
-                } catch (ClassNotFoundException | NoClassDefFoundError ignored) {Class.forName("com.mysql.jdbc.Driver");}
+                } catch (ClassNotFoundException | NoClassDefFoundError ignored) {
+                    Class.forName("com.mysql.jdbc.Driver");
+                }
                 final boolean useSSL = getConfig().getBoolean("mysql.use-ssl");
                 final String databaseName = getConfig().getString("mysql.database"), port = getConfig().getString("mysql.port"),
                         username = getConfig().getString("mysql.username"), password = getConfig().getString("mysql.password"),
@@ -718,6 +726,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setInSightTask(new VisualTask(this));
         getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
+
+        setVisitItemTask(new VisitItemTask(this));
+        getVisitItemTask().runTaskTimerAsynchronously(this, 20, (20 * 5));
     }
 
     /**
@@ -727,6 +738,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         if (getManagementTask() != null) getManagementTask().cancel();
         if (getCleanupTask() != null) getCleanupTask().cancel();
         if (getInSightTask() != null) getInSightTask().cancel();
+        if (getVisitItemTask() != null) getVisitItemTask().cancel();
     }
 
     private boolean isOutdated() {
@@ -784,20 +796,28 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         YamlConfiguration restoreConfig = new YamlConfiguration();
         try {
             restoreConfig.loadFromString(itemString.replace("[sq]", "'").replace("[dq]", "\""));
-        } catch (InvalidConfigurationException e) {e.printStackTrace();}
+        } catch (InvalidConfigurationException e) {
+            e.printStackTrace();
+        }
         return restoreConfig.getItemStack("item");
     }
 
-    public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {return getVersionUtil().getNBT(itemStack, nbtTag);}
+    public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
+        return getVersionUtil().getNBT(itemStack, nbtTag);
+    }
 
-    public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {return getVersionUtil().updateNBT(itemStack, nbtTag, value);}
+    public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {
+        return getVersionUtil().updateNBT(itemStack, nbtTag, value);
+    }
 
     public void displayParticle(@NotNull Player player, @NotNull String particleName, @NotNull Location location,
                                 double offsetX, double offsetY, double offsetZ, int speed, int amount) {
         getVersionUtil().displayParticle(player, particleName, location, offsetX, offsetY, offsetZ, speed, amount);
     }
 
-    public void sendActionBar(@NotNull Player player, @NotNull String message) {getVersionUtil().sendActionBar(player, message);}
+    public void sendActionBar(@NotNull Player player, @NotNull String message) {
+        getVersionUtil().sendActionBar(player, message);
+    }
 
     // menu methods
 
@@ -825,7 +845,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     @Override
-    public boolean matchesAnyMenu(@NotNull String name) {return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));}
+    public boolean matchesAnyMenu(@NotNull String name) {
+        return getMenuMap().entrySet().parallelStream().anyMatch(entry -> entry.getValue().matches(name));
+    }
 
     @Override
     public boolean matchesMenu(@NotNull String menuName, @NotNull String inventoryName) {
@@ -947,28 +969,28 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private void saveDefaultMenuConfigs() {
         try {
             final File menusDir = new File(getDataFolder(), "menus");
-            if (menusDir.mkdirs()) {
-                final URL dir = getClass().getResource("/menus");
-                if (dir != null) {
-                    final FileSystem fileSystem = FileSystems.newFileSystem(dir.toURI(), Collections.emptyMap());
-                    final Path path = fileSystem.getPath("/menus");
+            menusDir.mkdirs();
 
-                    Stream<Path> walk = Files.walk(path);
-                    walk.parallel().filter(p -> !p.getFileName().toString().equals("menus")).forEach(source -> {
-                        final Path newPath = Paths.get(getDataFolder().getPath(), "menus", source.getFileName().toString());
-                        File file = new File(newPath.toUri());
-                        if (file.exists()) return;
+            final URL dir = getClass().getResource("/menus");
+            if (dir != null) {
+                final FileSystem fileSystem = FileSystems.newFileSystem(dir.toURI(), Collections.emptyMap());
+                final Path path = fileSystem.getPath("/menus");
 
-                        try {
-                            Files.copy(source, newPath);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
+                Stream<Path> walk = Files.walk(path);
+                walk.parallel().filter(p -> !p.getFileName().toString().equals("menus")).forEach(source -> {
+                    final Path newPath = Paths.get(getDataFolder().getPath(), "menus", source.getFileName().toString());
+                    File file = new File(newPath.toUri());
+                    if (file.exists()) return;
 
-                    walk.close();
-                    fileSystem.close();
-                }
+                    try {
+                        Files.copy(source, newPath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+
+                walk.close();
+                fileSystem.close();
             }
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
@@ -1186,11 +1208,17 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     /**
      * @return Server version in the format XXX.X where the decimal digit is the 'R' version.
      */
-    public double getServerVersion() {return serverVersion;}
+    public double getServerVersion() {
+        return serverVersion;
+    }
 
-    private void setServerVersion(double serverVersion) {this.serverVersion = serverVersion;}
+    private void setServerVersion(double serverVersion) {
+        this.serverVersion = serverVersion;
+    }
 
-    public String getVersionPackageName() {return versionPackageName;}
+    public String getVersionPackageName() {
+        return versionPackageName;
+    }
 
     public Connection getDatabaseConnection() {
         return databaseConnection;
@@ -1310,11 +1338,23 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return menuMap;
     }
 
-    public EconomyHandler getEconomyHandler() {return economyHandler;}
+    public EconomyHandler getEconomyHandler() {
+        return economyHandler;
+    }
 
-    public VersionUtil getVersionUtil() {return versionUtil;}
+    public VersionUtil getVersionUtil() {
+        return versionUtil;
+    }
 
     public boolean isGeyserInstalled() {
         return geyserInstalled;
+    }
+
+    public VisitItemTask getVisitItemTask() {
+        return visitItemTask;
+    }
+
+    public void setVisitItemTask(VisitItemTask visitItemTask) {
+        this.visitItemTask = visitItemTask;
     }
 }

@@ -4,6 +4,7 @@
 
 package xzot1k.plugins.ds.nms.v1_9_R1;
 
+import net.md_5.bungee.api.ChatColor;
 import net.minecraft.server.v1_9_R1.*;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -87,8 +88,8 @@ public class DPacket implements DisplayPacket {
                 ? this.getPluginInstance().getConfig().getStringList("admin-invalid-item-format")
                 : this.getPluginInstance().getConfig().getStringList("invalid-item-format"));
 
+        final String colorCode = getPluginInstance().getConfig().getString("default-description-color");
         final boolean hidePriceLine = getPluginInstance().getConfig().getBoolean("price-disabled-hide");
-        final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
         double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
@@ -103,13 +104,14 @@ public class DPacket implements DisplayPacket {
                 final String prefix = (otherContents.length >= 1 ? otherContents[0] : ""),
                         suffix = (otherContents.length >= 2 ? otherContents[1] : "");
 
-                List<String> descriptionLines = getPluginInstance().getManager().wrapString(shop.getDescription(), wordCount);
+                List<String> descriptionLines = getPluginInstance().getManager().wrapString(shop.getDescription());
                 Collections.reverse(descriptionLines);
-                for (String descriptionLine : descriptionLines) {
+                for (int j = -1; ++j < descriptionLines.size(); ) {
+                    String descriptionLine = pluginInstance.getManager().color(descriptionLines.get(j));
+                    descriptionLine = (descriptionLine.contains(ChatColor.COLOR_CHAR + "") ? descriptionLine : (pluginInstance.getManager().color(colorCode + descriptionLine)));
                     createStand(playerConnection, compoundTag, player.getWorld(), x, y, z, (prefix + descriptionLine + suffix), false);
                     y += 0.3;
                 }
-
                 continue;
             }
 

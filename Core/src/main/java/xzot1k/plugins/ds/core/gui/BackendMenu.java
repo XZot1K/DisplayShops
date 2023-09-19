@@ -2,7 +2,6 @@ package xzot1k.plugins.ds.core.gui;
 
 import net.md_5.bungee.api.ChatColor;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.WordUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -10,16 +9,11 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
@@ -166,14 +160,14 @@ public class BackendMenu extends YamlConfiguration implements Menu {
             if (baseSection != null) {
                 if (!baseSection.contains("permission-unlock-mode")) baseSection.set("permission-unlock-mode", false);
 
-                ConfigurationSection appearancesSection = baseSection.getConfigurationSection("appearances");
-                if (appearancesSection != null) {
-                    if (!baseSection.contains("default-appearance")) {
-                        String defaultAppearance = "Default";
-                        if (!appearancesSection.contains(defaultAppearance))
-                            defaultAppearance = appearancesSection.getKeys(false).stream().findFirst().orElse("Default");
-                        baseSection.set("default-appearance", defaultAppearance);
-                    }
+                if (!baseSection.contains("default-appearance")) {
+                    String defaultAppearance = "Default";
+
+                    ConfigurationSection appearancesSection = baseSection.getConfigurationSection("appearances");
+                    if (appearancesSection != null && !appearancesSection.contains(defaultAppearance))
+                        defaultAppearance = baseSection.getKeys(false).stream().findFirst().orElse("Default");
+
+                    baseSection.set("default-appearance", defaultAppearance);
                 }
             }
         }
@@ -624,19 +618,12 @@ public class BackendMenu extends YamlConfiguration implements Menu {
     @Override
     public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText, @Nullable ItemStack typeItem,
                           @NotNull Inventory inventory) {
-        final boolean forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
         switch (getMenuName()) {
             case "visit": {
                 final boolean showAdminShop = getBoolean("show-admin-shops");
 
                 ShopActionType actionType = (typeItem != null ? ShopActionType.getTypeFromItem(typeItem, this) : null);
                 if (actionType != null) actionType = actionType.getNext();
-
-                final double visitCost = getDouble("visit-charge");
-                final String adminType = getString("visit-icon.type-admin"),
-                        playerType = getString("visit-icon.type-normal"),
-                        shopNameFormat = getString("visit-icon.name");
-                final List<String> loreFormat = getStringList("visit-icon.lore");
 
                 AtomicInteger counter = new AtomicInteger();
                 final ShopActionType finalActionType = actionType;
@@ -657,7 +644,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         final Shop currentShop = shopList.get(i).getValue();
 
                         if (currentShop == null || currentShop.getBaseLocation() == null || (!showAdminShop && currentShop.isAdminShop()) || currentShop.getShopItem() == null
-                                || currentShop.getStock() == 0 || currentShop.getStock() < currentShop.getShopItemAmount()
+                                || currentShop.getStock() == 0 || (!currentShop.isAdminShop() && currentShop.getStock() < currentShop.getShopItemAmount())
                                 || (finalActionType != null && finalActionType.failsCheck(currentShop))) continue;
 
                         if (searchText != null && !searchText.isEmpty()) {
@@ -677,109 +664,13 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                             counter.getAndIncrement();
                         }
 
-                        final Location location = currentShop.getBaseLocation().asBukkitLocation();
-                        ItemStack itemStack = new ItemStack(currentShop.getShopItem().getType(), 1, currentShop.getShopItem().getDurability());
-
-                        itemStack = INSTANCE.updateNBT(itemStack, "currentShop-id", currentShop.getShopId().toString());
-                        ItemMeta itemMeta = itemStack.getItemMeta();
-                        if (itemMeta != null) {
-                            itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
-                            final String itemName = (currentShop.getShopItem() != null ? INSTANCE.getManager().getItemName(currentShop.getShopItem()) : ""),
-                                    tradeItemName = (currentShop.getCurrencyType().equals("item-for-item") ? ((!forceUse && currentShop.getTradeItem() != null)
-                                            ? INSTANCE.getManager().getItemName(currentShop.getTradeItem())
-                                            : INSTANCE.getManager().getItemName(INSTANCE.getManager().buildShopCurrencyItem(1))) : "");
-
-                            itemMeta.setDisplayName(INSTANCE.getManager().color(INSTANCE.papiText(player,
-                                    Objects.requireNonNull(shopNameFormat).replace("{item}", itemName).replace("{trade}", tradeItemName))));
-                            itemMeta.setLore(new ArrayList<String>() {{
-                                OfflinePlayer offlinePlayer = (currentShop.getOwnerUniqueId() == null ? null :
-                                        INSTANCE.getServer().getOfflinePlayer(currentShop.getOwnerUniqueId()));
-                                for (int i = -1; ++i < loreFormat.size(); ) {
-                                    final String line = loreFormat.get(i);
-                                    if ((line.contains("{owner}") && currentShop.getOwnerUniqueId() == null)
-                                            || (line.contains("{buy}") && !line.contains("{sell}") && currentShop.getBuyPrice(false) <= 0)
-                                            || (line.contains("{sell}") && !line.contains("{buy}") && currentShop.getSellPrice(false) <= 0)) continue;
-
-                                    if (line.equalsIgnoreCase("{description}")) {
-                                        if ((currentShop.getDescription() == null || currentShop.getDescription().isEmpty())) {
-                                            add("");
-                                            continue;
-                                        }
-
-                                        add("");
-                                        add(INSTANCE.getManager().color(currentShop.getDescription()));
-                                        add("");
-                                        continue;
-                                    }
-
-                                    if (line.toLowerCase().contains("{enchants}")) {
-                                        if (currentShop.getShopItem() == null) continue;
-
-                                        if (currentShop.getShopItem().getType() == Material.ENCHANTED_BOOK) {
-                                            EnchantmentStorageMeta bookMeta = (EnchantmentStorageMeta) currentShop.getShopItem().getItemMeta();
-                                            if (bookMeta != null) for (Map.Entry<Enchantment, Integer> entry : bookMeta.getStoredEnchants().entrySet())
-                                                add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                                        .replace("{enchants}", (INSTANCE.getManager().getTranslatedName(entry.getKey())
-                                                                + " " + INSTANCE.getManager().getRomanNumeral(entry.getValue()))))));
-                                        } else if (!currentShop.getShopItem().getEnchantments().isEmpty()) {
-                                            for (Map.Entry<Enchantment, Integer> entry : currentShop.getShopItem().getEnchantments().entrySet())
-                                                add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                                        .replace("{enchants}", (INSTANCE.getManager().getTranslatedName(entry.getKey()) + " "
-                                                                + INSTANCE.getManager().getRomanNumeral(entry.getValue()))))));
-                                        }
-
-                                        if (currentShop.getShopItem().getType().name().contains("POTION")) {
-                                            PotionMeta potionMeta = (PotionMeta) currentShop.getShopItem().getItemMeta();
-                                            if (potionMeta != null) {
-                                                final String translatedName = INSTANCE.getManager().getTranslatedName(potionMeta.getBasePotionData().getType());
-                                                if (!translatedName.equalsIgnoreCase("Uncraftable"))
-                                                    add(INSTANCE.getManager().color(INSTANCE
-                                                            .papiText(player, line.replace("{enchants}", (translatedName)))));
-                                                for (PotionEffect potionEffect : potionMeta.getCustomEffects())
-                                                    add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                                            .replace("{enchants}", (WordUtils.capitalize(potionEffect.getType().getName().toLowerCase().replace("_", " "))
-                                                                    + " " + INSTANCE.getManager().getRomanNumeral(potionEffect.getAmplifier() + 1)
-                                                                    + " " + (potionEffect.getDuration() / 20) + "s")))));
-                                            }
-                                            continue;
-                                        }
-
-                                        continue;
-                                    }
-
-                                    add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                            .replace("{owner}", ((currentShop.getOwnerUniqueId() != null
-                                                    && offlinePlayer != null) ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
-                                            .replace("{balance}", (currentShop.getStoredBalance() < 0 ? "\u221E"
-                                                    : INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(), currentShop.getStoredBalance())))
-                                            .replace("{stock}", (currentShop.getStock() < 0 ? "\u221E"
-                                                    : INSTANCE.getManager().formatNumber(currentShop.getStock(), false)))
-                                            .replace("{description}", ((currentShop.getDescription() != null && !currentShop.getDescription().isEmpty())
-                                                    ? currentShop.getDescription() : "---"))
-                                            .replace("{world}", Objects.requireNonNull(location.getWorld()).getName())
-                                            .replace("{x}", INSTANCE.getManager().formatNumber(location.getBlockX(), false))
-                                            .replace("{y}", INSTANCE.getManager().formatNumber(location.getBlockY(), false))
-                                            .replace("{z}", INSTANCE.getManager().formatNumber(location.getBlockZ(), false))
-                                            .replace("{buy}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(),
-                                                    currentShop.getBuyPrice(currentShop.canDynamicPriceChange())))
-                                            .replace("{sell}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(),
-                                                    currentShop.getSellPrice(currentShop.canDynamicPriceChange())))
-                                            .replace("{cost}", INSTANCE.getEconomyHandler().format(currentShop, currentShop.getCurrencyType(), visitCost))
-                                            .replace("{type}", (Objects.requireNonNull(currentShop.isAdminShop() ? adminType : playerType)))
-                                            .replace("{amount}", INSTANCE.getManager().formatNumber(currentShop.getShopItemAmount(), false))
-                                            .replace("{item}", itemName).replace("{trade}", tradeItemName))));
-                                }
-                            }});
-                            itemStack.setItemMeta(itemMeta);
-                        }
-
                         if (pageContents.size() >= (getSize() - 9)) {
                             pageMap.put(currentPage, new ArrayList<>(pageContents));
                             pageContents.clear();
                             currentPage += 1;
                         }
 
-                        pageContents.add(INSTANCE.updateNBT(itemStack, "shop-id", currentShop.getShopId().toString()));
+                        if (currentShop.getVisitIcon() != null) pageContents.add(currentShop.getVisitIcon());
                     }
 
                     if (!pageContents.isEmpty()) pageMap.put(currentPage, new ArrayList<>(pageContents));

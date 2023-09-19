@@ -315,7 +315,7 @@ public class DManager implements Manager {
      */
     public String applyShopBasedPlaceholders(@Nullable String text, @NotNull Shop shop, int... unitValues) {
         final boolean unitValuesProvided = (unitValues != null && unitValues.length >= 2);
-        final int unitItemMaxStack = (unitValuesProvided ? unitValues[1] : 0),
+        final int //unitItemMaxStack = (unitValuesProvided ? unitValues[1] : 0),
                 unitCount = (unitValuesProvided ? unitValues[0] : 1);
 
         final double tax = getPluginInstance().getConfig().getDouble("transaction-tax"),
@@ -334,8 +334,8 @@ public class DManager implements Manager {
                 ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
                 ("{buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
                 ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
-                ("{balance}:" + getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance())),
-                ("{stock}:" + getPluginInstance().getManager().formatNumber(shop.getStock(), false)),
+                ("{balance}:" + (shop.getStoredBalance() <= 0 ? "∞" : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()))),
+                ("{stock}:" + (shop.getStock() <= -1 ? "∞" : getPluginInstance().getManager().formatNumber(shop.getStock(), false))),
                 ("{global-buy-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false)),
                 ("{global-sell-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false)),
                 ("{global-buy-limit}:" + (shop.getGlobalBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false) : disabled)),
@@ -848,24 +848,25 @@ public class DManager implements Manager {
             resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 try {
+                    UUID shopId = null;
                     final String shopIdString = resultSet.getString("id");
                     if (shopIdString == null || shopIdString.equalsIgnoreCase("")) {
-
                         if (cleanUp) {
                             PreparedStatement deleteStatement = getPluginInstance().getDatabaseConnection()
                                     .prepareStatement("DELETE FROM shops where id = '" + shopIdString + "';");
                             deleteStatement.executeUpdate();
-                            getPluginInstance().log(Level.WARNING, "[CLEANING] A shop was removed due to invalid id.");
+                            getPluginInstance().log(Level.INFO, "[CLEANING] A shop was removed due to invalid id.");
                             deleteStatement.close();
+                            continue;
                         }
-                        continue;
-                    }
 
-                    final UUID shopId = UUID.fromString(shopIdString);
+                        shopId = getPluginInstance().getManager().generateNewId();
+                        getPluginInstance().log(Level.INFO, "Provided an existing shop with the new id \"" + shopId + "\".");
+                    } else shopId = UUID.fromString(shopIdString);
+
                     UUID ownerId = null;
                     final String ownerIdString = resultSet.getString("owner");
-                    if (ownerIdString != null && !ownerIdString.equalsIgnoreCase(""))
-                        ownerId = UUID.fromString(ownerIdString);
+                    if (ownerIdString != null && !ownerIdString.isEmpty()) ownerId = UUID.fromString(ownerIdString);
 
                     final int cleanInactiveTime = getPluginInstance().getConfig().getInt("clean-inactive-duration");
                     if (cleanInactiveTime >= 0 && ownerId != null) {
@@ -877,8 +878,7 @@ public class DManager implements Manager {
                         }
                     }
 
-                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location")
-                            ? "base_" : "") + "location");
+                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location") ? "base_" : "") + "location");
                     String appearance;
                     LClone baseLocation;
                     if (baseLocationString.contains(":")) {
@@ -900,11 +900,16 @@ public class DManager implements Manager {
                     }
 
                     World world = getPluginInstance().getServer().getWorld(baseLocation.getWorldName());
-                    if (world == null && cleanUp) {
-                        Statement deleteStatement = getPluginInstance().getDatabaseConnection().createStatement();
-                        deleteStatement.executeUpdate("DELETE FROM shops where id = '" + shopIdString + "';");
-                        getPluginInstance().log(Level.WARNING, "[CLEANING] The shop \"" + shopIdString
-                                + "\" was removed due to invalid world \"" + baseLocation.getWorldName() + "\".");
+                    if (world == null) {
+                        if (cleanUp) {
+                            Statement deleteStatement = getPluginInstance().getDatabaseConnection().createStatement();
+                            deleteStatement.executeUpdate("DELETE FROM shops where id = '" + shopIdString + "';");
+                            getPluginInstance().log(Level.INFO, "[CLEANING] The shop \"" + shopIdString
+                                    + "\" was removed due to invalid world \"" + baseLocation.getWorldName() + "\".");
+                            continue;
+                        }
+
+                        getPluginInstance().log(Level.INFO, "The shop \"" + shopIdString + "\" has an invalid world \"" + baseLocation.getWorldName() + "\". Skipping...");
                         continue;
                     }
 
@@ -952,8 +957,7 @@ public class DManager implements Manager {
                     if (assistantsLine != null && !assistantsLine.isEmpty())
                         if (assistantsLine.contains(";")) {
                             String[] assistantArgs = assistantsLine.split(";");
-                            for (String playerUniqueId : assistantArgs)
-                                shop.getAssistants().add(UUID.fromString(playerUniqueId));
+                            for (String playerUniqueId : assistantArgs) shop.getAssistants().add(UUID.fromString(playerUniqueId));
                         }
 
                     final String commandsLine = resultSet.getString("commands");
@@ -993,7 +997,7 @@ public class DManager implements Manager {
                     loadedShops++;
 
                     if (getPluginInstance().getConfig().getBoolean("fix-above-blocks")) {
-                        if (world != null) if (isAsync) {
+                        if (isAsync) {
                             getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> fixAboveBlock(shop));
                         } else fixAboveBlock(shop);
                     }
@@ -1003,8 +1007,7 @@ public class DManager implements Manager {
                         getPluginInstance().log(Level.INFO, "Loading shops " + current + "/" + shopCount
                                 + " (" + Math.min(100, (int) (((double) current / (double) shopCount) * 100)) + "%)...");
                 } catch (Exception e) {
-                    getPluginInstance().log(Level.WARNING, "The shop '"
-                            + resultSet.getString("id") + "' failed to load(" + e.getMessage() + ").");
+                    getPluginInstance().log(Level.WARNING, "The shop '" + resultSet.getString("id") + "' failed to load(" + e.getMessage() + ").");
                 }
             }
 
@@ -1532,38 +1535,17 @@ public class DManager implements Manager {
     /**
      * Wraps a string into multiple lines based on a word count.
      *
-     * @param text          The long string to wrap.
-     * @param wordLineLimit The line size in terms of word count.
+     * @param text The long string to wrap.
      * @return wraps the string to multiple lines
      */
-    public List<String> wrapString(String text, int wordLineLimit) {
+    public List<String> wrapString(@NotNull String text) {
         List<String> result = new ArrayList<>();
-
         final int longWordCount = getPluginInstance().getConfig().getInt("description-long-word-wrap");
-        final String[] words = text.trim().split(" ");
-        if (words.length > 0) {
-            int wordCount = 0;
-            StringBuilder sb = new StringBuilder();
-            for (int i = -1; ++i < words.length; ) {
-                String word = words[i];
-                if (wordCount < wordLineLimit) {
+        final String pattern = ("(.{1," + longWordCount + "})(\\s+|$)");
 
-                    if (word.length() >= longWordCount && longWordCount > 0)
-                        word = word.substring(0, longWordCount);
-
-                    sb.append(word).append(" ");
-                    wordCount++;
-                    continue;
-                }
-
-                result.add(sb.toString().trim());
-                sb = new StringBuilder();
-                sb.append(word).append(" ");
-                wordCount = 1;
-            }
-
-            result.add(sb.toString().trim());
-        }
+        Pattern lengthPattern = Pattern.compile(pattern);
+        Matcher matcher = lengthPattern.matcher(text);
+        while (matcher.find()) result.add(matcher.group(1));
         return result;
     }
 
@@ -1696,5 +1678,4 @@ public class DManager implements Manager {
     public Pattern getUUIDPattern() {
         return uuidPattern;
     }
-
 }

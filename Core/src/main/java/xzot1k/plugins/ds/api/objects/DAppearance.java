@@ -76,7 +76,7 @@ public class DAppearance extends Appearance {
                 appearanceSection.set((id + ".price"), price);
                 appearanceSection.set((id + ".permission"), ("displayshops.bbm." + id));
                 appearanceSection.set((id + ".requirement"), requirement);
-                appearanceSection.set((id + ".offset"), "0.5,-0.2,0.5");
+                appearanceSection.set((id + ".offset"), "0.5,-0." + (material.contains("PORTAL_FRAME") ? "4" : "2") + ",0.5");
             }
 
             menu.save();
@@ -92,8 +92,8 @@ public class DAppearance extends Appearance {
             String material = appearanceOptions.getString("material");
             if (material == null || material.isEmpty()) {
                 failed++;
-                DisplayShops.getPluginInstance().log(Level.WARNING, "The appearance \"" + id + "\" was unable to load due to a missing/invalid " +
-                        "material value.");
+                DisplayShops.getPluginInstance().log(Level.WARNING, "The appearance \"" + id
+                        + "\" was unable to load due to a missing/invalid material value.");
                 continue;
             }
 
@@ -246,7 +246,8 @@ public class DAppearance extends Appearance {
             if (isOld) try {
                 @SuppressWarnings("JavaReflectionMemberAccess") Method method = Block.class.getMethod("setData", byte.class);
                 method.invoke(baseBlockLocation.getBlock(), ((byte) (durability < 0 ? oppositeDirectionByte(Direction.getYaw(player)) : durability)));
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
             else {
                 block.setBlockData(INSTANCE.getServer().createBlockData(material));
                 setBlock(block, material, (material.name().contains("SHULKER") ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(player).name())));
@@ -312,5 +313,7 @@ public class DAppearance extends Appearance {
     }
 
     @Override
-    public int compareTo(@NotNull Appearance appearance) {return (getId().compareTo(appearance.getId()));}
+    public int compareTo(@NotNull Appearance appearance) {
+        return (getId().compareTo(appearance.getId()));
+    }
 }

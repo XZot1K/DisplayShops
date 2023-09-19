@@ -6,6 +6,7 @@ package xzot1k.plugins.ds.api.objects;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.enchantments.Enchantment;
@@ -19,7 +20,10 @@ import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
 public class CustomItem {
 
@@ -166,6 +170,7 @@ public class CustomItem {
         ItemMeta itemMeta = get().getItemMeta();
         if (itemMeta == null) return;
         itemMeta.setLore(new ArrayList<String>() {{
+            final String colorCode = getPluginInstance().getConfig().getString("default-description-color");
             final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault");
             for (int i = -1; ++i < lines.length; ) {
                 String line = papiHere ? getPluginInstance().getPapiHelper().replace(player, lines[i]) : lines[i];
@@ -173,15 +178,11 @@ public class CustomItem {
                     if (line.contains("{description}")) {
                         if (shop.getDescription() == null || shop.getDescription().isEmpty()) continue;
 
-                        final int wordCount = getPluginInstance().getConfig().getInt("description-word-line-limit");
-                        List<String> descriptionLines = getPluginInstance().getManager().wrapString(shop.getDescription(), wordCount);
-                        Collections.reverse(descriptionLines);
-
+                        List<String> descriptionLines = pluginInstance.getManager().wrapString(shop.getDescription());
                         for (int j = -1; ++j < descriptionLines.size(); ) {
-                            final String descLine = descriptionLines.get(j);
-                            add(getPluginInstance().getManager().color(descLine));
+                            String newLine = pluginInstance.getManager().color(descriptionLines.get(j));
+                            add(newLine.contains(ChatColor.COLOR_CHAR + "") ? newLine : (pluginInstance.getManager().color(colorCode + newLine)));
                         }
-
                         continue;
                     }
 

@@ -6,6 +6,7 @@ package xzot1k.plugins.ds.nms.v1_19_R2;
 
 import com.mojang.datafixers.util.Pair;
 import io.netty.buffer.Unpooled;
+import net.md_5.bungee.api.ChatColor;
 import net.minecraft.network.PacketDataSerializer;
 import net.minecraft.network.chat.IChatBaseComponent;
 import net.minecraft.network.protocol.Packet;
@@ -172,8 +173,8 @@ public class DPacket implements DisplayPacket {
             else hologramFormat = INSTANCE.getConfig().getStringList("invalid-item-format");
         }
 
+        final String colorCode = INSTANCE.getConfig().getString("default-description-color");
         final boolean hidePriceLine = INSTANCE.getConfig().getBoolean("price-disabled-hide");
-        final int wordCount = INSTANCE.getConfig().getInt("description-word-line-limit");
         double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
@@ -188,13 +189,14 @@ public class DPacket implements DisplayPacket {
                 final String prefix = (otherContents.length >= 1 ? otherContents[0] : ""),
                         suffix = (otherContents.length >= 2 ? otherContents[1] : "");
 
-                List<String> descriptionLines = INSTANCE.getManager().wrapString(shop.getDescription(), wordCount);
+                List<String> descriptionLines = INSTANCE.getManager().wrapString(shop.getDescription());
                 Collections.reverse(descriptionLines);
-                for (String descriptionLine : descriptionLines) {
+                for (int j = -1; ++j < descriptionLines.size(); ) {
+                    String descriptionLine = INSTANCE.getManager().color(descriptionLines.get(j));
+                    descriptionLine = (descriptionLine.contains(ChatColor.COLOR_CHAR + "") ? descriptionLine : (INSTANCE.getManager().color(colorCode + descriptionLine)));
                     createStand(playerConnection, x, y, z, (prefix + descriptionLine + suffix), false);
                     y += 0.3;
                 }
-
                 continue;
             }
 
