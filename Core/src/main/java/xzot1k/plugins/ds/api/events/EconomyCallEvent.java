@@ -37,7 +37,6 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         setTax(INSTANCE.getConfig().getDouble("transaction-tax"));
 
         if (getShop() != null && !getShop().isAdminShop()) {
-
             if (getEconomyCallType() == EconomyCallType.WITHDRAW_BALANCE) {
                 final boolean canShopAfford = (getShop().getStoredBalance() >= getAmount());
 
@@ -81,25 +80,26 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 }
                 return;
             }
-
         }
 
         final boolean isSell = (getEconomyCallType() == EconomyCallType.SELL);
         setPlayerHasEnough(getPlayer().hasPermission("displayshops.bypass") || INSTANCE.getEconomyHandler().has(getPlayer(), getShop(),
-                ((!isSell || shop == null) ? getAmount() : shop.getShopItemAmount()), economyCallType));
+                (isSell ? (getAmount() / Math.max(1, getShop().getSellPrice(true))) : getAmount()), economyCallType));
 
         if (isSell && getShop() != null && !getShop().isAdminShop()) {
             final boolean useOwnerSyncing = INSTANCE.getConfig().getBoolean("sync-owner-balance");
             final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
-            setWillSucceed(playerHasEnough() && (useOwnerSyncing ? INSTANCE.getEconomyHandler().has(shopOwner, getShop(), getAmount())
-                    : (getShop().getStoredBalance() >= getAmount())));
+            setWillSucceed(playerHasEnough() && (getShop().isAdminShop() || (useOwnerSyncing ? INSTANCE.getEconomyHandler().has(shopOwner, getShop(), getAmount())
+                    : (getShop().getStoredBalance() >= getAmount()))));
             return;
         }
 
         setWillSucceed(playerHasEnough());
     }
 
-    public static HandlerList getHandlerList() {return handlers;}
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
 
     /**
      * Initiates a withdrawal/deposit transaction directed at a player for a specific economy call type based on a passed shop.
@@ -174,7 +174,9 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 shop.save(true);
                 return;
             }
-            default: {break;}
+            default: {
+                break;
+            }
         }
 
         if (getEconomyCallType() == EconomyCallType.SELL) {
@@ -249,65 +251,115 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     /**
      * @return Whether the event's checks failed or not.
      */
-    public boolean failed() {return (isCancelled() || !willSucceed());}
+    public boolean failed() {
+        return (isCancelled() || !willSucceed());
+    }
 
     // getters & setters
     @Override
-    public boolean isCancelled() {return cancelled;}
+    public boolean isCancelled() {
+        return cancelled;
+    }
 
     @Override
-    public void setCancelled(boolean cancelled) {this.cancelled = cancelled;}
+    public void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+    }
 
     @Override
-    public @NotNull HandlerList getHandlers() {return handlers;}
+    public @NotNull HandlerList getHandlers() {
+        return handlers;
+    }
 
     // getters & setters
 
-    public Player getPlayer() {return player;}
+    public Player getPlayer() {
+        return player;
+    }
 
-    public void setPlayer(@NotNull Player player) {this.player = player;}
+    public void setPlayer(@NotNull Player player) {
+        this.player = player;
+    }
 
-    public double getRawAmount() {return amount;}
+    public double getRawAmount() {
+        return amount;
+    }
 
-    public double getAmount() {return (amount + (amount * getTax()));}
+    public double getAmount() {
+        return (amount + (amount * getTax()));
+    }
 
-    public void setAmount(double amount) {this.amount = amount;}
+    public void setAmount(double amount) {
+        this.amount = amount;
+    }
 
-    public EconomyCallType getEconomyCallType() {return economyCallType;}
+    public EconomyCallType getEconomyCallType() {
+        return economyCallType;
+    }
 
-    private void setEconomyCallType(EconomyCallType economyCallType) {this.economyCallType = economyCallType;}
+    private void setEconomyCallType(EconomyCallType economyCallType) {
+        this.economyCallType = economyCallType;
+    }
 
-    public Shop getShop() {return shop;}
+    public Shop getShop() {
+        return shop;
+    }
 
-    private void setShop(Shop shop) {this.shop = shop;}
+    private void setShop(Shop shop) {
+        this.shop = shop;
+    }
 
-    public double getTax() {return tax;}
+    public double getTax() {
+        return tax;
+    }
 
-    public void setTax(double tax) {this.tax = tax;}
+    public void setTax(double tax) {
+        this.tax = tax;
+    }
 
     /**
      * Tells if the transaction will succeed based on if the investor and producer can both complete it.
      *
      * @return If the transaction succeeded.
      */
-    public boolean willSucceed() {return willSucceed;}
+    public boolean willSucceed() {
+        return willSucceed;
+    }
 
-    public void setWillSucceed(boolean willSucceed) {this.willSucceed = willSucceed;}
+    public void setWillSucceed(boolean willSucceed) {
+        this.willSucceed = willSucceed;
+    }
 
-    public boolean performedCurrencyTransfer() {return performedCurrencyTransfer;}
+    public boolean performedCurrencyTransfer() {
+        return performedCurrencyTransfer;
+    }
 
-    public void setPerformedCurrencyTransfer(boolean performedCurrencyTransfer) {this.performedCurrencyTransfer = performedCurrencyTransfer;}
+    public void setPerformedCurrencyTransfer(boolean performedCurrencyTransfer) {
+        this.performedCurrencyTransfer = performedCurrencyTransfer;
+    }
 
-    public boolean playerHasEnough() {return playerHasEnough;}
+    public boolean playerHasEnough() {
+        return playerHasEnough;
+    }
 
-    public void setPlayerHasEnough(boolean playerHasEnough) {this.playerHasEnough = playerHasEnough;}
+    public void setPlayerHasEnough(boolean playerHasEnough) {
+        this.playerHasEnough = playerHasEnough;
+    }
 
-    public boolean hasChargedPlayer() {return chargedPlayer;}
+    public boolean hasChargedPlayer() {
+        return chargedPlayer;
+    }
 
-    public void setChargedPlayer(boolean chargedPlayer) {this.chargedPlayer = chargedPlayer;}
+    public void setChargedPlayer(boolean chargedPlayer) {
+        this.chargedPlayer = chargedPlayer;
+    }
 
-    public String getErrorMessage() {return errorMessage;}
+    public String getErrorMessage() {
+        return errorMessage;
+    }
 
-    public void setErrorMessage(@Nullable String message) {this.errorMessage = message;}
+    public void setErrorMessage(@Nullable String message) {
+        this.errorMessage = message;
+    }
 
 }

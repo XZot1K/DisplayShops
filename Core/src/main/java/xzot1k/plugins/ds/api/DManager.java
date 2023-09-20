@@ -334,7 +334,7 @@ public class DManager implements Manager {
                 ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
                 ("{buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
                 ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
-                ("{balance}:" + (shop.getStoredBalance() <= 0 ? "∞" : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()))),
+                ("{balance}:" + ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "∞" : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()))),
                 ("{stock}:" + (shop.getStock() <= -1 ? "∞" : getPluginInstance().getManager().formatNumber(shop.getStock(), false))),
                 ("{global-buy-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false)),
                 ("{global-sell-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false)),
@@ -375,7 +375,7 @@ public class DManager implements Manager {
      * @return The MarketRegion object.
      */
     public MarketRegion getMarketRegion(@NotNull String marketId) {
-        if (getMarketRegions().size() <= 0) return null;
+        if (getMarketRegions().isEmpty()) return null;
         for (int i = -1; ++i < getMarketRegions().size(); ) {
             MarketRegion marketRegion = getMarketRegions().get(i);
             if (marketRegion.getMarketId().equalsIgnoreCase(marketId)) return marketRegion;
@@ -390,7 +390,7 @@ public class DManager implements Manager {
      * @return The result as a boolean value.
      */
     public boolean doesMarketRegionExist(@NotNull String marketId) {
-        if (getMarketRegions().size() <= 0) return false;
+        if (getMarketRegions().isEmpty()) return false;
         for (int i = -1; ++i < getMarketRegions().size(); ) {
             MarketRegion marketRegion = getMarketRegions().get(i);
             if (marketRegion.getMarketId().equalsIgnoreCase(marketId)) return true;
@@ -1474,9 +1474,6 @@ public class DManager implements Manager {
                 removedItems = true;
             }
         }
-
-        if (inventory.getHolder() instanceof Player) ((Player) inventory.getHolder()).updateInventory();
-
         return removedItems;
     }
 

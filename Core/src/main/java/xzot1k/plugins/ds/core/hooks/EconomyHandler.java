@@ -54,10 +54,14 @@ public class EconomyHandler implements EcoHandler {
     private void setupItemForItem() {
         new EcoHook("item-for-item", this) {
             @Override
-            public String getSingularName() {return "item-for-item";}
+            public String getSingularName() {
+                return "item-for-item";
+            }
 
             @Override
-            public String getPluralName() {return "item-for-item";}
+            public String getPluralName() {
+                return "item-for-item";
+            }
 
             @Override
             public boolean deposit(@NotNull UUID playerUniqueId, double amount) {
@@ -152,7 +156,9 @@ public class EconomyHandler implements EcoHandler {
             }
 
             @Override
-            public boolean deposit(@NotNull OfflinePlayer player, double amount) {return getVaultEconomy().depositPlayer(player, amount).transactionSuccess();}
+            public boolean deposit(@NotNull OfflinePlayer player, double amount) {
+                return getVaultEconomy().depositPlayer(player, amount).transactionSuccess();
+            }
 
             @Override
             public boolean withdraw(@NotNull UUID playerUniqueId, double amount) {
@@ -161,7 +167,9 @@ public class EconomyHandler implements EcoHandler {
             }
 
             @Override
-            public boolean withdraw(@NotNull OfflinePlayer player, double amount) {return getVaultEconomy().withdrawPlayer(player, amount).transactionSuccess();}
+            public boolean withdraw(@NotNull OfflinePlayer player, double amount) {
+                return getVaultEconomy().withdrawPlayer(player, amount).transactionSuccess();
+            }
 
             @Override
             public double getBalance(@NotNull UUID playerUniqueId) {
@@ -170,7 +178,9 @@ public class EconomyHandler implements EcoHandler {
             }
 
             @Override
-            public double getBalance(@NotNull OfflinePlayer player) {return getVaultEconomy().getBalance(player);}
+            public double getBalance(@NotNull OfflinePlayer player) {
+                return getVaultEconomy().getBalance(player);
+            }
         };
     }
 
@@ -188,10 +198,14 @@ public class EconomyHandler implements EcoHandler {
             final String id = org.black_ixx.playerpoints.PlayerPoints.getInstance().getName();
             new EcoHook(id, this) {
                 @Override
-                public String getSingularName() {return singular;}
+                public String getSingularName() {
+                    return singular;
+                }
 
                 @Override
-                public String getPluralName() {return plural;}
+                public String getPluralName() {
+                    return plural;
+                }
 
                 @Override
                 public boolean deposit(@NotNull UUID playerUniqueId, double amount) {
@@ -199,7 +213,9 @@ public class EconomyHandler implements EcoHandler {
                 }
 
                 @Override
-                public boolean deposit(@NotNull OfflinePlayer player, double amount) {return deposit(player.getUniqueId(), amount);}
+                public boolean deposit(@NotNull OfflinePlayer player, double amount) {
+                    return deposit(player.getUniqueId(), amount);
+                }
 
                 @Override
                 public boolean withdraw(@NotNull UUID playerUniqueId, double amount) {
@@ -207,13 +223,19 @@ public class EconomyHandler implements EcoHandler {
                 }
 
                 @Override
-                public boolean withdraw(@NotNull OfflinePlayer player, double amount) {return withdraw(player.getUniqueId(), amount);}
+                public boolean withdraw(@NotNull OfflinePlayer player, double amount) {
+                    return withdraw(player.getUniqueId(), amount);
+                }
 
                 @Override
-                public double getBalance(@NotNull UUID playerUniqueId) {return org.black_ixx.playerpoints.PlayerPoints.getInstance().getAPI().look(playerUniqueId);}
+                public double getBalance(@NotNull UUID playerUniqueId) {
+                    return org.black_ixx.playerpoints.PlayerPoints.getInstance().getAPI().look(playerUniqueId);
+                }
 
                 @Override
-                public double getBalance(@NotNull OfflinePlayer player) {return getBalance(player.getUniqueId());}
+                public double getBalance(@NotNull OfflinePlayer player) {
+                    return getBalance(player.getUniqueId());
+                }
             };
         }
     }
@@ -227,10 +249,14 @@ public class EconomyHandler implements EcoHandler {
             if (currency.isRegisteredWithVault()) continue;
             new EcoHook(currency.getId(), this) {
                 @Override
-                public String getSingularName() {return currency.getName();}
+                public String getSingularName() {
+                    return currency.getName();
+                }
 
                 @Override
-                public String getPluralName() {return currency.getName();}
+                public String getPluralName() {
+                    return currency.getName();
+                }
 
                 @Override
                 public boolean deposit(@NotNull UUID playerUniqueId, double amount) {
@@ -238,7 +264,9 @@ public class EconomyHandler implements EcoHandler {
                         final OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(playerUniqueId);
                         CurrencyUtils.adjustBalance(offlinePlayer, currency, BigDecimal.valueOf(amount));
                         return true;
-                    } catch (Exception ignored) {return false;}
+                    } catch (Exception ignored) {
+                        return false;
+                    }
                 }
 
                 @Override
@@ -246,7 +274,9 @@ public class EconomyHandler implements EcoHandler {
                     try {
                         CurrencyUtils.adjustBalance(player, currency, BigDecimal.valueOf(amount));
                         return true;
-                    } catch (Exception ignored) {return false;}
+                    } catch (Exception ignored) {
+                        return false;
+                    }
                 }
 
                 @Override
@@ -273,7 +303,9 @@ public class EconomyHandler implements EcoHandler {
                 }
 
                 @Override
-                public double getBalance(@NotNull OfflinePlayer player) {return CurrencyUtils.getBalance(player, currency).doubleValue();}
+                public double getBalance(@NotNull OfflinePlayer player) {
+                    return CurrencyUtils.getBalance(player, currency).doubleValue();
+                }
             };
         }
     }
@@ -374,13 +406,15 @@ public class EconomyHandler implements EcoHandler {
      * @return The determined amount the player has (returns -1 if the shop uses the wrong currency or another issue occurs).
      */
     public int getItemForItemBalance(@NotNull OfflinePlayer player, @NotNull Shop shop, @Nullable EconomyCallType... economyCallType) {
-        if (shop.getCurrencyType().equals("item-for-item") && player.getPlayer() != null) {
+        if (player.getPlayer() != null) {
             if (economyCallType != null && economyCallType.length > 0 && (economyCallType[0] == EconomyCallType.SELL))
                 return INSTANCE.getManager().getItemAmount(player.getPlayer().getInventory(), shop.getShopItem());
 
-            final ItemStack currencyItem = (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") || shop.getTradeItem() == null) ?
-                    INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem();
-            return INSTANCE.getManager().getItemAmount(player.getPlayer().getInventory(), currencyItem);
+            if (shop.getCurrencyType().equals("item-for-item")) {
+                final ItemStack currencyItem = (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") || shop.getTradeItem() == null) ?
+                        INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem();
+                return INSTANCE.getManager().getItemAmount(player.getPlayer().getInventory(), currencyItem);
+            }
         }
         return -1;
     }
@@ -537,8 +571,12 @@ public class EconomyHandler implements EcoHandler {
     }
 
     // getters and setters
-    public Economy getVaultEconomy() {return vaultEconomy;}
+    public Economy getVaultEconomy() {
+        return vaultEconomy;
+    }
 
-    public HashMap<String, EcoHook> getEconomyRegistry() {return economyRegistry;}
+    public HashMap<String, EcoHook> getEconomyRegistry() {
+        return economyRegistry;
+    }
 
 }

@@ -166,7 +166,7 @@ public class VisitItemTask extends BukkitRunnable {
             itemStack.setItemMeta(itemMeta);
         }
 
-        return itemStack;
+        return INSTANCE.updateNBT(itemStack, "shop-id", shop.getShopId().toString());
     }
 
     public Queue<UUID> getRebuildQueue() {

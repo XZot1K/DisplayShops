@@ -589,13 +589,6 @@ public class BackendMenu extends YamlConfiguration implements Menu {
         final DDataPack dataPack = (DDataPack) INSTANCE.getManager().getDataPack(player);
         if (dataPack.getPageMap() != null && !dataPack.getPageMap().isEmpty()) {
             final Shop shop = dataPack.getSelectedShop();
-            if (page > dataPack.getCurrentPage() && dataPack.getPageMap().containsKey(page)) {
-                dataPack.setCurrentPage(page);
-                updatePageButtons(player, inventory, dataPack, shop, emptySlots);
-            } else if (page < dataPack.getCurrentPage() && dataPack.getPageMap().containsKey(page)) {
-                dataPack.setCurrentPage(page);
-                updatePageButtons(player, inventory, dataPack, shop, emptySlots);
-            }
 
             if (dataPack.getPageMap().containsKey(page)) {
                 final List<ItemStack> buttons = dataPack.getPageMap().get(page);
@@ -604,6 +597,9 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     inventory.addItem(button);
                 }
             }
+
+            dataPack.setCurrentPage(page);
+            updatePageButtons(player, inventory, dataPack, shop, emptySlots);
         }
     }
 
@@ -642,9 +638,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     List<Map.Entry<UUID, Shop>> shopList = new ArrayList<>(INSTANCE.getManager().getShopMap().entrySet());
                     for (int i = -1; ++i < shopList.size(); ) {
                         final Shop currentShop = shopList.get(i).getValue();
-
-                        if (currentShop == null || currentShop.getBaseLocation() == null || (!showAdminShop && currentShop.isAdminShop()) || currentShop.getShopItem() == null
-                                || currentShop.getStock() == 0 || (!currentShop.isAdminShop() && currentShop.getStock() < currentShop.getShopItemAmount())
+                        if (currentShop == null || currentShop.getBaseLocation() == null || currentShop.getShopItem() == null
+                                || currentShop.getStock() == 0 || (currentShop.isAdminShop() ? !showAdminShop : (currentShop.getStock() < currentShop.getShopItemAmount()))
                                 || (finalActionType != null && finalActionType.failsCheck(currentShop))) continue;
 
                         if (searchText != null && !searchText.isEmpty()) {
