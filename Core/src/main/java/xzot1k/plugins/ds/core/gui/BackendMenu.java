@@ -640,7 +640,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         final Shop currentShop = shopList.get(i).getValue();
                         if (currentShop == null || currentShop.getBaseLocation() == null || currentShop.getShopItem() == null
                                 || currentShop.getStock() == 0 || (currentShop.isAdminShop() ? !showAdminShop : (currentShop.getStock() < currentShop.getShopItemAmount()))
-                                || (finalActionType != null && finalActionType.failsCheck(currentShop))) continue;
+                                || (finalActionType != null && !finalActionType.passesCheck(currentShop))) continue;
 
                         if (searchText != null && !searchText.isEmpty()) {
                             if (offlinePlayer != null) {

@@ -51,39 +51,30 @@ public enum ShopActionType {
         return BOTH;
     }
 
-    public boolean failsCheck(@NotNull Shop shop) {
-        switch (this) {
-            case BUY: {
-                return (failsBuy(shop));
-            }
+    public boolean passesCheck(@NotNull Shop shop) {
+        final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange()),
+                sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
 
-            case SELL: {
-                return failsSell(shop);
-            }
-
-            default: {
-                return (failsBuy(shop) && failsSell(shop));
-            }
-        }
-    }
-
-    public boolean failsBuy(@NotNull Shop shop) {
-        final double buyPrice = shop.getBuyPrice(shop.canDynamicPriceChange());
-        return (buyPrice < 0 || (shop.getStock() == 0 || shop.getStock() < shop.getShopItemAmount()));
-    }
-
-    public boolean failsSell(@NotNull Shop shop) {
-        final double sellPrice = shop.getSellPrice(shop.canDynamicPriceChange());
-
-        boolean balanceCheck = false;
+        boolean balanceCheck = true;
         if (!shop.isAdminShop()) {
-            balanceCheck = (shop.getStoredBalance() < sellPrice);
+            balanceCheck = (shop.getStoredBalance() >= sellPrice);
             if (DisplayShops.getPluginInstance().getConfig().getBoolean("sync-owner-balance")) {
                 EcoHook ecoHook = DisplayShops.getPluginInstance().getEconomyHandler().getEcoHook(shop.getCurrencyType());
-                if (ecoHook != null) balanceCheck = (ecoHook.getBalance(shop.getOwnerUniqueId()) < sellPrice);
+                if (ecoHook != null) balanceCheck = (ecoHook.getBalance(shop.getOwnerUniqueId()) >= sellPrice);
             }
         }
 
-        return (sellPrice < 0 || shop.getStock() >= shop.getMaxStock() || balanceCheck);
+        switch (this) {
+            case BUY: {
+                return (buyPrice >= 0 && sellPrice < 0 && shop.getStock() > 0 && shop.getStock() >= shop.getShopItemAmount());
+            }
+            case SELL: {
+                return (sellPrice >= 0 && buyPrice < 0 && shop.getStock() < shop.getMaxStock() && balanceCheck);
+            }
+            default: {
+                return (buyPrice >= 0 && sellPrice >= 0 && shop.getStock() > 0 && shop.getStock() >= shop.getShopItemAmount()
+                        && shop.getStock() < shop.getMaxStock() && balanceCheck);
+            }
+        }
     }
 }
