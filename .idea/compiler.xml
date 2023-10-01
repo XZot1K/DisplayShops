@@ -7,6 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="v1_20_r1" />
+        <module name="v1_20_r2" />
         <module name="v1_16_r1" />
         <module name="v1_18_r2" />
         <module name="v1_17_r1" />
@@ -31,6 +32,8 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="API" target="1.8" />
+      <module name="v1_20_r1 (1)" target="17" />
+      <module name="v1_20_r1 (2)" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

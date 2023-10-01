@@ -223,27 +223,24 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         getServer().getScheduler().cancelTasks(this);
 
         if (getManager() != null) {
-            int shopSaveCount = 0;
+            final int[] shopSaveCount = {0};
 
             try {
                 final long shopCount = getManager().getShopMap().size(), shopCountPercentage = ((long) (shopCount * 0.15));
-                long current = 0;
+                final long[] current = {0};
+                getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
+                    entry.getValue().save(false);
+                    shopSaveCount[0]++;
+                    current[0]++;
 
-                for (Shop shop : getManager().getShopMap().values()) {
-                    shop.save(false);
-                    shopSaveCount++;
-                    current++;
-
-                    if ((shopCountPercentage <= 0 || (current % shopCountPercentage) == 0 || current == shopCount))
-                        log(Level.INFO, "Saving shops " + current + "/" + shopCount + " (" + Math.min(100,
-                                (int) (((double) current / (double) shopCount) * 100)) + "%)...");
-                }
+                    if ((shopCountPercentage <= 0 || (current[0] % shopCountPercentage) == 0 || current[0] == shopCount))
+                        log(Level.INFO, "Saving shops " + current[0] + "/" + shopCount); //+ " (" + Math.min(100, (int) (((double) current[0] / (double) shopCount) * 100)) + "%)...");
+                });
 
                 Statement statement = getDatabaseConnection().createStatement();
-                getServer().getOnlinePlayers().forEach(player -> {
-                    DataPack dataPack = getManager().getDataPack(player);
-                    getManager().saveDataPack(statement, player.getUniqueId(), dataPack, false, false);
-                    clearDisplayPackets(player);
+                getManager().getDataPackMap().entrySet().parallelStream().forEach(entry -> {
+                    final DataPack dataPack = entry.getValue();
+                    getManager().saveDataPack(statement, entry.getKey(), dataPack, false, false);
                 });
                 statement.close();
             } catch (Exception e) {
@@ -252,7 +249,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             }
 
             getManager().saveMarketRegions();
-            log(Level.INFO, "Successfully saved all data, including " + shopSaveCount + " shops!");
+            log(Level.INFO, "Successfully saved all data, including " + shopSaveCount[0] + " shops!");
+
+            getServer().getOnlinePlayers().parallelStream().forEach(this::clearDisplayPackets);
         }
 
         if (getDatabaseConnection() != null)
@@ -778,8 +777,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
             displayPacketClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".DPacket");
         } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-            this.versionUtil = new xzot1k.plugins.ds.nms.v1_20_R1.VUtil();
-            displayPacketClass = xzot1k.plugins.ds.nms.v1_20_R1.DPacket.class;
+            this.versionUtil = new xzot1k.plugins.ds.nms.v1_20_R2.VUtil();
+            displayPacketClass = xzot1k.plugins.ds.nms.v1_20_R2.DPacket.class;
         }
 
         // this.craftPlayerClass = Class.forName("org.bukkit.craftbukkit." + getVersionPackageName() + ".entity.CraftPlayer");

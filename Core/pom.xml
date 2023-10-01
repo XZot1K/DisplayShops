@@ -16,7 +16,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>26</core.build>
+        <core.build>27</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -104,6 +104,12 @@
         </dependency>
 
         <!-- NMS -->
+        <dependency>
+            <groupId>xzot1k.plugins.ds</groupId>
+            <artifactId>v1_20_r2</artifactId>
+            <version>1.0</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>xzot1k.plugins.ds</groupId>
             <artifactId>v1_20_r1</artifactId>
@@ -236,7 +242,7 @@
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
-            <version>1.7.0-SNAPSHOT</version>
+            <version>1.9.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
 

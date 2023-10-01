@@ -1060,7 +1060,7 @@ public class DManager implements Manager {
      * Saves all market regions to the database.
      */
     public synchronized void saveMarketRegions() {
-        for (MarketRegion marketRegion : getPluginInstance().getManager().getMarketRegions()) {
+        getPluginInstance().getManager().getMarketRegions().parallelStream().forEach(marketRegion -> {
             try {
                 final String pointOneString = (marketRegion.getRegion().getPointOne().getWorldName() + ","
                         + marketRegion.getRegion().getPointOne().getX() + "," + marketRegion.getRegion().getPointOne().getY()
@@ -1099,7 +1099,7 @@ public class DManager implements Manager {
                 getPluginInstance().log(Level.WARNING, "There was an issue saving the market region '"
                         + marketRegion.getMarketId() + "' (" + e.getMessage() + ").");
             }
-        }
+        });
     }
 
     /**

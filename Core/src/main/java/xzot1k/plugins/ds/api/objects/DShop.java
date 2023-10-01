@@ -136,8 +136,7 @@ public class DShop implements Shop {
 
         World world = INSTANCE.getServer().getWorld(getBaseLocation().getWorldName());
         if (world == null) {
-            INSTANCE.log(Level.WARNING,
-                    "The shop \"" + getShopId() + "\" is having some issues with the world (" + getBaseLocation().getWorldName() + ").");
+            INSTANCE.log(Level.WARNING, "The shop \"" + getShopId() + "\" is having some issues with the world (" + getBaseLocation().getWorldName() + ").");
             return;
         }
 
@@ -148,6 +147,7 @@ public class DShop implements Shop {
             DisplayPacket displayPacket = (DisplayPacket) constructor.newInstance(INSTANCE, player, this, showHolograms);
             INSTANCE.updateDisplayPacket(this, player, displayPacket);
         } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
             INSTANCE.log(Level.WARNING, e.getMessage());
         }
     }
