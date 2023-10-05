@@ -6,6 +6,7 @@ package xzot1k.plugins.ds.api.objects;
 
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 
 public class LClone implements LocationClone {
@@ -40,7 +41,7 @@ public class LClone implements LocationClone {
      * @param location Location passed.
      * @return The result in true or false format.
      */
-    public boolean isSame(Location location) {
+    public boolean isSame(@NotNull Location location) {
         return location != null && location.getWorld() != null && location.getWorld().getName().equals(getWorldName())
                 && location.getBlockX() == ((int) getX()) && location.getBlockY() == ((int) getY()) && location.getBlockZ() == ((int) getZ());
     }
@@ -51,7 +52,7 @@ public class LClone implements LocationClone {
      * @param location Location passed.
      * @return The result in true or false format.
      */
-    public boolean isSameNormal(Location location) {
+    public boolean isSameNormal(@NotNull Location location) {
         return location != null && location.getWorld() != null && location.getWorld().getName().equals(getWorldName())
                 && location.getX() == getX() && location.getY() == getY() && location.getZ() == getZ();
     }
@@ -62,7 +63,7 @@ public class LClone implements LocationClone {
      * @param location The location to compare to.
      * @return Whether they are identical.
      */
-    public boolean isSame(LocationClone location) {
+    public boolean isSame(@NotNull LocationClone location) {
         return location != null && location.getWorldName() != null && location.getWorldName().equals(getWorldName())
                 && location.getX() == ((int) getX()) && location.getY() == ((int) getY()) && location.getZ() == ((int) getZ());
     }
@@ -78,19 +79,19 @@ public class LClone implements LocationClone {
         return new Location(world, getX(), getY(), getZ(), (float) getYaw(), (float) getPitch());
     }
 
-    public double distance(LocationClone location, boolean checkYAxis) {
+    public double distance(@NotNull LocationClone location, boolean checkYAxis) {
         final double highX = Math.max(getX(), location.getX()), highY = Math.max(getY(), location.getY()), highZ = Math.max(getZ(), location.getZ()),
                 lowX = Math.min(getX(), location.getX()), lowY = Math.min(getY(), location.getY()), lowZ = Math.min(getZ(), location.getZ());
         return Math.sqrt(Math.pow((highX - lowX), 2) + (checkYAxis ? Math.pow(highY - lowY, 2) : 0) + Math.pow((highZ - lowZ), 2));
     }
 
-    public double distance(Location location, boolean checkYAxis) {
+    public double distance(@NotNull Location location, boolean checkYAxis) {
         final double highX = Math.max(getX(), location.getX()), highY = Math.max(getY(), location.getY()), highZ = Math.max(getZ(), location.getZ()),
                 lowX = Math.min(getX(), location.getX()), lowY = Math.min(getY(), location.getY()), lowZ = Math.min(getZ(), location.getZ());
         return Math.sqrt(Math.pow((highX - lowX), 2) + (checkYAxis ? Math.pow(highY - lowY, 2) : 0) + Math.pow((highZ - lowZ), 2));
     }
 
-    public double distanceBlock(Location location) {
+    public double distanceBlock(@NotNull Location location) {
         final double highX = Math.max(getX(), location.getX()), highZ = Math.max(getZ(), location.getZ()),
                 lowX = Math.min(getX(), location.getX()), lowZ = Math.min(getZ(), location.getZ());
         return Math.sqrt(Math.pow((highX - lowX), 2) + Math.pow((highZ - lowZ), 2));
@@ -118,7 +119,7 @@ public class LClone implements LocationClone {
         return worldName;
     }
 
-    public void setWorldName(String worldName) {
+    public void setWorldName(@NotNull String worldName) {
         this.worldName = worldName;
     }
 

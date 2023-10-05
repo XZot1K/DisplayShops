@@ -48,21 +48,20 @@ public class MRegion implements MarketRegion {
         setRentedTimeStamp(null);
         setExtendedDuration(0);
 
-        for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
-            if (shop == null || !this.getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId())
-                    || !this.isInRegion(shop.getBaseLocation())) continue;
-            this.getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), shop::dropStock);
-            this.resetHelper(shop);
-        }
+        getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
+            final Shop shop = entry.getValue();
+            if (shop != null && getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId()) && isInRegion(shop.getBaseLocation())) {
+                getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), shop::dropStock);
+                resetHelper(shop);
+            }
+        });
 
         getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), () -> {
             Player renter = this.getPluginInstance().getServer().getPlayer(this.getRenter());
             if (renter != null) getPluginInstance().getManager().sendMessage(renter,
                     Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-expired"))
                             .replace("{id}", WordUtils.capitalize(this.getMarketId())));
-            for (Player player : this.getPluginInstance().getServer().getOnlinePlayers()) {
-                this.getPluginInstance().clearDisplayPackets(player);
-            }
+            getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(player -> getPluginInstance().clearDisplayPackets(player));
         });
     }
 

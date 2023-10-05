@@ -43,10 +43,10 @@
     </properties>
 
     <repositories>
-        <repository>
+        <!--<repository>
             <id>iridiumdevelopment</id>
             <url>https://nexus.iridiumdevelopment.net/repository/maven-releases/</url>
-        </repository>
+        </repository>-->
         <repository>
             <id>placeholderapi</id>
             <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>

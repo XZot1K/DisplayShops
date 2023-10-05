@@ -4,6 +4,8 @@
 
 package xzot1k.plugins.ds.api.objects;
 
+import org.jetbrains.annotations.NotNull;
+
 public class DRegion implements Region {
 
     private LocationClone pointOne, pointTwo;
@@ -12,7 +14,7 @@ public class DRegion implements Region {
         return pointOne;
     }
 
-    public void setPointOne(LocationClone pointOne) {
+    public void setPointOne(@NotNull LocationClone pointOne) {
         this.pointOne = pointOne;
     }
 
@@ -20,7 +22,7 @@ public class DRegion implements Region {
         return pointTwo;
     }
 
-    public void setPointTwo(LocationClone pointTwo) {
+    public void setPointTwo(@NotNull LocationClone pointTwo) {
         this.pointTwo = pointTwo;
     }
 
