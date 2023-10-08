@@ -140,7 +140,8 @@ public class EconomyHandler implements EcoHandler {
             @Override
             public String getSingularName() {
                 return ((getVaultEconomy().currencyNameSingular() == null
-                        || getVaultEconomy().currencyNameSingular().isEmpty()) ? getVaultEconomy().getName() : getVaultEconomy().currencyNameSingular());
+                        || getVaultEconomy().currencyNameSingular().isEmpty()) ? getVaultEconomy().getName() :
+                        getVaultEconomy().currencyNameSingular());
             }
 
             @Override
@@ -390,7 +391,8 @@ public class EconomyHandler implements EcoHandler {
             }
 
             if (currencySection.contains("decimal-placement")) ecoHook.setDecimalPlacement(currencySection.getInt("decimal-placement"));
-            if (currencySection.contains("raw-placeholder-value")) ecoHook.setRawPlaceholderValue(currencySection.getBoolean("raw-placeholder-value"));
+            if (currencySection.contains("raw-placeholder-value"))
+                ecoHook.setRawPlaceholderValue(currencySection.getBoolean("raw-placeholder-value"));
             if (currencySection.contains("use-format")) ecoHook.setUseFormat(currencySection.getBoolean("use-format"));
             if (currencySection.contains("format")) ecoHook.setFormat(currencySection.getString("format"));
             break;
@@ -451,7 +453,8 @@ public class EconomyHandler implements EcoHandler {
     public boolean deposit(@NotNull OfflinePlayer player, @Nullable Shop shop, double amount, @Nullable EconomyCallType... economyCallType) {
         if (shop != null && shop.getCurrencyType().equals("item-for-item")) {
             if (player.getPlayer() == null) return false;
-            final ItemStack currencyItem = ((economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL) ? shop.getShopItem()
+            final ItemStack currencyItem = ((economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL) ?
+                    shop.getShopItem()
                     : (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? INSTANCE.getManager().defaultCurrencyItem
                     : (shop.getTradeItem() == null ? INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem())));
             INSTANCE.getManager().giveItemStacks(player.getPlayer(), currencyItem, (int) amount);
@@ -475,7 +478,8 @@ public class EconomyHandler implements EcoHandler {
     public boolean withdraw(@NotNull OfflinePlayer player, @Nullable Shop shop, double amount, @Nullable EconomyCallType... economyCallType) {
         if (shop != null && shop.getCurrencyType().equals("item-for-item")) {
             if (player.getPlayer() == null) return false;
-            final ItemStack currencyItem = ((economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL) ? shop.getShopItem()
+            final ItemStack currencyItem = ((economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL) ?
+                    shop.getShopItem()
                     : (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? INSTANCE.getManager().defaultCurrencyItem
                     : (shop.getTradeItem() == null ? INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem())));
             return INSTANCE.getManager().removeItem(player.getPlayer().getInventory(), currencyItem, (int) amount);
@@ -524,6 +528,8 @@ public class EconomyHandler implements EcoHandler {
             currencySymbol = ((ecoHook.getSymbol() != null) ? ecoHook.getSymbol() : "");
             decimalPlacement = ecoHook.getDecimalPlacement();
         }
+
+        if (INSTANCE.getConfig().getBoolean("whole-number-entries")) decimalPlacement = 0;
 
         final boolean useUKFormatting = INSTANCE.getConfig().getBoolean("use-uk-format");
         String formatted = String.format(("%,." + decimalPlacement + "f"), amount)

@@ -2137,7 +2137,7 @@ public class MenuListener implements Listener {
                 }
 
                 playClickSound(player);
-                INSTANCE.getInSightTask().refreshShop(shop);
+                INSTANCE.refreshShop(shop);
 
                 // refresh the edit status to prevent any issues
                 player.closeInventory();

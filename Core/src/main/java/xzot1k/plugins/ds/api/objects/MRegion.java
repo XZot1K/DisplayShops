@@ -44,9 +44,15 @@ public class MRegion implements MarketRegion {
 
     @Override
     public void reset() {
-        setRenter(null);
-        setRentedTimeStamp(null);
-        setExtendedDuration(0);
+        getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), () -> {
+            if (getRenter() != null) {
+                Player renter = this.getPluginInstance().getServer().getPlayer(getRenter());
+                if (renter != null) getPluginInstance().getManager().sendMessage(renter,
+                        Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-expired"))
+                                .replace("{id}", WordUtils.capitalize(this.getMarketId())));
+            }
+            getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(player -> getPluginInstance().clearDisplayPackets(player));
+        });
 
         getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
             final Shop shop = entry.getValue();
@@ -56,13 +62,9 @@ public class MRegion implements MarketRegion {
             }
         });
 
-        getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), () -> {
-            Player renter = this.getPluginInstance().getServer().getPlayer(this.getRenter());
-            if (renter != null) getPluginInstance().getManager().sendMessage(renter,
-                    Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-expired"))
-                            .replace("{id}", WordUtils.capitalize(this.getMarketId())));
-            getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(player -> getPluginInstance().clearDisplayPackets(player));
-        });
+        setRenter(null);
+        setRentedTimeStamp(null);
+        setExtendedDuration(0);
     }
 
     @Override
@@ -92,7 +94,8 @@ public class MRegion implements MarketRegion {
 
     @Override
     public boolean rent(@NotNull Player player) {
-        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ? getRenewCost() : getCost()));
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.RENT, ((timeUntilExpire() > 0) ?
+                getRenewCost() : getCost()));
         if (economyCallEvent.failed()) return false;
 
         MarketRegionRentEvent rentEvent = new MarketRegionRentEvent(player, this, false);
