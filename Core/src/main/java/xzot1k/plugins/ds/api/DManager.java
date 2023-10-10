@@ -325,23 +325,32 @@ public class DManager implements Manager {
                 calculatedBuyPrice = (beforeBuyPrice + (beforeBuyPrice * tax)),
                 calculatedSellPrice = (sellPrice * unitCount);
 
-        String ownerName = ((shop.getOwnerUniqueId() != null) ? getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()).getName() : ""),
+        String ownerName = ((shop.getOwnerUniqueId() != null) ?
+                getPluginInstance().getServer().getOfflinePlayer(shop.getOwnerUniqueId()).getName() : ""),
                 disabled = getPluginInstance().getLangConfig().getString("disabled");
         if (disabled == null) disabled = "";
 
         EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(shop.getCurrencyType());
         return applyPlaceholders(text, ("{no-vault}:"), ("{assistant-count}:" + shop.getAssistants().size()),
-                ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
-                ("{buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
-                ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
-                ("{balance}:" + ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "∞" : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()))),
+                ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) :
+                        disabled)),
+                ("{buy-price}:" + (buyPrice >= 0 ?
+                        getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
+                ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(),
+                        calculatedSellPrice) : disabled)),
+                ("{balance}:" + ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "∞" : getPluginInstance().getEconomyHandler().format(shop,
+                        shop.getCurrencyType(), shop.getStoredBalance()))),
                 ("{stock}:" + (shop.getStock() <= -1 ? "∞" : getPluginInstance().getManager().formatNumber(shop.getStock(), false))),
                 ("{global-buy-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false)),
                 ("{global-sell-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false)),
-                ("{global-buy-limit}:" + (shop.getGlobalBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false) : disabled)),
-                ("{global-sell-limit}:" + (shop.getGlobalSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false) : disabled)),
-                ("{player-buy-limit}:" + (shop.getPlayerBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false) : disabled)),
-                ("{player-sell-limit}:" + (shop.getPlayerSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false) : disabled)),
+                ("{global-buy-limit}:" + (shop.getGlobalBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(),
+                        false) : disabled)),
+                ("{global-sell-limit}:" + (shop.getGlobalSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit()
+                        , false) : disabled)),
+                ("{player-buy-limit}:" + (shop.getPlayerBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(),
+                        false) : disabled)),
+                ("{player-sell-limit}:" + (shop.getPlayerSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit()
+                        , false) : disabled)),
                 ("{item}:" + (shop.getShopItem() != null ? getPluginInstance().getManager().getItemName(shop.getShopItem()) : "")),
                 ("{trade-item}:" + shop.getTradeItemName()),
                 ("{shop-item-amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),
@@ -795,7 +804,8 @@ public class DManager implements Manager {
     public Shop createShop(@NotNull Player player, @NotNull Block block, int shopItemAmount, boolean doCreationEffects, boolean sendCreationMessage) {
         Menu appearanceMenu = getPluginInstance().getMenu("appearance");
         DShop shop = new DShop(getPluginInstance().getManager().generateNewId(), player.getUniqueId(),
-                block.getLocation(), shopItemAmount, (appearanceMenu != null ? appearanceMenu.getConfiguration().getString("default-appearance") : "Default"));
+                block.getLocation(), shopItemAmount, (appearanceMenu != null ? appearanceMenu.getConfiguration().getString("default-appearance") :
+                "Default"));
         shop.register();
 
         if (doCreationEffects) {
@@ -878,7 +888,8 @@ public class DManager implements Manager {
                         }
                     }
 
-                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location") ? "base_" : "") + "location");
+                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location") ? "base_" : "") +
+                            "location");
                     String appearance;
                     LClone baseLocation;
                     if (baseLocationString.contains(":")) {
@@ -909,7 +920,8 @@ public class DManager implements Manager {
                             continue;
                         }
 
-                        getPluginInstance().log(Level.INFO, "The shop \"" + shopIdString + "\" has an invalid world \"" + baseLocation.getWorldName() + "\". Skipping...");
+                        getPluginInstance().log(Level.INFO,
+                                "The shop \"" + shopIdString + "\" has an invalid world \"" + baseLocation.getWorldName() + "\". Skipping...");
                         continue;
                     }
 
@@ -1020,7 +1032,8 @@ public class DManager implements Manager {
         if (!shopsToDelete.isEmpty())
             for (String id : shopsToDelete) {
                 try {
-                    PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement("DELETE FROM shops WHERE id = '" + id + "';");
+                    PreparedStatement statement =
+                            getPluginInstance().getDatabaseConnection().prepareStatement("DELETE FROM shops WHERE id = '" + id + "';");
                     statement.executeUpdate();
                     statement.close();
                 } catch (SQLException e) {
@@ -1484,6 +1497,26 @@ public class DManager implements Manager {
         for (int i = -1; ++i < string.length(); ) {
             final char c = chars[i];
             if (onlyWholeNumbers && (c == '.' || c == ',')) return true;
+            if (!Character.isDigit(c) && (c != '.' && c != ',') && !((i == 0 && c == '-'))) return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * See if a string is NOT a numerical value.
+     *
+     * @param string The string to check.
+     * @return Whether it is numerical or not.
+     */
+    public boolean isNotRawNumeric(@NotNull String string) {
+        if (string.isEmpty()) return true;
+
+        final char[] chars = string.toCharArray();
+        if (chars.length == 1 && !Character.isDigit(chars[0])) return true;
+
+        for (int i = -1; ++i < string.length(); ) {
+            final char c = chars[i];
             if (!Character.isDigit(c) && (c != '.' && c != ',') && !((i == 0 && c == '-'))) return true;
         }
 

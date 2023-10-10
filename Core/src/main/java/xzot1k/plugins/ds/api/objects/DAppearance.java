@@ -103,9 +103,9 @@ public class DAppearance extends Appearance {
                 String[] args = offsetString.split(",");
                 if (args.length >= 3) {
                     offset = new double[3];
-                    if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[0])) offset[0] = Double.parseDouble(args[0]);
-                    if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[1])) offset[1] = Double.parseDouble(args[1]);
-                    if (!DisplayShops.getPluginInstance().getManager().isNotNumeric(args[2])) offset[2] = Double.parseDouble(args[2]);
+                    if (!DisplayShops.getPluginInstance().getManager().isNotRawNumeric(args[0])) offset[0] = Double.parseDouble(args[0]);
+                    if (!DisplayShops.getPluginInstance().getManager().isNotRawNumeric(args[1])) offset[1] = Double.parseDouble(args[1]);
+                    if (!DisplayShops.getPluginInstance().getManager().isNotRawNumeric(args[2])) offset[2] = Double.parseDouble(args[2]);
                 }
             }
 
