@@ -164,22 +164,24 @@ public class ManagementTask extends BukkitRunnable {
     }
 
     public void reloadRecoveryConfig() {
-        if (recoveryFile == null) recoveryFile = new File(getPluginInstance().getDataFolder(), "recovery.yml");
-        recoveryConfig = YamlConfiguration.loadConfiguration(recoveryFile);
+        if (recoveryFile == null) {
+            recoveryFile = new File(getPluginInstance().getDataFolder(), "recovery.yml");
+            recoveryConfig = YamlConfiguration.loadConfiguration(recoveryFile);
+
+            try {
+                recoveryConfig.save(recoveryFile);
+            } catch (IOException e) {e.printStackTrace();}
+        } else recoveryConfig = YamlConfiguration.loadConfiguration(recoveryFile);
     }
 
     public void createRecovery(@NotNull UUID playerUniqueId, @NotNull Shop shop) {
         try {
-            final ConfigurationSection playerSection = recoveryConfig.getConfigurationSection(playerUniqueId.toString());
-            if (playerSection == null) return;
-
             int existingShopItemAmount = 0, existingCurrencyAmount = 0;
-            if (playerSection.contains(shop.getShopId().toString())) {
-                if (playerSection.contains(shop.getShopId().toString() + ".shop-item"))
-                    existingShopItemAmount = playerSection.getInt(shop.getShopId().toString() + ".shop-item.amount");
-                if (playerSection.contains(shop.getShopId().toString() + ".currency.amount"))
-                    existingCurrencyAmount = playerSection.getInt(shop.getShopId().toString() + ".currency.amount");
-            }
+            if (recoveryConfig.contains(playerUniqueId + "." + shop.getShopId().toString() + ".shop-item"))
+                existingShopItemAmount = recoveryConfig.getInt(playerUniqueId + "." + shop.getShopId().toString() + ".shop-item.amount");
+
+            if (recoveryConfig.contains(playerUniqueId + "." + shop.getShopId().toString() + ".currency.amount"))
+                existingCurrencyAmount = recoveryConfig.getInt(playerUniqueId + "." + shop.getShopId().toString() + ".currency.amount");
 
             if (shop.getStock() > 0 && shop.getShopItem() != null) {
                 recoveryConfig.set((playerUniqueId + "." + shop.getShopId() + ".shop-item.data"), shop.getShopItem());
@@ -195,8 +197,7 @@ public class ManagementTask extends BukkitRunnable {
             }
 
             recoveryConfig.save(recoveryFile);
-        } catch (
-                IOException ignored) {
+        } catch (IOException ignored) {
             getPluginInstance().log(Level.WARNING, "Failed to create the recovery data for \"" + playerUniqueId + "\".");
         }
 

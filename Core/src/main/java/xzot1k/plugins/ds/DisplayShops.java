@@ -1014,6 +1014,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         } catch (IOException e) {
             log(Level.WARNING, e.getMessage());
         }
+
+
     }
 
     /**

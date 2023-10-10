@@ -200,10 +200,10 @@ public class DShop implements Shop {
 
         OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
         if (owner.isOnline() && owner.getPlayer() != null) INSTANCE.getManager().giveItemStacks(owner.getPlayer(), getShopItem().clone(), getStock());
-        else INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () ->
-                INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this));
-
-        setStock(0);
+        else {
+            INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this);
+            setStock(0);
+        }
     }
 
     /**
@@ -704,6 +704,9 @@ public class DShop implements Shop {
 
         Menu appearanceMenu = INSTANCE.getMenu("appearance");
         if (appearanceMenu != null) setAppearanceId(appearanceMenu.getConfiguration().getString("default-appearance"));
+
+        Appearance appearance = Appearance.getAppearance(getAppearanceId());
+        if (appearance != null) appearance.apply(this, null);
 
         setStock(0);
         setStoredBalance(0);

@@ -1600,6 +1600,8 @@ public class Commands implements CommandExecutor {
         }
 
         marketRegion.setCost(Double.parseDouble(cost));
+        marketRegion.save(true);
+
         String message = getPluginInstance().getLangConfig().getString("market-region-cost");
         if (message != null && !message.equalsIgnoreCase(""))
             getPluginInstance().getManager().sendMessage(player, message
@@ -1640,6 +1642,8 @@ public class Commands implements CommandExecutor {
         }
 
         marketRegion.setRenewCost(Double.parseDouble(cost));
+        marketRegion.save(true);
+
         String message = getPluginInstance().getLangConfig().getString("market-region-rcost");
         if (message != null && !message.equalsIgnoreCase(""))
             getPluginInstance().getManager().sendMessage(player, message

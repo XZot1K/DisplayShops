@@ -1060,46 +1060,7 @@ public class DManager implements Manager {
      * Saves all market regions to the database.
      */
     public synchronized void saveMarketRegions() {
-        getPluginInstance().getManager().getMarketRegions().parallelStream().forEach(marketRegion -> {
-            try {
-                final String pointOneString = (marketRegion.getRegion().getPointOne().getWorldName() + ","
-                        + marketRegion.getRegion().getPointOne().getX() + "," + marketRegion.getRegion().getPointOne().getY()
-                        + "," + marketRegion.getRegion().getPointOne().getZ() + "," + marketRegion.getRegion().getPointOne().getYaw()
-                        + "," + marketRegion.getRegion().getPointOne().getPitch()),
-                        pointTwoString = (marketRegion.getRegion().getPointTwo().getWorldName() + ","
-                                + marketRegion.getRegion().getPointTwo().getX() + "," + marketRegion.getRegion().getPointTwo().getY()
-                                + "," + marketRegion.getRegion().getPointTwo().getZ() + "," + marketRegion.getRegion().getPointTwo().getYaw()
-                                + "," + marketRegion.getRegion().getPointTwo().getPitch());
-
-                final String extraDataLine = (marketRegion.getCost() + "," + marketRegion.getRenewCost()),
-                        host = getPluginInstance().getConfig().getString("mysql.host"), syntax,
-                        renterId = (marketRegion.getRenter() != null ? marketRegion.getRenter().toString() : "");
-                if (host == null || host.isEmpty())
-                    syntax = "INSERT OR REPLACE INTO market_regions(id, point_one, point_two, renter, extended_duration, rent_time_stamp, " +
-                            "extra_data) VALUES('" + marketRegion.getMarketId() + "', '" + pointOneString.replace("'", "\\'")
-                            .replace("\"", "\\\"") + "', '" + pointTwoString.replace("'", "\\'")
-                            .replace("\"", "\\\"") + "', '" + renterId + "', '" + marketRegion.getExtendedDuration()
-                            + "', '" + marketRegion.getRentedTimeStamp() + "', '" + extraDataLine + "');";
-                else
-                    syntax = "INSERT INTO market_regions(id, point_one, point_two, renter, extended_duration, rent_time_stamp, extra_data) VALUES( '"
-                            + marketRegion.getMarketId() + "', '" + pointOneString.replace("'", "\\'")
-                            .replace("\"", "\\\"") + "', '" + pointTwoString.replace("'", "\\'")
-                            .replace("\"", "\\\"") + "', '" + renterId + "', '" + marketRegion.getExtendedDuration()
-                            + "', '" + marketRegion.getRentedTimeStamp() + "') ON DUPLICATE KEY UPDATE id = '" + marketRegion.getMarketId()
-                            + "'," + " point_one = '" + pointOneString.replace("'", "\\'").replace("\"", "\\\"")
-                            + "', point_two = '" + pointTwoString.replace("'", "\\'").replace("\"", "\\\"")
-                            + "', renter = '" + renterId + "', extended_duration = '" + marketRegion.getExtendedDuration()
-                            + "', rent_time_stamp = '" + marketRegion.getRentedTimeStamp() + "', extra_data = '" + extraDataLine + "';";
-
-                PreparedStatement preparedStatement = getPluginInstance().getDatabaseConnection().prepareStatement(syntax);
-                preparedStatement.execute();
-                preparedStatement.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-                getPluginInstance().log(Level.WARNING, "There was an issue saving the market region '"
-                        + marketRegion.getMarketId() + "' (" + e.getMessage() + ").");
-            }
-        });
+        getPluginInstance().getManager().getMarketRegions().parallelStream().forEach(marketRegion -> marketRegion.save(false));
     }
 
     /**

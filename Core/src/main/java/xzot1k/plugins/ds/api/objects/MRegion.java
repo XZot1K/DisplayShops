@@ -33,34 +33,37 @@ public class MRegion implements MarketRegion {
 
     public MRegion(DisplayShops pluginInstance, String marketId, Region region) {
         this.pluginInstance = pluginInstance;
-        this.setMarketId(marketId);
-        this.setRegion(region);
-        this.setExtendedDuration(0);
-        this.setRenter(null);
-        this.setRentedTimeStamp(null);
+        setMarketId(marketId);
+        setRegion(region);
+        setExtendedDuration(0);
+        setRenter(null);
+        setRentedTimeStamp(null);
         setCost(getPluginInstance().getConfig().getDouble("rent-cost"));
         setRenewCost(getPluginInstance().getConfig().getDouble("rent-renew-cost"));
     }
 
     @Override
     public void reset() {
-        setRenter(null);
-        setRentedTimeStamp(null);
-        setExtendedDuration(0);
-
         getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
             final Shop shop = entry.getValue();
-            if (shop != null && getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId()) && isInRegion(shop.getBaseLocation())) {
-                getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), shop::dropStock);
-                resetHelper(shop);
+            if (shop != null && isInRegion(shop.getBaseLocation())) {
+                getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> {
+                    shop.dropStock();
+                    resetHelper(shop);
+                });
             }
         });
 
-        getPluginInstance().getServer().getScheduler().runTask(this.getPluginInstance(), () -> {
-            Player renter = this.getPluginInstance().getServer().getPlayer(this.getRenter());
+        getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> {
+            Player renter = this.getPluginInstance().getServer().getPlayer(getRenter());
             if (renter != null) getPluginInstance().getManager().sendMessage(renter,
                     Objects.requireNonNull(getPluginInstance().getLangConfig().getString("rent-expired"))
                             .replace("{id}", WordUtils.capitalize(this.getMarketId())));
+
+            setRenter(null);
+            setRentedTimeStamp(null);
+            setExtendedDuration(0);
+
             getPluginInstance().getServer().getOnlinePlayers().parallelStream().forEach(player -> getPluginInstance().clearDisplayPackets(player));
         });
     }
@@ -73,20 +76,19 @@ public class MRegion implements MarketRegion {
 
     @Override
     public void updateRentedTimeStamp() {
-        this.setRentedTimeStamp(this.getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis())));
+        setRentedTimeStamp(getPluginInstance().getDateFormat().format(new Date(System.currentTimeMillis())));
     }
 
     @Override
     public boolean extendRent(@NotNull Player player) {
-        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.RENT_RENEW,
-                getPluginInstance().getConfig().getDouble("rent-renew-cost"));
+        final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.RENT_RENEW, getRenewCost());
         if (economyCallEvent.failed()) return false;
 
         MarketRegionRentEvent rentEvent = new MarketRegionRentEvent(player, this, true);
-        this.getPluginInstance().getServer().getPluginManager().callEvent(rentEvent);
+        getPluginInstance().getServer().getPluginManager().callEvent(rentEvent);
         if (rentEvent.isCancelled()) return true;
 
-        this.setExtendedDuration(getExtendedDuration() + getPluginInstance().getConfig().getInt("rent-extend-duration"));
+        setExtendedDuration(getExtendedDuration() + getPluginInstance().getConfig().getInt("rent-extend-duration"));
         return true;
     }
 
@@ -96,17 +98,19 @@ public class MRegion implements MarketRegion {
         if (economyCallEvent.failed()) return false;
 
         MarketRegionRentEvent rentEvent = new MarketRegionRentEvent(player, this, false);
-        this.getPluginInstance().getServer().getPluginManager().callEvent(rentEvent);
+        getPluginInstance().getServer().getPluginManager().callEvent(rentEvent);
         if (rentEvent.isCancelled()) return true;
 
-        this.updateRentedTimeStamp();
-        this.setRenter(player.getUniqueId());
-        for (Shop shop : this.getPluginInstance().getManager().getShopMap().values()) {
-            if (shop == null || shop.getBaseLocation() == null || !isInRegion(shop.getBaseLocation())) continue;
-            shop.setOwnerUniqueId(player.getUniqueId());
-            shop.setStock(0);
-            shop.setStoredBalance(0.0);
-        }
+        updateRentedTimeStamp();
+        setRenter(player.getUniqueId());
+        getPluginInstance().getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
+            final Shop shop = entry.getValue();
+            if (shop != null && shop.getBaseLocation() != null && isInRegion(shop.getBaseLocation())) {
+                shop.setOwnerUniqueId(player.getUniqueId());
+                shop.setStock(0);
+                shop.setStoredBalance(0.0);
+            }
+        });
 
         return true;
     }
@@ -114,12 +118,12 @@ public class MRegion implements MarketRegion {
     @Override
     public int timeUntilExpire() {
         int timeLeft = 0;
-        if (this.getRentedTimeStamp() != null && !this.getRentedTimeStamp().isEmpty()) {
+        if (getRentedTimeStamp() != null && !getRentedTimeStamp().isEmpty()) {
             try {
-                Date rentedTime = this.getPluginInstance().getDateFormat().parse(this.getRentedTimeStamp());
+                Date rentedTime = getPluginInstance().getDateFormat().parse(getRentedTimeStamp());
                 Date currentDate = new Date(System.currentTimeMillis());
-                timeLeft = (int) ((long) (this.getPluginInstance().getConfig().getInt("rent-expire-duration")
-                        + this.getExtendedDuration()) - (currentDate.getTime() - rentedTime.getTime()) / 1000L);
+                timeLeft = (int) ((long) (getPluginInstance().getConfig().getInt("rent-expire-duration")
+                        + getExtendedDuration()) - (currentDate.getTime() - rentedTime.getTime()) / 1000L);
             } catch (Exception ignored) {}
         }
         return timeLeft;
@@ -132,50 +136,49 @@ public class MRegion implements MarketRegion {
                 days = TimeUnit.SECONDS.toDays(seconds),
                 hours = TimeUnit.SECONDS.toHours(seconds -= TimeUnit.DAYS.toSeconds(days)),
                 minutes = TimeUnit.SECONDS.toMinutes(seconds -= TimeUnit.HOURS.toSeconds(hours));
-        seconds -= TimeUnit.MINUTES.toSeconds(days);
+        seconds -= TimeUnit.MINUTES.toSeconds(minutes);
 
         final boolean pluralize = getPluginInstance().getLangConfig().getBoolean("duration-format.pluralize");
         final String pluralizeLettering = getPluginInstance().getLangConfig().getString("duration-format.plural-lettering");
 
         if (days > 0L) {
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.days"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(days, false)))
-                    .append((days > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(days, false))
+                    .replace("{plural}", ((days > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : "")));
         }
 
         if (hours > 0L) {
             if (days > 0L) stringBuilder.append(" ");
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.hours"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(hours, false)))
-                    .append((hours > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(hours, false))
+                    .replace("{plural}", ((hours > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : "")));
         }
 
         if (minutes > 0L) {
             if (hours > 0L || days > 0L) stringBuilder.append(" ");
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.minutes"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(minutes, false)))
-                    .append((minutes > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(minutes, false))
+                    .replace("{plural}", ((minutes > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : "")));
         }
 
         if (seconds > 0L) {
             if (minutes > 0L || hours > 0L || days > 0L) stringBuilder.append(" ");
             stringBuilder.append(Objects.requireNonNull(getPluginInstance().getLangConfig().getString("duration-format.seconds"))
-                            .replace("{amount}", getPluginInstance().getManager().formatNumber(seconds, false)))
-                    .append((seconds > 1L && pluralize) ? pluralizeLettering : "");
+                    .replace("{amount}", getPluginInstance().getManager().formatNumber(seconds, false))
+                    .replace("{plural}", ((seconds > 1L && pluralize) ? Objects.requireNonNull(pluralizeLettering) : "")));
         }
 
         return stringBuilder.toString();
     }
 
     @Override
-    public void delete(boolean async) {
+    public synchronized void delete(boolean async) {
         if (async) {
-            DisplayShops.getPluginInstance().getServer().getScheduler()
-                    .runTaskAsynchronously(DisplayShops.getPluginInstance(), (Runnable) this::delete);
+            DisplayShops.getPluginInstance().getServer().getScheduler().runTaskAsynchronously(DisplayShops.getPluginInstance(), (Runnable) this::delete);
         } else delete();
     }
 
-    private void delete() {
+    private synchronized void delete() {
         try {
             PreparedStatement preparedStatement = DisplayShops.getPluginInstance().getDatabaseConnection()
                     .prepareStatement("delete from market_regions where id = '" + this.getMarketId() + "'");
@@ -185,6 +188,46 @@ public class MRegion implements MarketRegion {
             e.printStackTrace();
             DisplayShops.getPluginInstance().log(Level.WARNING, "There was an issue deleting the market region "
                     + this.getMarketId() + " from the database (" + e.getMessage() + ").");
+        }
+    }
+
+    @Override
+    public synchronized void save(boolean async) {
+        if (async) {
+            DisplayShops.getPluginInstance().getServer().getScheduler().runTaskAsynchronously(DisplayShops.getPluginInstance(), (Runnable) this::save);
+        } else save();
+    }
+
+    private synchronized void save() {
+        try {
+            final String pointOneString = (getRegion().getPointOne().getWorldName() + "," + getRegion().getPointOne().getX() + "," + getRegion().getPointOne().getY()
+                    + "," + getRegion().getPointOne().getZ() + "," + getRegion().getPointOne().getYaw() + "," + getRegion().getPointOne().getPitch()),
+                    pointTwoString = (getRegion().getPointTwo().getWorldName() + "," + getRegion().getPointTwo().getX() + "," + getRegion().getPointTwo().getY()
+                            + "," + getRegion().getPointTwo().getZ() + "," + getRegion().getPointTwo().getYaw() + "," + getRegion().getPointTwo().getPitch());
+
+            final String extraDataLine = (getCost() + "," + getRenewCost()),
+                    host = getPluginInstance().getConfig().getString("mysql.host"), syntax,
+                    renterId = (getRenter() != null ? getRenter().toString() : "");
+            if (host == null || host.isEmpty())
+                syntax = "INSERT OR REPLACE INTO market_regions(id, point_one, point_two, renter, extended_duration, rent_time_stamp, " +
+                        "extra_data) VALUES('" + getMarketId() + "', '" + pointOneString.replace("'", "\\'")
+                        .replace("\"", "\\\"") + "', '" + pointTwoString.replace("'", "\\'")
+                        .replace("\"", "\\\"") + "', '" + renterId + "', '" + getExtendedDuration() + "', '" + getRentedTimeStamp() + "', '" + extraDataLine + "');";
+            else
+                syntax = "INSERT INTO market_regions(id, point_one, point_two, renter, extended_duration, rent_time_stamp, extra_data) VALUES( '"
+                        + getMarketId() + "', '" + pointOneString.replace("'", "\\'").replace("\"", "\\\"") + "', '"
+                        + pointTwoString.replace("'", "\\'").replace("\"", "\\\"") + "', '" + renterId + "', '" + getExtendedDuration()
+                        + "', '" + getRentedTimeStamp() + "') ON DUPLICATE KEY UPDATE id = '" + getMarketId() + "'," + " point_one = '" + pointOneString.replace("'", "\\'")
+                        .replace("\"", "\\\"") + "', point_two = '" + pointTwoString.replace("'", "\\'").replace("\"", "\\\"")
+                        + "', renter = '" + renterId + "', extended_duration = '" + getExtendedDuration() + "', rent_time_stamp = '" + getRentedTimeStamp()
+                        + "', extra_data = '" + extraDataLine + "';";
+
+            PreparedStatement preparedStatement = getPluginInstance().getDatabaseConnection().prepareStatement(syntax);
+            preparedStatement.execute();
+            preparedStatement.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            getPluginInstance().log(Level.WARNING, "There was an issue saving the market region '" + getMarketId() + "' (" + e.getMessage() + ").");
         }
     }
 

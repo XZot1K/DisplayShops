@@ -221,7 +221,7 @@ public class DAppearance extends Appearance {
 
 
     @Override
-    public void apply(@NotNull Shop shop, @NotNull Player player) {
+    public void apply(@NotNull Shop shop, @Nullable Player player) {
         if (shop.getBaseLocation() == null) return;
         final Location baseBlockLocation = shop.getBaseLocation().asBukkitLocation();
         final Block block = baseBlockLocation.getBlock();
@@ -242,15 +242,17 @@ public class DAppearance extends Appearance {
             block.setType(Material.AIR);
             block.setType(material);
 
-            final boolean isOld = ((Math.floor(DisplayShops.getPluginInstance().getServerVersion()) <= 1_12));
-            if (isOld) try {
-                @SuppressWarnings("JavaReflectionMemberAccess") Method method = Block.class.getMethod("setData", byte.class);
-                method.invoke(baseBlockLocation.getBlock(), ((byte) (durability < 0 ? oppositeDirectionByte(Direction.getYaw(player)) : durability)));
-            } catch (Exception ignored) {
-            }
-            else {
-                block.setBlockData(INSTANCE.getServer().createBlockData(material));
-                setBlock(block, material, (material.name().contains("SHULKER") ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(player).name())));
+            if (player != null) {
+                final boolean isOld = ((Math.floor(DisplayShops.getPluginInstance().getServerVersion()) <= 1_12));
+                if (isOld) try {
+                    @SuppressWarnings("JavaReflectionMemberAccess") Method method = Block.class.getMethod("setData", byte.class);
+                    method.invoke(baseBlockLocation.getBlock(), ((byte) (durability < 0 ? oppositeDirectionByte(Direction.getYaw(player)) : durability)));
+                } catch (Exception ignored) {
+                }
+                else {
+                    block.setBlockData(INSTANCE.getServer().createBlockData(material));
+                    setBlock(block, material, (material.name().contains("SHULKER") ? BlockFace.UP : BlockFace.valueOf(Direction.getYaw(player).name())));
+                }
             }
         } else if (DisplayShops.getPluginInstance().isItemAdderInstalled()) {
             dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.getInstance(materialName);
@@ -260,15 +262,17 @@ public class DAppearance extends Appearance {
             }
         }
 
-        String changeSound = INSTANCE.getConfig().getString("immersion-section.shop-bbm-sound");
-        if (changeSound != null && !changeSound.equalsIgnoreCase(""))
-            player.playSound(player.getLocation(), Sound.valueOf(changeSound.toUpperCase().replace(" ", "_")
-                    .replace("-", "_")), 1, 1);
+        if (player != null) {
+            String changeSound = INSTANCE.getConfig().getString("immersion-section.shop-bbm-sound");
+            if (changeSound != null && !changeSound.equalsIgnoreCase(""))
+                player.playSound(player.getLocation(), Sound.valueOf(changeSound.toUpperCase().replace(" ", "_")
+                        .replace("-", "_")), 1, 1);
 
-        String changeEffect = INSTANCE.getConfig().getString("immersion-section.shop-bbm-particle");
-        if (changeEffect != null && !changeEffect.equalsIgnoreCase(""))
-            INSTANCE.displayParticle(player, changeEffect.toUpperCase().replace(" ", "_").replace("-", "_"),
-                    baseBlockLocation.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 12);
+            String changeEffect = INSTANCE.getConfig().getString("immersion-section.shop-bbm-particle");
+            if (changeEffect != null && !changeEffect.equalsIgnoreCase(""))
+                INSTANCE.displayParticle(player, changeEffect.toUpperCase().replace(" ", "_").replace("-", "_"),
+                        baseBlockLocation.add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5, 0, 12);
+        }
     }
 
     private String convertBlockFaceToAxis(BlockFace face) {
