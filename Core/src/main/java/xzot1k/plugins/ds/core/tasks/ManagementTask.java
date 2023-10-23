@@ -132,7 +132,10 @@ public class ManagementTask extends BukkitRunnable {
             if (playerSection.contains(shopId + ".shop-item")) {
                 ItemStack itemStack = playerSection.getItemStack(shopId + ".shop-item.data");
                 if (itemStack == null) itemStack = getPluginInstance().getManager().buildShopCurrencyItem(1);
-                getPluginInstance().getManager().giveItemStacks(player, itemStack, playerSection.getInt(shopId + ".shop-item.amount"));
+
+                final ItemStack finalItemStack = itemStack;
+                getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () ->
+                        getPluginInstance().getManager().giveItemStacks(player, finalItemStack, playerSection.getInt(shopId + ".shop-item.amount")));
             }
 
             if (playerSection.contains(shopId + ".currency")) {
@@ -142,10 +145,15 @@ public class ManagementTask extends BukkitRunnable {
                         ItemStack itemStack = playerSection.getItemStack(shopId + ".currency.data");
                         if (itemStack == null || getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use"))
                             itemStack = getPluginInstance().getManager().buildShopCurrencyItem(1);
-                        getPluginInstance().getManager().giveItemStacks(player, itemStack, playerSection.getInt(shopId + ".currency.amount"));
+
+                        final ItemStack finalItemStack = itemStack;
+                        getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () ->
+                                getPluginInstance().getManager().giveItemStacks(player, finalItemStack, playerSection.getInt(shopId + ".currency.amount")));
                     } else {
-                        EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(currencyType);
-                        if (ecoHook != null) ecoHook.deposit(player, playerSection.getDouble(shopId + ".currency.amount"));
+                        getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> {
+                            EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(currencyType);
+                            if (ecoHook != null) ecoHook.deposit(player, playerSection.getDouble(shopId + ".currency.amount"));
+                        });
                     }
                 }
             }

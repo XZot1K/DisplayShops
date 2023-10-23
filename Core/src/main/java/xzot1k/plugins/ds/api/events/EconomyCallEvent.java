@@ -200,9 +200,8 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             setChargedPlayer(true);
         }
 
-        if ((getEconomyCallType() != EconomyCallType.EDIT_ACTION && getEconomyCallType() != EconomyCallType.RENT
-                && getEconomyCallType() != EconomyCallType.RENT_RENEW) && !getShop().isAdminShop()) {
-
+        if ((getEconomyCallType() != EconomyCallType.EDIT_ACTION && getEconomyCallType() != EconomyCallType.APPEARANCE
+                && getEconomyCallType() != EconomyCallType.RENT && getEconomyCallType() != EconomyCallType.RENT_RENEW) && !getShop().isAdminShop()) {
             if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {
                 final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
                 INSTANCE.getEconomyHandler().deposit(shopOwner, getShop(), getAmount());

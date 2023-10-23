@@ -49,6 +49,7 @@ public class MRegion implements MarketRegion {
             if (shop != null && isInRegion(shop.getBaseLocation())) {
                 getPluginInstance().getServer().getScheduler().runTask(getPluginInstance(), () -> {
                     shop.dropStock();
+                    shop.returnBalance();
                     resetHelper(shop);
                 });
             }
