@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.enums.Direction;
+import xzot1k.plugins.ds.api.enums.EconomyCallType;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -191,19 +192,19 @@ public class DAppearance extends Appearance {
                         if (!line.equalsIgnoreCase("{requirement}")) {
                             if (line.contains("price}") && getPrice() <= 0) continue; // skip no price
                             add(INSTANCE.getManager().color(INSTANCE.papiText(player, line
-                                    .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                    .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
+                                    .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice(), EconomyCallType.APPEARANCE))
+                                    .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice(), EconomyCallType.APPEARANCE))
                                     .replace("{permission}", (getPermission() != null ? getPermission() : ""))
                                     .replace("{id}", (getId() != null ? getId() : "")))));
                         } else {
-                            if (getRequirement() != null && getRequirement().isEmpty()) {
+                            if (getRequirement() != null && !getRequirement().isEmpty()) {
                                 for (int j = -1; ++j < getRequirement().size(); ) {
                                     final String rLine = getRequirement().get(j);
                                     if (rLine != null) {
                                         if (line.contains("price}") && getPrice() <= 0) continue; // skip no price
                                         add(INSTANCE.getManager().color(INSTANCE.papiText(player, rLine
-                                                .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
-                                                .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice()))
+                                                .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice(), EconomyCallType.APPEARANCE))
+                                                .replace("{raw-price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), getPrice(), EconomyCallType.APPEARANCE))
                                                 .replace("{permission}", (getPermission() != null ? getPermission() : ""))
                                                 .replace("{id}", (getId() != null ? getId() : "")))));
                                     }

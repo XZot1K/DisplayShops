@@ -717,6 +717,13 @@ public class MenuListener implements Listener {
                     return;
                 }
 
+                if ((!shop.isAdminShop() && shop.getStock() <= 0 || shop.getStock() < shop.getShopItemAmount())
+                        || (shop.isAdminShop() && (shop.getStock() >= 0 && shop.getStock() < shop.getShopItemAmount()))) {
+                    player.closeInventory();
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-low-stock"));
+                    return;
+                }
+
                 int availableUnits = (shop.getStock() < 0 ? -1 : Math.max(0, (shop.getStock() / shop.getShopItemAmount())));
                 if (shop.getGlobalBuyLimit() > 0) {
                     long remainingLimit = dataPack.getCurrentTransactionCounter(shop, true, true);
@@ -739,12 +746,6 @@ public class MenuListener implements Listener {
                     availableUnits = (int) Math.min(availableUnits, remainingLimit);
                 }
 
-                if ((!shop.isAdminShop() && shop.getStock() <= 0) || (shop.isAdminShop() && (shop.getStock() >= 0 && shop.getStock() < shop.getShopItemAmount()))) {
-                    player.closeInventory();
-                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-low-stock"));
-                    return;
-                }
-
                 double investorBalance = INSTANCE.getEconomyHandler().getBalance(player, shop),
                         tax = INSTANCE.getConfig().getDouble("transaction-tax");
                 final double buyPrice = shop.getBuyPrice(true);
@@ -754,13 +755,14 @@ public class MenuListener implements Listener {
                         : Math.min(maxBuyAll, (int) (investorBalance / (buyPrice + (buyPrice * tax)))));
                 availableUnits = ((availableUnits < 0 && shop.isAdminShop()) ? affordableUnits : Math.min(availableUnits, Math.min(maxBuyAll, affordableUnits)));
                 if (availableUnits <= 0) {
+                    player.closeInventory();
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("no-affordable-units"));
                     return;
                 }
 
                 final int availableSpace = INSTANCE.getManager().getInventorySpaceForItem(player, shop.getShopItem());
                 if (player.getInventory().firstEmpty() == -1 || availableSpace < shop.getShopItemAmount()) {
-                    dataPack.resetEditData();
+                    player.closeInventory();
                     INSTANCE.getManager().sendMessage(player, Objects.requireNonNull(INSTANCE.getLangConfig().getString("insufficient-space"))
                             .replace("{space}", INSTANCE.getManager().formatNumber(availableSpace, false)));
                     return;
@@ -1538,7 +1540,8 @@ public class MenuListener implements Listener {
                     }
 
                     case AMOUNT_BALANCE: {
-                        maxAmount = Math.min((shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop)), INSTANCE.getConfig().getDouble("max-stored-currency"));
+                        maxAmount = Math.min((shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop)), INSTANCE.getConfig().getDouble("max-stored" +
+                                "-currency"));
                         break;
                     }
 

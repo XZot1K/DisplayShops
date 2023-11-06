@@ -332,25 +332,18 @@ public class DManager implements Manager {
 
         EcoHook ecoHook = getPluginInstance().getEconomyHandler().getEcoHook(shop.getCurrencyType());
         return applyPlaceholders(text, ("{no-vault}:"), ("{assistant-count}:" + shop.getAssistants().size()),
-                ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) :
-                        disabled)),
-                ("{buy-price}:" + (buyPrice >= 0 ?
-                        getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
-                ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(),
-                        calculatedSellPrice) : disabled)),
-                ("{balance}:" + ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "∞" : getPluginInstance().getEconomyHandler().format(shop,
-                        shop.getCurrencyType(), shop.getStoredBalance()))),
+                ("{base-buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), buyPrice) : disabled)),
+                ("{buy-price}:" + (buyPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedBuyPrice) : disabled)),
+                ("{sell-price}:" + (sellPrice >= 0 ? getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), calculatedSellPrice) : disabled)),
+                ("{balance}:" + ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "∞"
+                        : getPluginInstance().getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance()))),
                 ("{stock}:" + (shop.getStock() <= -1 ? "∞" : getPluginInstance().getManager().formatNumber(shop.getStock(), false))),
                 ("{global-buy-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalBuyCounter(), false)),
                 ("{global-sell-counter}:" + getPluginInstance().getManager().formatNumber(shop.getGlobalSellCounter(), false)),
-                ("{global-buy-limit}:" + (shop.getGlobalBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(),
-                        false) : disabled)),
-                ("{global-sell-limit}:" + (shop.getGlobalSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit()
-                        , false) : disabled)),
-                ("{player-buy-limit}:" + (shop.getPlayerBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(),
-                        false) : disabled)),
-                ("{player-sell-limit}:" + (shop.getPlayerSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit()
-                        , false) : disabled)),
+                ("{global-buy-limit}:" + (shop.getGlobalBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalBuyLimit(), false) : disabled)),
+                ("{global-sell-limit}:" + (shop.getGlobalSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getGlobalSellLimit(), false) : disabled)),
+                ("{player-buy-limit}:" + (shop.getPlayerBuyLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerBuyLimit(), false) : disabled)),
+                ("{player-sell-limit}:" + (shop.getPlayerSellLimit() >= 0 ? getPluginInstance().getManager().formatNumber(shop.getPlayerSellLimit(), false) : disabled)),
                 ("{item}:" + (shop.getShopItem() != null ? getPluginInstance().getManager().getItemName(shop.getShopItem()) : "")),
                 ("{trade-item}:" + shop.getTradeItemName()),
                 ("{shop-item-amount}:" + getPluginInstance().getManager().formatNumber(shop.getShopItemAmount(), false)),
@@ -1348,12 +1341,16 @@ public class DManager implements Manager {
         int availableSpace = 0;
 
         if (getPluginInstance().getServerVersion() >= 1_9) {
-            for (ItemStack item : player.getInventory().getStorageContents())
-                if (item == null || item.getType().name().contains("AIR"))
+            ItemStack[] contents = player.getInventory().getStorageContents();
+            for (int i = -1; ++i < contents.length; ) {
+                final ItemStack item = contents[i];
+                if (item == null || item.getType().name().contains("AIR")) {
                     availableSpace += itemStack.getType().getMaxStackSize();
-                else if (itemStack.isSimilar(item))
-                    availableSpace += Math.max(0, (itemStack.getType().getMaxStackSize() - item.getAmount()));
+                    continue;
+                }
 
+                if (itemStack.isSimilar(item)) availableSpace += Math.max(0, (itemStack.getType().getMaxStackSize() - item.getAmount()));
+            }
             return availableSpace;
         }
 

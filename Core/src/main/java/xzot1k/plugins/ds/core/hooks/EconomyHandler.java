@@ -432,6 +432,14 @@ public class EconomyHandler implements EcoHandler {
      */
     public boolean has(@NotNull OfflinePlayer player, @Nullable Shop shop, double amount, @Nullable EconomyCallType... economyCallType) {
         if (shop != null) {
+            if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] != null) {
+                final String forcedEconomyCall = getForcedEconomyCall(economyCallType[0]);
+                if (forcedEconomyCall != null && !forcedEconomyCall.isEmpty() && !forcedEconomyCall.equals("item-for-item")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(forcedEconomyCall);
+                    if (ecoHook != null) return (ecoHook.getBalance(player.getUniqueId()) >= amount);
+                }
+            }
+
             final int itemForItemBalance = getItemForItemBalance(player, shop, economyCallType);
             if (itemForItemBalance > -1) return (itemForItemBalance >= amount);
         }
@@ -451,14 +459,23 @@ public class EconomyHandler implements EcoHandler {
      * @return Whether the deposit was successful.
      */
     public boolean deposit(@NotNull OfflinePlayer player, @Nullable Shop shop, double amount, @Nullable EconomyCallType... economyCallType) {
-        if (shop != null && shop.getCurrencyType().equals("item-for-item")) {
-            if (player.getPlayer() == null) return false;
-            final ItemStack currencyItem = ((economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL) ?
-                    shop.getShopItem()
-                    : (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? INSTANCE.getManager().defaultCurrencyItem
-                    : (shop.getTradeItem() == null ? INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem())));
-            INSTANCE.getManager().giveItemStacks(player.getPlayer(), currencyItem, (int) amount);
-            return true;
+        if (shop != null) {
+            if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] != null) {
+                final String forcedEconomyCall = getForcedEconomyCall(economyCallType[0]);
+                if (forcedEconomyCall != null && !forcedEconomyCall.isEmpty() && !forcedEconomyCall.equals("item-for-item")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(forcedEconomyCall);
+                    if (ecoHook != null) return ecoHook.deposit(player.getUniqueId(), amount);
+                }
+            }
+
+            if (shop.getCurrencyType().equals("item-for-item")) {
+                if (player.getPlayer() == null) return false;
+                final ItemStack currencyItem = (economyCallType != null && economyCallType[0] == EconomyCallType.SELL ?
+                        shop.getShopItem() : (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? INSTANCE.getManager().defaultCurrencyItem
+                        : (shop.getTradeItem() == null ? INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem())));
+                INSTANCE.getManager().giveItemStacks(player.getPlayer(), currencyItem, (int) amount);
+                return true;
+            }
         }
 
         final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop != null ? shop.getCurrencyType() : getDefaultCurrency());
@@ -476,13 +493,22 @@ public class EconomyHandler implements EcoHandler {
      * @return Whether the withdrawal was successful.
      */
     public boolean withdraw(@NotNull OfflinePlayer player, @Nullable Shop shop, double amount, @Nullable EconomyCallType... economyCallType) {
-        if (shop != null && shop.getCurrencyType().equals("item-for-item")) {
-            if (player.getPlayer() == null) return false;
-            final ItemStack currencyItem = ((economyCallType != null && economyCallType.length > 0 && economyCallType[0] == EconomyCallType.SELL) ?
-                    shop.getShopItem()
-                    : (INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? INSTANCE.getManager().defaultCurrencyItem
-                    : (shop.getTradeItem() == null ? INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem())));
-            return INSTANCE.getManager().removeItem(player.getPlayer().getInventory(), currencyItem, (int) amount);
+        if (shop != null) {
+            if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] != null) {
+                final String forcedEconomyCall = getForcedEconomyCall(economyCallType[0]);
+                if (forcedEconomyCall != null && !forcedEconomyCall.isEmpty() && !forcedEconomyCall.equals("item-for-item")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(forcedEconomyCall);
+                    if (ecoHook != null) return ecoHook.withdraw(player.getUniqueId(), amount);
+                }
+            }
+
+            if (shop.getCurrencyType().equals("item-for-item")) {
+                if (player.getPlayer() == null) return false;
+                final ItemStack currencyItem = ((economyCallType != null && economyCallType[0] == EconomyCallType.SELL) ? shop.getShopItem()
+                        : INSTANCE.getConfig().getBoolean("shop-currency-item.force-use") ? INSTANCE.getManager().defaultCurrencyItem
+                        : shop.getTradeItem() == null ? INSTANCE.getManager().defaultCurrencyItem : shop.getTradeItem());
+                return INSTANCE.getManager().removeItem(player.getPlayer().getInventory(), currencyItem, (int) amount);
+            }
         }
 
         final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop != null ? shop.getCurrencyType() : getDefaultCurrency());
@@ -500,6 +526,14 @@ public class EconomyHandler implements EcoHandler {
      */
     public double getBalance(@NotNull OfflinePlayer player, @Nullable Shop shop, @Nullable EconomyCallType... economyCallType) {
         if (shop != null) {
+            if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] != null) {
+                final String forcedEconomyCall = getForcedEconomyCall(economyCallType[0]);
+                if (forcedEconomyCall != null && !forcedEconomyCall.isEmpty() && !forcedEconomyCall.equals("item-for-item")) {
+                    final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(forcedEconomyCall);
+                    if (ecoHook != null) return ecoHook.getBalance(player.getUniqueId());
+                }
+            }
+
             final int itemForItemBalance = getItemForItemBalance(player, shop);
             if (itemForItemBalance > -1) return itemForItemBalance;
         }
@@ -521,6 +555,11 @@ public class EconomyHandler implements EcoHandler {
     public String format(@Nullable Shop shop, @NotNull String currencyType, double amount, @Nullable EconomyCallType... economyCallType) {
         if (amount == -1) return INSTANCE.getLangConfig().getString("disabled");
 
+        if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] != null) {
+            final String forcedEconomyCall = getForcedEconomyCall(economyCallType[0]);
+            if (forcedEconomyCall != null && !forcedEconomyCall.isEmpty()) currencyType = forcedEconomyCall;
+        }
+
         final EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(currencyType);
         String currencySymbol = "";
         int decimalPlacement = 2;
@@ -528,6 +567,8 @@ public class EconomyHandler implements EcoHandler {
             currencySymbol = ((ecoHook.getSymbol() != null) ? ecoHook.getSymbol() : "");
             decimalPlacement = ecoHook.getDecimalPlacement();
         }
+
+        System.out.println(currencyType + " - " + currencySymbol);
 
         if (INSTANCE.getConfig().getBoolean("whole-number-entries")) decimalPlacement = 0;
 
@@ -574,6 +615,17 @@ public class EconomyHandler implements EcoHandler {
         final String defaultCurrency = INSTANCE.getConfig().getString("default-currency-type");
         if (defaultCurrency != null && !defaultCurrency.isEmpty()) return defaultCurrency;
         return (INSTANCE.getConfig().getBoolean("use-vault") ? "vault" : "item-for-item");
+    }
+
+    public String getForcedEconomyCall(@NotNull EconomyCallType economyCallType) {
+        ConfigurationSection currencySettingsSection = INSTANCE.getConfig().getConfigurationSection("currency-settings");
+        if (currencySettingsSection == null) return null;
+
+        String currencyId = currencySettingsSection.getKeys(true).parallelStream().filter(key -> key.toLowerCase().endsWith(".forced-economy-calls"))
+                .filter(key -> currencySettingsSection.getStringList(key).parallelStream().anyMatch(ecoCallType ->
+                        ecoCallType.toUpperCase().replace("-", "_").replace(" ", "_").equals(economyCallType.name())))
+                .findAny().orElse(null);
+        return (currencyId != null ? (currencyId.contains(".") ? currencyId.split("\\.")[0] : currencyId) : null);
     }
 
     // getters and setters

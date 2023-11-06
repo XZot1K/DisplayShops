@@ -161,14 +161,14 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
 
         switch (getEconomyCallType()) {
             case WITHDRAW_BALANCE: {
-                INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount());
+                INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount(), getEconomyCallType());
                 getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - getAmount()), 0));
                 shop.updateTimeStamp();
                 shop.save(true);
                 return;
             }
             case DEPOSIT_BALANCE: {
-                INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount());
+                INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount(), getEconomyCallType());
                 getShop().setStoredBalance(Math.max((getShop().getStoredBalance() + getAmount()), 0));
                 shop.updateTimeStamp();
                 shop.save(true);
@@ -180,7 +180,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         }
 
         if (getEconomyCallType() == EconomyCallType.SELL) {
-            INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount());
+            INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getAmount(), getEconomyCallType());
 
             if (getShop() != null && !getShop().isAdminShop()) {
                 if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {
@@ -196,7 +196,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         }
 
         if (!hasChargedPlayer()) {
-            INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount());
+            INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount(), getEconomyCallType());
             setChargedPlayer(true);
         }
 
@@ -204,7 +204,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 && getEconomyCallType() != EconomyCallType.RENT && getEconomyCallType() != EconomyCallType.RENT_RENEW) && !getShop().isAdminShop()) {
             if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {
                 final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
-                INSTANCE.getEconomyHandler().deposit(shopOwner, getShop(), getAmount());
+                INSTANCE.getEconomyHandler().deposit(shopOwner, getShop(), getAmount(), getEconomyCallType());
                 return;
             }
 

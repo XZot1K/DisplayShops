@@ -153,7 +153,8 @@ public class CustomItem {
         ItemMeta itemMeta = get().getItemMeta();
         if (itemMeta != null && displayName != null && !displayName.isEmpty()) {
             displayName = (papiHere && player != null) ? getPluginInstance().getPapiHelper().replace(player, displayName) : displayName;
-            itemMeta.setDisplayName(getPluginInstance().getManager().color(displayName));
+            final String itemName = getPluginInstance().getManager().getItemName(get());
+            itemMeta.setDisplayName(getPluginInstance().getManager().color(displayName.replace("{type}", itemName)));
             get().setItemMeta(itemMeta);
         }
         return this;
@@ -169,11 +170,13 @@ public class CustomItem {
     public void setLore(Player player, @Nullable String[] extraPlaceHolders, String... lines) {
         ItemMeta itemMeta = get().getItemMeta();
         if (itemMeta == null) return;
+
+        final String itemName = getPluginInstance().getManager().getItemName(get());
         itemMeta.setLore(new ArrayList<String>() {{
             final String colorCode = getPluginInstance().getConfig().getString("default-description-color");
             final boolean useVault = getPluginInstance().getConfig().getBoolean("use-vault");
             for (int i = -1; ++i < lines.length; ) {
-                String line = papiHere ? getPluginInstance().getPapiHelper().replace(player, lines[i]) : lines[i];
+                String line = (papiHere ? getPluginInstance().getPapiHelper().replace(player, lines[i]) : lines[i]);
                 if (!line.contains("{no-vault}") || (!useVault && line.contains("{no-vault}"))) {
                     if (line.contains("{description}")) {
                         if (shop.getDescription() == null || shop.getDescription().isEmpty()) continue;
@@ -181,14 +184,15 @@ public class CustomItem {
                         List<String> descriptionLines = pluginInstance.getManager().wrapString(shop.getDescription());
                         for (int j = -1; ++j < descriptionLines.size(); ) {
                             String newLine = pluginInstance.getManager().color(descriptionLines.get(j));
-                            add(newLine.contains(ChatColor.COLOR_CHAR + "") ? newLine : (pluginInstance.getManager().color(colorCode + newLine)));
+                            add((newLine.contains(ChatColor.COLOR_CHAR + "") ? newLine
+                                    : (pluginInstance.getManager().color(colorCode + newLine))).replace("{type}", itemName));
                         }
                         continue;
                     }
 
                     add(getPluginInstance().getManager().color(replaceExtraPlaceholders(((shop != null)
                             ? getPluginInstance().getManager().applyShopBasedPlaceholders(line, shop, unitCount, unitItemMaxStack)
-                            : line), extraPlaceHolders)));
+                            : line), extraPlaceHolders).replace("{type}", itemName)));
                 }
             }
         }});
