@@ -652,8 +652,7 @@ public class DShop implements Shop {
     public double getDynamicPriceValue(double originalPrice, boolean isBuy) {
         final String prefix = (isBuy ? "buy" : "sell");
         return (!canDynamicPriceChange() ? 0 : ((((isBuy ? getDynamicBuyCounter() : getDynamicSellCounter()) / INSTANCE.getConfig().getDouble(
-                "dynamic-" + prefix + "-increment"))
-                * INSTANCE.getConfig().getDouble("dynamic-" + prefix + "-percentage")) * originalPrice));
+                "dynamic-" + prefix + "-increment")) * INSTANCE.getConfig().getDouble("dynamic-" + prefix + "-percentage")) * originalPrice));
     }
 
     /**

@@ -44,7 +44,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                     int totalSpace = INSTANCE.getManager().getInventorySpaceForItem(player, (getShop().getTradeItem() != null
                             ? getShop().getTradeItem() : INSTANCE.getManager().defaultCurrencyItem));
                     if (getAmount() > totalSpace) setAmount(totalSpace);
-                    setPlayerHasEnough(totalSpace >= getAmount());
+                    setPlayerHasEnough(totalSpace >= (getAmount()));
                     setWillSucceed(playerHasEnough() && canShopAfford);
 
                     if (!playerHasEnough) setErrorMessage(INSTANCE.getLangConfig().getString("insufficient-space"));
@@ -70,7 +70,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 }
 
                 final boolean doesNotMeetMax = ((getShop().getStoredBalance() + getAmount()) < INSTANCE.getConfig().getLong("max-stored-currency"));
-                setPlayerHasEnough(INSTANCE.getEconomyHandler().has(getPlayer(), getShop(), getAmount()));
+                setPlayerHasEnough(INSTANCE.getEconomyHandler().has(getPlayer(), getShop(), (getAmount() + (getAmount() * getTax()))));
                 setWillSucceed(playerHasEnough() && doesNotMeetMax);
                 if (!doesNotMeetMax) setErrorMessage(INSTANCE.getLangConfig().getString("max-stored-currency"));
                 if (!playerHasEnough()) {
@@ -84,13 +84,13 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
 
         final boolean isSell = (getEconomyCallType() == EconomyCallType.SELL);
         setPlayerHasEnough(getPlayer().hasPermission("displayshops.bypass") || INSTANCE.getEconomyHandler().has(getPlayer(), getShop(),
-                (isSell ? (getAmount() / Math.max(1, getShop().getSellPrice(true))) : getAmount()), economyCallType));
+                (isSell ? (getAmount() / Math.max(1, getShop().getSellPrice(true))) : (getAmount() + (getAmount() * getTax()))), economyCallType));
 
         if (isSell && getShop() != null && !getShop().isAdminShop()) {
             final boolean useOwnerSyncing = INSTANCE.getConfig().getBoolean("sync-owner-balance");
             final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
-            setWillSucceed(playerHasEnough() && (getShop().isAdminShop() || (useOwnerSyncing ? INSTANCE.getEconomyHandler().has(shopOwner, getShop(), getAmount())
-                    : (getShop().getStoredBalance() >= getAmount()))));
+            setWillSucceed(playerHasEnough() && (getShop().isAdminShop() || (useOwnerSyncing ? INSTANCE.getEconomyHandler().has(shopOwner, getShop(),
+                    (getAmount() + (getAmount() * getTax()))) : (getShop().getStoredBalance() >= (getAmount() + (getAmount() * getTax()))))));
             return;
         }
 
@@ -185,18 +185,18 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             if (getShop() != null && !getShop().isAdminShop()) {
                 if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {
                     final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
-                    INSTANCE.getEconomyHandler().withdraw(shopOwner, getShop(), getAmount(), economyCallType);
+                    INSTANCE.getEconomyHandler().withdraw(shopOwner, getShop(), (getAmount() + (getAmount() * getTax())), economyCallType);
                     return;
                 }
 
-                getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - getAmount()), 0));
+                getShop().setStoredBalance(Math.max((getShop().getStoredBalance() - (getAmount() + (getAmount() * getTax()))), 0));
             }
 
             return;
         }
 
         if (!hasChargedPlayer()) {
-            INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getAmount(), getEconomyCallType());
+            INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), (getAmount() + (getAmount() * getTax())), getEconomyCallType());
             setChargedPlayer(true);
         }
 
@@ -204,7 +204,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                 && getEconomyCallType() != EconomyCallType.RENT && getEconomyCallType() != EconomyCallType.RENT_RENEW) && !getShop().isAdminShop()) {
             if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {
                 final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
-                INSTANCE.getEconomyHandler().deposit(shopOwner, getShop(), getAmount(), getEconomyCallType());
+                INSTANCE.getEconomyHandler().deposit(shopOwner, getShop(), (getAmount() + (getAmount() * getTax())), getEconomyCallType());
                 return;
             }
 
@@ -284,9 +284,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
         return amount;
     }
 
-    public double getAmount() {
-        return (amount + (amount * getTax()));
-    }
+    public double getAmount() {return amount;}
 
     public void setAmount(double amount) {
         this.amount = amount;
