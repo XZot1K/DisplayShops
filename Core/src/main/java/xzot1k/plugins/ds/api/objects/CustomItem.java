@@ -20,10 +20,10 @@ import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.DisplayShops;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.*;
+import java.util.logging.Level;
 
 public class CustomItem {
 
@@ -85,7 +85,7 @@ public class CustomItem {
 
         String replacedMaterial = materialName.toUpperCase().replace(" ", "_").replace("-", "_");
         if (materialName.toUpperCase().startsWith("HEAD") && materialName.contains(":")) {
-            final String[] materialArgs = replacedMaterial.split(":");
+            final String[] materialArgs = materialName.split(":");
             if (getPluginInstance().getHeadDatabaseAPI() != null && !getPluginInstance().getManager().isNotNumeric(materialArgs[1])) {
                 itemStack = getPluginInstance().getHeadDatabaseAPI().getItemHead(materialArgs[1]);
                 itemStack.setAmount(amount);
@@ -114,16 +114,29 @@ public class CustomItem {
                 String base64 = materialArgs[1];
                 UUID uuid = new UUID(base64.substring(base64.length() - 20).hashCode(), base64.substring(base64.length() - 10).hashCode());
 
-                GameProfile profile = new GameProfile(uuid, "Player");
-                profile.getProperties().put("textures", new Property("textures", base64));
+                if (pluginInstance.getServerVersion() < 1.18) {
+                    GameProfile profile = new GameProfile(uuid, uuid.toString().substring(0, 16));
+                    profile.getProperties().put("textures", new Property("textures", base64));
 
-                Field profileField;
-                try {
-                    profileField = skullMeta.getClass().getDeclaredField("profile");
-                    profileField.setAccessible(true);
-                    profileField.set(skullMeta, profile);
-                } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
-                    e.printStackTrace();
+                    Field profileField;
+                    try {
+                        profileField = skullMeta.getClass().getDeclaredField("profile");
+                        profileField.setAccessible(true);
+                        profileField.set(skullMeta, profile);
+                    } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
+                        e.printStackTrace();
+                    }
+                } else { // new way
+                    try {
+                        org.bukkit.profile.PlayerProfile profile = pluginInstance.getServer().createPlayerProfile(uuid);
+                        org.bukkit.profile.PlayerTextures textures = profile.getTextures();
+
+                        final String decodedTexture = new String(Base64.getDecoder().decode(base64));
+                        textures.setSkin(new URL(decodedTexture.substring("{\"textures\":{\"SKIN\":{\"url\":\"".length(), decodedTexture.length() - "\"}}}".length())));
+                        profile.setTextures(textures);
+
+                        skullMeta.setOwnerProfile(profile);
+                    } catch (MalformedURLException e) {pluginInstance.log(Level.WARNING, e.getMessage());}
                 }
 
                 itemStack.setItemMeta(skullMeta);

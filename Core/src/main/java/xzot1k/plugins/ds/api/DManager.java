@@ -233,13 +233,7 @@ public class DManager implements Manager {
      * @param player The player to obtain the data pack for.
      * @return The data pack object (Cooldowns, interactions, unlocks, etc.). (Should never return NULL)
      */
-    public DataPack getDataPack(Player player) {
-        DataPack dataPack;
-        if (getDataPackMap().isEmpty() || !getDataPackMap().containsKey(player.getUniqueId())) {
-            getDataPackMap().put(player.getUniqueId(), dataPack = loadDataPack(player));
-        } else dataPack = getDataPackMap().get(player.getUniqueId());
-        return dataPack;
-    }
+    public DataPack getDataPack(Player player) {return getDataPackMap().computeIfAbsent(player.getUniqueId(), dataPackMap -> loadDataPack(player));}
 
     /**
      * Ray traces from the provided vectors to obtain a shop from the locations it passes through.

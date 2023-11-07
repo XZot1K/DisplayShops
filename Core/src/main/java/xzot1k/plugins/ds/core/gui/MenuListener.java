@@ -2515,9 +2515,7 @@ public class MenuListener implements Listener {
         if (INSTANCE.getConfig().getBoolean("close-transaction-gui")) player.closeInventory();
         shop.runCommands(player, (shop.getShopItemAmount() * unitCount));
 
-        final String ecoType = economyCallType.name().toLowerCase(),
-                message = INSTANCE.getLangConfig().getString("shop-" + ecoType);
-
+        final String ecoType = economyCallType.name().toLowerCase(), message = INSTANCE.getLangConfig().getString("shop-" + ecoType);
         if (message != null && !message.equalsIgnoreCase("")) {
             String ownerName = shop.getOwnerUniqueId() == null ? "" : (owner == null ? "" : owner.getName());
             INSTANCE.getManager().sendMessage(player, message.replace("{item}", (shop.getShopItem().hasItemMeta() && shop.getShopItem().getItemMeta() != null
@@ -2526,7 +2524,11 @@ public class MenuListener implements Listener {
                     .replace("{trade-item}", shop.getTradeItemName())
                     .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
                     .replace("{owner}", ownerName == null ? "" : ownerName)
-                    .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), economyCallEvent.getAmount())));
+                    .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(),
+                            (economyCallType != EconomyCallType.SELL && economyCallType != EconomyCallType.DEPOSIT_BALANCE
+                                    & economyCallType != EconomyCallType.WITHDRAW_BALANCE) ? economyCallEvent.getTaxedAmount() : economyCallEvent.getAmount()))
+                    .replace("{tax}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(),
+                            (economyCallEvent.getTaxedAmount() - economyCallEvent.getAmount()))));
         }
 
         if (owner != null && owner.isOnline()) {
@@ -2541,7 +2543,11 @@ public class MenuListener implements Listener {
                                             .replace("_", " "))).replace("{trade-item}", shop.getTradeItemName())
                             .replace("{amount}", INSTANCE.getManager().formatNumber(shop.getShopItemAmount() * unitCount, false))
                             .replace("{buyer}", player.getName())
-                            .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), economyCallEvent.getAmount())));
+                            .replace("{price}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(),
+                                    (economyCallType != EconomyCallType.SELL && economyCallType != EconomyCallType.DEPOSIT_BALANCE
+                                            && economyCallType != EconomyCallType.WITHDRAW_BALANCE) ? economyCallEvent.getTaxedAmount() : economyCallEvent.getAmount()))
+                            .replace("{tax}", INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(),
+                                    (economyCallEvent.getTaxedAmount() - economyCallEvent.getAmount()))));
                 }
             }
         }

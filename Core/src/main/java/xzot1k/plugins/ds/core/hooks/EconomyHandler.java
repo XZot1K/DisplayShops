@@ -568,8 +568,6 @@ public class EconomyHandler implements EcoHandler {
             decimalPlacement = ecoHook.getDecimalPlacement();
         }
 
-        System.out.println(currencyType + " - " + currencySymbol);
-
         if (INSTANCE.getConfig().getBoolean("whole-number-entries")) decimalPlacement = 0;
 
         final boolean useUKFormatting = INSTANCE.getConfig().getBoolean("use-uk-format");

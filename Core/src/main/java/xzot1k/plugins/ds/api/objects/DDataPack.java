@@ -154,18 +154,26 @@ public class DDataPack implements DataPack {
     private void loadAppearanceDataLine(@NotNull String appearanceDataLine) {
         if (appearanceDataLine.contains("/")) {
             String[] data = appearanceDataLine.split("/");
-            if (data.length < 2) return;
-
             String appearanceId = data[0];
             if (appearanceId.contains(":")) appearanceId = Appearance.findAppearance(appearanceId);
             if (appearanceId == null || appearanceId.isEmpty()) return;
 
-            if (Appearance.doesAppearanceExist(appearanceId)) getAppearanceDataMap().put(data[0], data[1].equals("-1"));
+            Appearance appearance = Appearance.getAppearance(appearanceId);
+            if (appearance != null) getAppearanceDataMap().put(appearanceId, data[1].equals("1"));
         } else {
             if (appearanceDataLine.contains(":")) appearanceDataLine = Appearance.findAppearance(appearanceDataLine);
             if (appearanceDataLine == null || appearanceDataLine.isEmpty()) return;
 
-            if (Appearance.doesAppearanceExist(appearanceDataLine)) getAppearanceDataMap().put(appearanceDataLine, false);
+            Appearance appearance = Appearance.getAppearance(appearanceDataLine);
+            if (appearance != null) {
+                Menu menu = getPluginInstance().getMenu("appearance");
+                if (menu != null) {
+                    getAppearanceDataMap().put(appearanceDataLine, (!appearance.getId().equalsIgnoreCase(menu.getConfiguration().getString("default-appearance"))));
+                    return;
+                }
+
+                getAppearanceDataMap().put(appearanceDataLine, false);
+            }
         }
     }
 
@@ -179,12 +187,13 @@ public class DDataPack implements DataPack {
             return;
         }
 
-        if (!getAppearanceData().contains(",")) {
-            loadAppearanceDataLine(getAppearanceData());
+        if (!appearanceData.contains(",")) {
+            loadAppearanceDataLine(appearanceData);
             return;
         }
 
-        Arrays.stream(getAppearanceData().split(",")).parallel().forEach(this::loadAppearanceDataLine);
+        String[] savedAppearances = appearanceData.split(",");
+        for (int i = -1; ++i < savedAppearances.length; ) loadAppearanceDataLine(savedAppearances[i]);
     }
 
     @Override
@@ -400,4 +409,3 @@ public class DDataPack implements DataPack {
     }
 
 }
-
