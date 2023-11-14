@@ -82,7 +82,7 @@ public class VisitItemTask extends BukkitRunnable {
                 shop.getShopItem().getDurability()), "currentShop-id", shop.getShopId().toString());
         ItemMeta itemMeta = itemStack.getItemMeta();
         if (itemMeta != null) {
-            itemMeta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
+            itemMeta.addItemFlags(ItemFlag.values());
             final String itemName = (shop.getShopItem() != null ? INSTANCE.getManager().getItemName(shop.getShopItem()) : ""),
                     tradeItemName = (shop.getCurrencyType().equals("item-for-item") ? ((!forceUse && shop.getTradeItem() != null)
                             ? INSTANCE.getManager().getItemName(shop.getTradeItem())
@@ -148,7 +148,8 @@ public class VisitItemTask extends BukkitRunnable {
 
                     add(INSTANCE.getManager().color(line
                             .replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null) ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
-                            .replace("{balance}", ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "\u221E" : INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), shop.getStoredBalance())))
+                            .replace("{balance}", ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "\u221E" : INSTANCE.getEconomyHandler().format(shop,
+                                    shop.getCurrencyType(), shop.getStoredBalance())))
                             .replace("{stock}", ((shop.isAdminShop() && shop.getStock() < 0) ? "\u221E" : INSTANCE.getManager().formatNumber(shop.getStock(), false)))
                             .replace("{description}", ((shop.getDescription() != null && !shop.getDescription().isEmpty()) ? shop.getDescription() : ""))
                             .replace("{world}", location.getWorldName())

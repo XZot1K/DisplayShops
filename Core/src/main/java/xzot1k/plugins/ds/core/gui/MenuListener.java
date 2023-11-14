@@ -768,7 +768,7 @@ public class MenuListener implements Listener {
                     return;
                 }
 
-                runEconomyCall(player, shop, EconomyCallType.BUY, Math.min(availableSpace, availableUnits));
+                runEconomyCall(player, shop, EconomyCallType.BUY, Math.min((availableSpace / shop.getShopItemAmount()), availableUnits));
                 break;
             }
             case "sell": {

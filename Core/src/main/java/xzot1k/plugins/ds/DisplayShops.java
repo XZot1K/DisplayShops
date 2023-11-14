@@ -234,7 +234,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                     current[0]++;
 
                     if ((shopCountPercentage <= 0 || (current[0] % shopCountPercentage) == 0 || current[0] == shopCount))
-                        log(Level.INFO, "Saving shops " + current[0] + "/" + shopCount); //+ " (" + Math.min(100, (int) (((double) current[0] / (double) shopCount) * 100)) + "%)...");
+                        log(Level.INFO, "Saving shops " + current[0] + "/" + shopCount); //+ " (" + Math.min(100, (int) (((double) current[0] / (double) shopCount) * 100)) + "%)
+                    // ...");
                 });
 
                 Statement statement = getDatabaseConnection().createStatement();
@@ -264,12 +265,13 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             }
 
 
-        if (Math.floor(getServerVersion()) >= 1.9)
+        if (Math.floor(getServerVersion()) >= 1_16) {
             try {
                 getServer().removeRecipe(new org.bukkit.NamespacedKey(this, "display-shop"));
             } catch (NoClassDefFoundError e) {
                 log(Level.WARNING, "The recipe removal method could not be found in your version of Minecraft, Skipping...");
             }
+        } else getServer().resetRecipes();
     }
 
     // returns whether it had to fix the tables.
@@ -542,13 +544,15 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         if (getConfig().getBoolean("shop-creation-item.craftable")) {
             try {
                 ShapedRecipe shapedRecipe;
-                if (Math.floor(getServerVersion()) > 1_10) {
+                if (Math.floor(getServerVersion()) >= 1_9) {
                     org.bukkit.NamespacedKey namespacedKey = new org.bukkit.NamespacedKey(this, "shop");
-                    Recipe recipe = getServer().getRecipe(namespacedKey);
-                    if (recipe != null) getServer().removeRecipe(namespacedKey);
+
+                    if ((Math.floor(getServerVersion()) >= 1_16)) {
+                        Recipe recipe = getServer().getRecipe(namespacedKey);
+                        if (recipe != null) getServer().removeRecipe(namespacedKey);
+                    }
 
                     shapedRecipe = new ShapedRecipe(namespacedKey, getManager().buildShopCreationItem(null, 1));
-                    if (Math.floor(getServerVersion()) >= 1_16 && getServer().getRecipe(namespacedKey) != null) return;
                 } else shapedRecipe = new ShapedRecipe(getManager().buildShopCreationItem(null, 1));
                 shapedRecipe.shape("abc", "def", "ghi");
 
@@ -774,7 +778,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         try {
             Class<?> vUtilClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".VUtil");
             versionUtil = (VersionUtil) vUtilClass.getDeclaredConstructor().newInstance();
-
             displayPacketClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".DPacket");
         } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
             this.versionUtil = new xzot1k.plugins.ds.nms.v1_20_R2.VUtil();
