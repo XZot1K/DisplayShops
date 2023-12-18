@@ -8,6 +8,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="v1_20_r1" />
         <module name="v1_20_r2" />
+        <module name="v1_20_r3" />
         <module name="v1_16_r1" />
         <module name="v1_18_r2" />
         <module name="v1_17_r1" />

@@ -780,8 +780,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             versionUtil = (VersionUtil) vUtilClass.getDeclaredConstructor().newInstance();
             displayPacketClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".DPacket");
         } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-            this.versionUtil = new xzot1k.plugins.ds.nms.v1_20_R2.VUtil();
-            displayPacketClass = xzot1k.plugins.ds.nms.v1_20_R2.DPacket.class;
+            this.versionUtil = new xzot1k.plugins.ds.nms.v1_20_R3.VUtil();
+            displayPacketClass = xzot1k.plugins.ds.nms.v1_20_R3.DPacket.class;
         }
 
         // this.craftPlayerClass = Class.forName("org.bukkit.craftbukkit." + getVersionPackageName() + ".entity.CraftPlayer");

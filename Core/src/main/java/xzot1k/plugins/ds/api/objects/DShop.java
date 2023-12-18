@@ -146,7 +146,8 @@ public class DShop implements Shop {
             Constructor<?> constructor = INSTANCE.displayPacketClass.getDeclaredConstructor(DisplayShops.class, Player.class, Shop.class, boolean.class);
             DisplayPacket displayPacket = (DisplayPacket) constructor.newInstance(INSTANCE, player, this, showHolograms);
             INSTANCE.updateDisplayPacket(this, player, displayPacket);
-        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException |
+                 IllegalAccessException e) {
             e.printStackTrace();
             INSTANCE.log(Level.WARNING, e.getMessage());
         }
@@ -199,7 +200,8 @@ public class DShop implements Shop {
         if (getShopItem() == null || getStock() <= 0 || getOwnerUniqueId() == null) return;
 
         OfflinePlayer owner = INSTANCE.getServer().getOfflinePlayer(getOwnerUniqueId());
-        if (owner.isOnline() && owner.getPlayer() != null) INSTANCE.getManager().giveItemStacks(owner.getPlayer(), getShopItem().clone(), getStock());
+        if (owner.isOnline() && owner.getPlayer() != null)
+            INSTANCE.getManager().giveItemStacks(owner.getPlayer(), getShopItem().clone(), getStock());
         else {
             INSTANCE.getManagementTask().createRecovery(owner.getUniqueId(), this);
             setStock(0);
@@ -260,13 +262,13 @@ public class DShop implements Shop {
             StringBuilder commands = new StringBuilder(), assistants = new StringBuilder(), limits = new StringBuilder();
 
             for (int i = -1; ++i < getCommands().size(); ) {
+                if (commands.length() > 0) commands.append(";");
                 commands.append(getCommands().get(i));
-                if (i < getCommands().size()) commands.append(";");
             }
 
             for (int i = -1; ++i < getAssistants().size(); ) {
+                if (assistants.length() > 0) assistants.append(";");
                 assistants.append(getAssistants().get(i).toString());
-                if (i < getAssistants().size()) assistants.append(";");
             }
 
             limits.append(getGlobalBuyLimit()).append(";").append(getGlobalBuyCounter()).append(";")
@@ -307,9 +309,9 @@ public class DShop implements Shop {
                 syntax = "INSERT INTO shops(id, location, owner, assistants, buy_price, sell_price, stock, shop_item, trade_item, limits, " +
                         "shop_item_amount,  balance, command_only_mode, commands, change_time_stamp, description, appearance, extra_data) VALUES( '" + valuesString + "')"
                         + " ON DUPLICATE KEY UPDATE id = '" + getShopId().toString() + "', location = '" + getBaseLocation().toString() + "', owner = '"
-                        + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', buy_price = '" + getBuyPrice(false) + "', sell_price = '"
-                        + getSellPrice(false) + "', stock = '" + getStock() + "', shop_item = '" + (shopItem != null ? shopItem : "") + "', trade_item = '"
-                        + (tradeItem != null ? tradeItem : "") + "', limits = '" + limits + "', shop_item_amount = '" + getShopItemAmount() + "', balance = '"
+                        + (getOwnerUniqueId() != null ? getOwnerUniqueId().toString() : "") + "', assistants = '" + assistants + "', buy_price = '" + getBuyPrice(false)
+                        + "', sell_price = '" + getSellPrice(false) + "', stock = '" + getStock() + "', shop_item = '" + (shopItem != null ? shopItem : "")
+                        + "', trade_item = '" + (tradeItem != null ? tradeItem : "") + "', limits = '" + limits + "', shop_item_amount = '" + getShopItemAmount() + "', balance = '"
                         + getStoredBalance() + "', command_only_mode = '" + (isCommandOnlyMode() ? 1 : 0) + "', commands = '" + commandString + "'," + " change_time_stamp = '"
                         + getChangeTimeStamp() + "', description = '" + (getDescription() == null ? "" : getDescription().replace("'", "")
                         .replace("\"", "")) + "', appearance = '" + getAppearanceId() + "', extra_data = '" + extraDataLine + "';";
@@ -741,7 +743,8 @@ public class DShop implements Shop {
     public void checkCurrencyType(@Nullable Player player) {
         if (getCurrencyType() != null) {
             EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(getCurrencyType());
-            if (ecoHook != null && (player == null || INSTANCE.getEconomyHandler().canUseCurrency(player, getCurrencyType()))) return;
+            if (ecoHook != null && (player == null || INSTANCE.getEconomyHandler().canUseCurrency(player, getCurrencyType())))
+                return;
         }
 
         String defaultEcoCurrency = INSTANCE.getConfig().getString("default-currency-type");
