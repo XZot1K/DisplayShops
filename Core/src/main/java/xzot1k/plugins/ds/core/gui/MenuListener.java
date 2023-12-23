@@ -1095,13 +1095,11 @@ public class MenuListener implements Listener {
                     if (dataPack.hasNextPage()) menu.switchPage(inventory, player, (dataPack.getCurrentPage() + 1));
                     return;
                 }
-
                 case "previous": {
                     playClickSound(player);
                     if (dataPack.hasPreviousPage()) menu.switchPage(inventory, player, (dataPack.getCurrentPage() - 1));
                     return;
                 }
-
                 case "add": {
                     playClickSound(player);
 
@@ -1186,8 +1184,7 @@ public class MenuListener implements Listener {
                                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("assistants-added"),
                                         ("{player}:" + stateSnapshot.getText().trim()));
 
-                                menu.loadPages(player, dataPack, null, stateSnapshot.getText().trim(), null, inventory);  // TODO FIX
-                                //menu.switchPage(inventory, player, dataPack.getCurrentPage());
+                                menu.loadPages(player, dataPack, shop, stateSnapshot.getText().trim(), null, inventory);
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
                             })
                             .text(" ")
@@ -1195,7 +1192,6 @@ public class MenuListener implements Listener {
                             .plugin(INSTANCE).open(player);
                     return;
                 }
-
                 case "remove": {
                     playClickSound(player);
 
@@ -1265,7 +1261,6 @@ public class MenuListener implements Listener {
 
                     return;
                 }
-
                 case "search": {
                     playClickSound(player);
                     final String title = menu.getConfiguration().getString("search-entry.title");
@@ -1302,7 +1297,6 @@ public class MenuListener implements Listener {
                     }
                     return;
                 }
-
                 case "return":
                 case "close": {
                     playClickSound(player);
@@ -1316,7 +1310,6 @@ public class MenuListener implements Listener {
                     shop.save(true);
                     return;
                 }
-
                 default: {
                     break;
                 }
@@ -1337,7 +1330,6 @@ public class MenuListener implements Listener {
                     ("{cap}:" + INSTANCE.getManager().formatNumber(assistantsCap, false)));
             return;
         }
-
 
         final boolean isActive = shop.getAssistants().contains(uuid);
         // call edit event

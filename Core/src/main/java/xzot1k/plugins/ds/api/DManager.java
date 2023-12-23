@@ -530,8 +530,7 @@ public class DManager implements Manager {
             Collection<String> keys = cs.getKeys(false);
             if (!keys.isEmpty())
                 for (String key : keys) {
-                    if (key.toUpperCase().replace(" ", "_").replace("-", "_").equalsIgnoreCase((isNew ? enchantment.getKey().getKey() :
-                            enchantment.getName())))
+                    if (key.toUpperCase().replace(" ", "_").replace("-", "_").equalsIgnoreCase(enchantment.getName()))
                         return cs.getString(key);
                 }
         }
@@ -845,7 +844,7 @@ public class DManager implements Manager {
             resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 try {
-                    UUID shopId = null;
+                    UUID shopId;
                     final String shopIdString = resultSet.getString("id");
                     if (shopIdString == null || shopIdString.equalsIgnoreCase("")) {
                         if (cleanUp) {
@@ -875,8 +874,7 @@ public class DManager implements Manager {
                         }
                     }
 
-                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location") ? "base_" : "") +
-                            "location");
+                    final String baseLocationString = resultSet.getString((!getPluginInstance().hasColumn(resultSet, "location") ? "base_" : "") + "location");
                     String appearance;
                     LClone baseLocation;
                     if (baseLocationString.contains(":")) {
@@ -957,7 +955,7 @@ public class DManager implements Manager {
                         if (assistantsLine.contains(";")) {
                             String[] assistantArgs = assistantsLine.split(";");
                             for (String playerUniqueId : assistantArgs) shop.getAssistants().add(UUID.fromString(playerUniqueId));
-                        }
+                        } else shop.getAssistants().add(UUID.fromString(assistantsLine));
 
                     final String commandsLine = resultSet.getString("commands");
                     if (commandsLine != null && !commandsLine.equalsIgnoreCase(""))

@@ -612,8 +612,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
     @SuppressWarnings("UnnecessaryUnicodeEscape")
     @Override
-    public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText, @Nullable ItemStack typeItem,
-                          @NotNull Inventory inventory) {
+    public void loadPages(@NotNull Player player, @NotNull DataPack dataPack, @Nullable Shop shop, @Nullable String searchText,
+                          @Nullable ItemStack typeItem, @NotNull Inventory inventory) {
         switch (getMenuName()) {
             case "visit": {
                 final boolean showAdminShop = getBoolean("show-admin-shops");
@@ -791,6 +791,18 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                     });
                     break;
                 }
+            }
+            case "log": {
+                if (shop != null) {
+                    INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, () -> {
+                        final HashMap<Integer, List<ItemStack>> pageMap = new HashMap<>();
+                        int currentPage = 1;
+                        List<ItemStack> pageContents = new ArrayList<>();
+
+
+                    });
+                }
+                break;
             }
             default: {
                 break;

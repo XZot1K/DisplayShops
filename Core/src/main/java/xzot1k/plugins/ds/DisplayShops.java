@@ -298,8 +298,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                         markRegionParameters = "(id TEXT PRIMARY KEY NOT NULL, point_one TEXT, point_two TEXT, renter TEXT, rent_time_stamp TEXT,"
                                 + " extended_duration INTEGER, extra_data TEXT)",
                         playerDataParameters = "(uuid TEXT PRIMARY KEY NOT NULL, appearance_data TEXT, cooldowns TEXT, transaction_limits TEXT, notify TEXT)",
-                        recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency REAL, item_amount INTEGER, item TEXT)";
-                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, host);
+                        recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency REAL, item_amount INTEGER, item TEXT)",
+                        logParameters = "(timestamp TEXT, shop_id VARCHAR(100), player_id VARCHAR(100), action TEXT, location TEXT, value TEXT)";
+                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, logParameters, host);
             } else {
                 try {
                     Class.forName("com.mysql.cj.jdbc.Driver");
@@ -322,9 +323,11 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                                 "rent_time_stamp LONGTEXT, extended_duration INT, extra_data LONGTEXT)",
                         playerDataParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, appearance_data LONGTEXT, cooldowns LONGTEXT, " +
                                 "transaction_limits LONGTEXT, notify LONGTEXT)",
-                        recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency DOUBLE, item_amount INT, item LONGTEXT)";
+                        recoveryParameters = "(uuid VARCHAR(100) PRIMARY KEY NOT NULL, currency DOUBLE, item_amount INT, item LONGTEXT)",
+                        logParameters = "(timestamp LONGTEXT, shop_id VARCHAR(100), player_id VARCHAR(100),"
+                                + " action LONGTEXT, location LONGTEXT, value LONGTEXT)";
 
-                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, host);
+                fixedTables = handleDatabaseFixing(statement, shopParameters, markRegionParameters, playerDataParameters, recoveryParameters, logParameters, host);
                 exportMySQLDatabase();
             }
         } catch (ClassNotFoundException | SQLException | IOException e) {
@@ -336,7 +339,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     private boolean handleDatabaseFixing(@NotNull Statement statement, @NotNull String shopParameters, @NotNull String markRegionParameters,
-                                         @NotNull String playerDataParameters, @NotNull String recoveryParameters, @Nullable String host) throws SQLException {
+                                         @NotNull String playerDataParameters, @NotNull String recoveryParameters, @NotNull String logParameters,
+                                         @Nullable String host) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS shops " + shopParameters + ";");
         if (!tableExists("shops")) {
             getServer().getLogger().warning("There was an issue creating the \"shops\" table. This could be related to user permissions via SQL.");
@@ -360,6 +364,12 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         statement.execute("CREATE TABLE IF NOT EXISTS recovery " + recoveryParameters + ";");
         if (!tableExists("recovery")) {
             getServer().getLogger().warning("There was an issue creating the \"recovery\" table. This could be related to user permissions via SQL.");
+            return false;
+        }
+
+        statement.execute("CREATE TABLE IF NOT EXISTS log " + logParameters + ";");
+        if (!tableExists("log")) {
+            getServer().getLogger().warning("There was an issue creating the \"log\" table. This could be related to user permissions via SQL.");
             return false;
         }
 
@@ -711,6 +721,29 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         } catch (IOException e) {
             e.printStackTrace();
             log(Level.WARNING, "Unable to write to logging file (" + e.getMessage() + ").");
+        }
+    }
+
+    public void saveToLog(@NotNull Player player, @NotNull Shop shop, @NotNull String action, @NotNull Location location, @NotNull String value) {
+        final String host = getPluginInstance().getConfig().getString("mysql.host"), syntax,
+                locationToString = (Objects.requireNonNull(location.getWorld()).getName() + "," + location.getBlockX()
+                        + "," + location.getBlockY() + "," + location.getBlockZ());
+        if (host == null || host.isEmpty())
+            syntax = "INSERT OR REPLACE INTO log(timestamp, shop_id, player_id, action, location, value) VALUES('"
+                    + System.currentTimeMillis() + "', '" + shop.getShopId() + "', '"
+                    + player.getUniqueId() + "', '" + action + "', '" + locationToString + "', '" + value + "');";
+        else
+            syntax = "INSERT INTO log(timestamp, shop_id, player_id, action, location, value) VALUES( '"
+                    + System.currentTimeMillis() + "', '" + shop.getShopId() + "', '" + action + "', '"
+                    + locationToString + "', '" + locationToString + "') ON DUPLICATE KEY UPDATE timestamp = '"
+                    + System.currentTimeMillis() + "', shop_id = '" + shop.getShopId() + "', player_id = '" + player.getUniqueId()
+                    + "', action = '" + action + "', location = '" + locationToString + "', value = '" + value + "';";
+
+        try (Statement statement = getPluginInstance().getDatabaseConnection().prepareStatement(syntax)) {
+            statement.executeUpdate(syntax);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            getPluginInstance().log(Level.WARNING, "There was an issue saving data to the \"log\" table (" + e.getMessage() + ").");
         }
     }
 
