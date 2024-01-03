@@ -1795,7 +1795,7 @@ public class Commands implements CommandExecutor {
         final double price = (getPluginInstance().getConfig().getDouble("creation-item-price") * amount);
 
         final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, null, EconomyCallType.CREATION_ITEM_COMMAND,
-                getPluginInstance().getConfig().getDouble("prices.balance"));
+                getPluginInstance().getConfig().getDouble("creation-item-price"));
         if (economyCallEvent.failed()) return;
 
         getPluginInstance().getManager().giveItemStacks(player, itemStack, amount);

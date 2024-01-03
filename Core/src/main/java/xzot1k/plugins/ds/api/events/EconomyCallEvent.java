@@ -79,6 +79,9 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
                             .replace("{price}", INSTANCE.getEconomyHandler().format(getShop(), getShop().getCurrencyType(), getAmount())));
                 }
                 return;
+            } else if (getEconomyCallType() == EconomyCallType.CREATION_ITEM_COMMAND) {
+                setPlayerHasEnough(getPlayer().hasPermission("displayshops.bypass") || INSTANCE.getEconomyHandler().has(getPlayer(), getShop(), getTaxedAmount(), economyCallType));
+                return;
             }
         }
 
@@ -115,6 +118,7 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
 
         final EconomyCallEvent economyCallEvent = new EconomyCallEvent(player, economyCallType, shop, price);
         DisplayShops.getPluginInstance().getServer().getPluginManager().callEvent(economyCallEvent);
+
         if (economyCallEvent.isCancelled()) {
             if (price <= 0) economyCallEvent.setWillSucceed(true);
             return economyCallEvent;
@@ -153,9 +157,9 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
     /**
      * Takes and gives currency from the players accordingly.
      *
-     * @parm chargeInvestor determines whether the investor will be charged for the transaction or not (If the type is NOT sell).
+     * @parm canNotBypass determines whether the investor will be charged for the transaction or not (If the type is NOT sell).
      */
-    public void performCurrencyTransfer(boolean chargeInvestor) {
+    public void performCurrencyTransfer(boolean canNotBypass) {
         if (performedCurrencyTransfer()) return;
         setPerformedCurrencyTransfer(true);
 
@@ -195,13 +199,14 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             return;
         }
 
-        if (!hasChargedPlayer()) {
+        if (!hasChargedPlayer() && canNotBypass) {
             INSTANCE.getEconomyHandler().withdraw(getPlayer(), getShop(), getTaxedAmount(), getEconomyCallType());
             setChargedPlayer(true);
         }
 
         if ((getEconomyCallType() != EconomyCallType.EDIT_ACTION && getEconomyCallType() != EconomyCallType.APPEARANCE
-                && getEconomyCallType() != EconomyCallType.RENT && getEconomyCallType() != EconomyCallType.RENT_RENEW) && !getShop().isAdminShop()) {
+                && getEconomyCallType() != EconomyCallType.RENT && getEconomyCallType() != EconomyCallType.RENT_RENEW)
+                && getShop() != null && !getShop().isAdminShop()) {
             if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {
                 final OfflinePlayer shopOwner = INSTANCE.getServer().getOfflinePlayer(getShop().getOwnerUniqueId());
                 INSTANCE.getEconomyHandler().deposit(shopOwner, getShop(), getAmount(), getEconomyCallType());
@@ -234,7 +239,8 @@ public class EconomyCallEvent extends Event implements Cancellable, ECEvent {
             return;
         }
 
-        if (hasChargedPlayer()) INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getTaxedAmount());
+        if (hasChargedPlayer() && !getPlayer().hasPermission("displayshops.bypass"))
+            INSTANCE.getEconomyHandler().deposit(getPlayer(), getShop(), getTaxedAmount());
 
         if (!getShop().isAdminShop()) {
             if (INSTANCE.getConfig().getBoolean("sync-owner-balance")) {

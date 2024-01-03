@@ -580,8 +580,8 @@ public class DManager implements Manager {
 
         if (totalEnchantments > 0) for (Map.Entry<Enchantment, Integer> enchantEntry : enchantEntries) {
             if (currentCount >= cutCount) break;
+            if (enchantLine.length() > 0) enchantLine.append(", ");
             enchantLine.append(color(getTranslatedName(enchantEntry.getKey()) + " " + getRomanNumeral(enchantEntry.getValue())));
-            if (currentCount < totalEnchantments) enchantLine.append(", ");
             currentCount++;
         }
 
