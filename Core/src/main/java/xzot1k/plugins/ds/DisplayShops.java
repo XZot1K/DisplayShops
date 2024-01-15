@@ -34,6 +34,7 @@ import xzot1k.plugins.ds.core.TabCompleter;
 import xzot1k.plugins.ds.core.gui.BackendMenu;
 import xzot1k.plugins.ds.core.gui.MenuListener;
 import xzot1k.plugins.ds.core.hooks.*;
+import xzot1k.plugins.ds.core.http.ProfileCache;
 import xzot1k.plugins.ds.core.tasks.CleanupTask;
 import xzot1k.plugins.ds.core.tasks.ManagementTask;
 import xzot1k.plugins.ds.core.tasks.VisitItemTask;
@@ -61,6 +62,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private static DisplayShops pluginInstance;
     private DManager manager;
     private SimpleDateFormat dateFormat;
+    private ProfileCache profileCache;
 
     public Class<?> displayPacketClass;//craftPlayerClass, packetOpenWindowClass
     private double serverVersion;
@@ -82,7 +84,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
-    private boolean isItemAdderInstalled;
+    private boolean isItemAdderInstalled, isOraxenInstalled;
 
     // Task handlers
     private VisualTask inSightTask;
@@ -112,7 +114,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         final String packageName = getServer().getClass().getPackage().getName();
         setServerVersion(Double.parseDouble(packageName.replace(".", ",").split(",")[3]
-                .replace("_R", ".").replaceAll("[rvV_]*", "")));
+                .substring(1).replace("_R", ".").replaceAll("[rvV_]*", "")));
         versionPackageName = packageName.substring(packageName.lastIndexOf('.') + 1);
 
         fixConfig();
@@ -142,6 +144,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         this.geyserInstalled = (getServer().getPluginManager().getPlugin("Geyser-Spigot") != null);
         this.townyInstalled = (getServer().getPluginManager().getPlugin("Towny") != null);
         this.isItemAdderInstalled = (getServer().getPluginManager().getPlugin("ItemsAdder") != null);
+        this.isOraxenInstalled = (getServer().getPluginManager().getPlugin("Oraxen") != null);
         setPrismaInstalled(getServer().getPluginManager().getPlugin("Prisma") != null);
 
         new WorldGuardHandler(this);
@@ -156,7 +159,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             getPapiHelper().register();
         }
 
-        setManager(new DManager(this));
+        this.profileCache = new ProfileCache(this);
+        this.manager = new DManager(this);
 
         loadMenus();
         DAppearance.loadAppearances();
@@ -1234,28 +1238,16 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     /**
      * @return Returns the manager where most data and API methods are stored.
      */
-    public DManager getManager() {
-        return manager;
-    }
-
-    private void setManager(DManager manager) {
-        this.manager = manager;
-    }
+    public DManager getManager() {return manager;}
 
     /**
      * @return Server version in the format XXX.X where the decimal digit is the 'R' version.
      */
-    public double getServerVersion() {
-        return serverVersion;
-    }
+    public double getServerVersion() {return serverVersion;}
 
-    private void setServerVersion(double serverVersion) {
-        this.serverVersion = serverVersion;
-    }
+    private void setServerVersion(double serverVersion) {this.serverVersion = serverVersion;}
 
-    public String getVersionPackageName() {
-        return versionPackageName;
-    }
+    public String getVersionPackageName() {return versionPackageName;}
 
     public Connection getDatabaseConnection() {
         return databaseConnection;
@@ -1394,4 +1386,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public void setVisitItemTask(VisitItemTask visitItemTask) {
         this.visitItemTask = visitItemTask;
     }
+
+    public ProfileCache getProfileCache() {return profileCache;}
+
+    public boolean isOraxenInstalled() {return isOraxenInstalled;}
 }

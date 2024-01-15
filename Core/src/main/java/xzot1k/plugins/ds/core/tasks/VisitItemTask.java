@@ -54,10 +54,12 @@ public class VisitItemTask extends BukkitRunnable {
     public void run() {
         if (runFirstTime) {
             INSTANCE.getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
-                final Shop shop = entry.getValue();
-                if ((shop.getBaseLocation() != null && shop.getShopItem() != null) || (showAdminShops && shop.isAdminShop())) {
-                    shop.setVisitIcon(buildItem(shop));
-                    rebuildQueue.remove(entry.getKey());
+                synchronized (INSTANCE.getManager().getShopMap()) {
+                    final Shop shop = entry.getValue();
+                    if ((shop.getBaseLocation() != null && shop.getShopItem() != null) || (showAdminShops && shop.isAdminShop())) {
+                        shop.setVisitIcon(buildItem(shop));
+                        rebuildQueue.remove(entry.getKey());
+                    }
                 }
             });
             runFirstTime = false;

@@ -22,6 +22,7 @@ import xzot1k.plugins.ds.DisplayShops;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -83,7 +84,6 @@ public class CustomItem {
             return;
         }
 
-        String replacedMaterial = materialName.toUpperCase().replace(" ", "_").replace("-", "_");
         if (materialName.toUpperCase().startsWith("HEAD") && materialName.contains(":")) {
             final String[] materialArgs = materialName.split(":");
             if (getPluginInstance().getHeadDatabaseAPI() != null && !getPluginInstance().getManager().isNotNumeric(materialArgs[1])) {
@@ -96,6 +96,23 @@ public class CustomItem {
 
                 SkullMeta skullMeta = (SkullMeta) itemStack.getItemMeta();
                 if (skullMeta != null && materialArgs[1] != null && !materialArgs[1].equalsIgnoreCase("")) {
+                    try {
+                        UUID uuid = UUID.fromString(materialArgs[1]);
+                        if (pluginInstance.getServerVersion() >= 1_18) {
+                            try {
+                                org.bukkit.profile.PlayerProfile profile = pluginInstance.getServer().createPlayerProfile(uuid);
+                                org.bukkit.profile.PlayerTextures textures = profile.getTextures();
+
+                                textures.setSkin(new URL(getPluginInstance().getProfileCache().getProfile(uuid).get("url").getAsString()));
+                                profile.setTextures(textures);
+
+                                skullMeta.setOwnerProfile(profile);
+                                itemStack.setItemMeta(skullMeta);
+                            } catch (MalformedURLException e) {pluginInstance.log(Level.WARNING, e.getMessage());}
+                            return;
+                        }
+                    } catch (IllegalArgumentException ignored) {}
+
                     if (isNew()) {
                         OfflinePlayer player = getPluginInstance().getServer().getOfflinePlayer(materialArgs[1]);
                         skullMeta.setOwningPlayer(player);
@@ -112,9 +129,10 @@ public class CustomItem {
             SkullMeta skullMeta = (SkullMeta) itemStack.getItemMeta();
             if (skullMeta != null && materialArgs[1] != null && !materialArgs[1].equalsIgnoreCase("")) {
                 String base64 = materialArgs[1];
-                UUID uuid = new UUID(base64.substring(base64.length() - 20).hashCode(), base64.substring(base64.length() - 10).hashCode());
+                byte[] decodedBytes = Base64.getDecoder().decode(base64);
+                UUID uuid = UUID.nameUUIDFromBytes(decodedBytes);
 
-                if (pluginInstance.getServerVersion() < 1.18) {
+                if (pluginInstance.getServerVersion() < 1_18) {
                     GameProfile profile = new GameProfile(uuid, uuid.toString().substring(0, 16));
                     profile.getProperties().put("textures", new Property("textures", base64));
 
@@ -131,8 +149,10 @@ public class CustomItem {
                         org.bukkit.profile.PlayerProfile profile = pluginInstance.getServer().createPlayerProfile(uuid);
                         org.bukkit.profile.PlayerTextures textures = profile.getTextures();
 
-                        final String decodedTexture = new String(Base64.getDecoder().decode(base64));
-                        textures.setSkin(new URL(decodedTexture.substring("{\"textures\":{\"SKIN\":{\"url\":\"".length(), decodedTexture.length() - "\"}}}".length())));
+                        String splitDecodedBase64 = new String(decodedBytes, StandardCharsets.UTF_8).split("url\":\"")[1],
+                                url = splitDecodedBase64.substring(0, (splitDecodedBase64.length() - 4));
+
+                        textures.setSkin(new URL(url));
                         profile.setTextures(textures);
 
                         skullMeta.setOwnerProfile(profile);
@@ -156,6 +176,10 @@ public class CustomItem {
                         dev.lone.itemsadder.api.CustomStack customStack = dev.lone.itemsadder.api.CustomStack.getInstance(itemMat);
                         if (customStack != null) itemStack = customStack.getItemStack();
                     } else itemStack = new ItemStack(Material.STONE);
+                    itemStack.setAmount(amount);
+                } else if (getPluginInstance().isOraxenInstalled()) {
+                    io.th0rgal.oraxen.items.ItemBuilder itemBuilder = io.th0rgal.oraxen.api.OraxenItems.getItemById(itemMat);
+                    if (itemBuilder != null) itemStack = itemBuilder.build();
                     itemStack.setAmount(amount);
                 }
             } else itemStack = new ItemStack(material, amount, (short) durability);

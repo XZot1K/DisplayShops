@@ -714,7 +714,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                                     && !(offlinePlayer.getName() != null && offlinePlayer.getName().toLowerCase().startsWith(searchText.toLowerCase()))
                                     && !offlinePlayer.getUniqueId().toString().startsWith(searchText)) continue;
 
-                            final CustomItem item = new CustomItem(("HEAD:" + offlinePlayer.getName()), 0, 1)
+                            final CustomItem item = new CustomItem(("HEAD:" + uuid), 0, 1)
                                     .setDisplayName(player, shop, (shop.getAssistants().contains(offlinePlayer.getUniqueId())
                                             ? (activeColor + offlinePlayer.getName()) : (inActiveColor + offlinePlayer.getName())))
                                     .setLore(null, loreFormat, ("{player}:" + offlinePlayer.getName()));

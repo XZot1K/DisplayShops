@@ -579,8 +579,8 @@ public class DManager implements Manager {
         }
 
         if (totalEnchantments > 0) for (Map.Entry<Enchantment, Integer> enchantEntry : enchantEntries) {
-            if (currentCount >= cutCount) break;
             if (enchantLine.length() > 0) enchantLine.append(", ");
+            if (currentCount >= cutCount) break;
             enchantLine.append(color(getTranslatedName(enchantEntry.getKey()) + " " + getRomanNumeral(enchantEntry.getValue())));
             currentCount++;
         }
@@ -789,9 +789,8 @@ public class DManager implements Manager {
      */
     public Shop createShop(@NotNull Player player, @NotNull Block block, int shopItemAmount, boolean doCreationEffects, boolean sendCreationMessage) {
         Menu appearanceMenu = getPluginInstance().getMenu("appearance");
-        DShop shop = new DShop(getPluginInstance().getManager().generateNewId(), player.getUniqueId(),
-                block.getLocation(), shopItemAmount, (appearanceMenu != null ? appearanceMenu.getConfiguration().getString("default-appearance") :
-                "Default"));
+        DShop shop = new DShop(getPluginInstance().getManager().generateNewId(), player.getUniqueId(), block.getLocation(), shopItemAmount,
+                (appearanceMenu != null ? appearanceMenu.getConfiguration().getString("default-appearance") : "Default"));
         shop.register();
 
         if (doCreationEffects) {
@@ -1519,14 +1518,13 @@ public class DManager implements Manager {
      * @return wraps the string to multiple lines
      */
     public List<String> wrapString(@NotNull String text) {
-        List<String> result = new ArrayList<>();
+        List<String> lines = new ArrayList<>();
         final int longWordCount = getPluginInstance().getConfig().getInt("description-long-word-wrap");
-        final String pattern = ("(.{1," + longWordCount + "})(\\s+|$)");
-
-        Pattern lengthPattern = Pattern.compile(pattern);
-        Matcher matcher = lengthPattern.matcher(text);
-        while (matcher.find()) result.add(matcher.group(1));
-        return result;
+        String regex = "((?:\\([^)]*\\)|\\b(?:[a-zA-Z]+\\s*(?:[IVXLCDM]+)?|[IVXLCDM]+)\\b[.,;:!\\-]?\\s*){1," + longWordCount + "})";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) lines.add(matcher.group(1).trim());
+        return lines;
     }
 
     /**

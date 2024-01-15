@@ -1782,7 +1782,8 @@ public class MenuListener implements Listener {
                         INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
                         if (shopEditEvent.isCancelled()) return;
 
-                        shop.setBuyPrice(amount);
+                        if (shop.getBuyPrice(false) < 0) shop.setBuyPrice(Math.max(amount, shop.getSellPrice(false)));
+                        else shop.setBuyPrice(amount);
 
                         final String message = INSTANCE.getLangConfig().getString((amount <= -1) ? "buying-disabled" : "buy-price-set");
                         INSTANCE.getManager().sendMessage(player, message,
@@ -1805,7 +1806,8 @@ public class MenuListener implements Listener {
                         INSTANCE.getServer().getPluginManager().callEvent(shopEditEvent);
                         if (shopEditEvent.isCancelled()) return;
 
-                        shop.setSellPrice(amount);
+                        if (shop.getSellPrice(false) < 0) shop.setSellPrice(Math.min(amount, shop.getBuyPrice(false)));
+                        else shop.setSellPrice(amount);
 
                         final String message = INSTANCE.getLangConfig().getString((amount <= -1) ? "selling-disabled" : "sell-price-set");
                         INSTANCE.getManager().sendMessage(player, message, ("{price}:" + INSTANCE.getEconomyHandler().format(shop, shop.getCurrencyType(), amount)));

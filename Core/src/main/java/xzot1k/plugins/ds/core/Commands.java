@@ -553,7 +553,7 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        final int price = Math.max(-1, Integer.parseInt(args[1]));
+        final double price = Math.max(-1, Double.parseDouble(args[1]));
         if (price > -1) {
             double foundSellPriceMax = (shop.getShopItem() != null ? getPluginInstance().getManager().getMaterialMaxPrice(shop.getShopItem(), false) : 0),
                     foundSellPriceMin = shop.getShopItem() != null ? getPluginInstance().getManager().getMaterialMinPrice(shop.getShopItem(), false) : 0;
@@ -579,7 +579,9 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().getConfig().getDouble("prices.sale-item-change"));
         if (economyCallEvent.failed()) return;
 
-        shop.setSellPrice(price);
+        if (shop.getSellPrice(false) < 0) shop.setSellPrice(Math.min(price, shop.getBuyPrice(false)));
+        else shop.setBuyPrice(price);
+
         shop.updateTimeStamp();
         shop.save(true);
 
@@ -633,7 +635,7 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        final int price = Math.max(-1, Integer.parseInt(args[1]));
+        final double price = Math.max(-1, Double.parseDouble(args[1]));
 
         if (price > -1) {
             double foundBuyPriceMax = (shop.getShopItem() != null ? getPluginInstance().getManager().getMaterialMaxPrice(shop.getShopItem(), true) : 0),
@@ -658,7 +660,9 @@ public class Commands implements CommandExecutor {
                 getPluginInstance().getConfig().getDouble("prices.buy-price"));
         if (economyCallEvent.failed()) return;
 
-        shop.setBuyPrice(price);
+        if (shop.getBuyPrice(false) < 0) shop.setBuyPrice(Math.max(price, shop.getSellPrice(false)));
+        else shop.setBuyPrice(price);
+
         shop.updateTimeStamp();
         shop.save(true);
 
