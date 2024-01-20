@@ -68,6 +68,14 @@
                                     <pattern>org.intellij</pattern>
                                     <shadedPattern>xzot1k.plugins.ds.org.intellij</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>net.wesjd.anvilgui</pattern>
+                                    <shadedPattern>xzot1k.plugins.ds.anvilgui</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google.code.gson</pattern>
+                                    <shadedPattern>xzot1k.plugins.ds.gson</shadedPattern>
+                                </relocation>
                             </relocations>
 
                             <filters>

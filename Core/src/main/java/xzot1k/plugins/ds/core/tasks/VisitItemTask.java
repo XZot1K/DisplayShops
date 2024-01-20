@@ -80,8 +80,11 @@ public class VisitItemTask extends BukkitRunnable {
 
     private ItemStack buildItem(@NotNull Shop shop) {
         final LocationClone location = shop.getBaseLocation();
-        ItemStack itemStack = INSTANCE.updateNBT(new ItemStack(shop.getShopItem().getType(), 1,
-                shop.getShopItem().getDurability()), "currentShop-id", shop.getShopId().toString());
+
+        ItemStack shopItemClone = shop.getShopItem().clone();
+        shopItemClone.setAmount(1);
+
+        ItemStack itemStack = INSTANCE.updateNBT(shopItemClone, "currentShop-id", shop.getShopId().toString());
         ItemMeta itemMeta = itemStack.getItemMeta();
         if (itemMeta != null) {
             itemMeta.addItemFlags(ItemFlag.values());
