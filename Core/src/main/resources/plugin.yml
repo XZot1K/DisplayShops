@@ -1,6 +1,6 @@
 name: DisplayShops
 main: xzot1k.plugins.ds.DisplayShops
-version: ${project.version}
+version: ${project.version} #-${core.build}
 api-version: 1.13
 author: XZot1K
 description: Create immersive simplistic shops with animations, efficient transaction handling, and much more!

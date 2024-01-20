@@ -56,8 +56,8 @@ public class VisitItemTask extends BukkitRunnable {
             INSTANCE.getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
                 synchronized (INSTANCE.getManager().getShopMap()) {
                     final Shop shop = entry.getValue();
-                    if ((shop.getBaseLocation() != null && shop.getShopItem() != null) || (showAdminShops && shop.isAdminShop())) {
-                        shop.setVisitIcon(buildItem(shop));
+                    if (shop.getBaseLocation() != null && shop.getShopItem() != null) {
+                        if ((showAdminShops && shop.isAdminShop()) || !shop.isAdminShop()) shop.setVisitIcon(buildItem(shop));
                         rebuildQueue.remove(entry.getKey());
                     }
                 }
@@ -149,7 +149,7 @@ public class VisitItemTask extends BukkitRunnable {
                     }
 
                     add(INSTANCE.getManager().color(line
-                            .replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null) ? Objects.requireNonNull(offlinePlayer.getName()) : ""))
+                            .replace("{owner}", ((shop.getOwnerUniqueId() != null && offlinePlayer != null && offlinePlayer.getName() != null) ? offlinePlayer.getName() : ""))
                             .replace("{balance}", ((shop.isAdminShop() && shop.getStoredBalance() <= 0) ? "\u221E" : INSTANCE.getEconomyHandler().format(shop,
                                     shop.getCurrencyType(), shop.getStoredBalance())))
                             .replace("{stock}", ((shop.isAdminShop() && shop.getStock() < 0) ? "\u221E" : INSTANCE.getManager().formatNumber(shop.getStock(), false)))
