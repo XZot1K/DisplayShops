@@ -108,7 +108,7 @@ public class CustomItem {
 
                                 skullMeta.setOwnerProfile(profile);
                                 itemStack.setItemMeta(skullMeta);
-                            } catch (MalformedURLException e) {pluginInstance.log(Level.WARNING, e.getMessage());}
+                            } catch (Exception e) {pluginInstance.log(Level.WARNING, "Failed to get the head texture \"" + uuid + "\" (" + e.getMessage() + ").");}
                             return;
                         }
                     } catch (IllegalArgumentException ignored) {}

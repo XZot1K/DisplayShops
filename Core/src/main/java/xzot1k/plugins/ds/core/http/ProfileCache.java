@@ -13,9 +13,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class ProfileCache {
     private final DisplayShops INSTANCE;
@@ -68,7 +66,7 @@ public class ProfileCache {
                 simplifiedObject.addProperty("timestamp", System.currentTimeMillis());
 
                 getCache().add(id, simplifiedObject);
-            } catch (IOException e) {e.printStackTrace();}
+            } catch (Exception e) {e.printStackTrace();}
             return simplifiedObject;
         });
 
@@ -76,9 +74,8 @@ public class ProfileCache {
 
         try {
             return futureCache.get(5, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     public void save() {

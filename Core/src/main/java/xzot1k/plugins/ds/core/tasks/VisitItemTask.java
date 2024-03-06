@@ -53,22 +53,20 @@ public class VisitItemTask extends BukkitRunnable {
     @Override
     public void run() {
         if (runFirstTime) {
-            INSTANCE.getManager().getShopMap().entrySet().parallelStream().forEach(entry -> {
-                synchronized (INSTANCE.getManager().getShopMap()) {
-                    final Shop shop = entry.getValue();
-                    if (shop.getBaseLocation() != null && shop.getShopItem() != null) {
-                        if ((showAdminShops && shop.isAdminShop()) || !shop.isAdminShop()) shop.setVisitIcon(buildItem(shop));
-                        rebuildQueue.remove(entry.getKey());
-                    }
+            for (Shop shop : INSTANCE.getManager().getShopMap().values()) {
+                if (shop.getBaseLocation() != null && shop.getShopItem() != null) {
+                    if ((showAdminShops && shop.isAdminShop()) || !shop.isAdminShop()) shop.setVisitIcon(buildItem(shop));
+                    rebuildQueue.remove(shop.getShopId());
                 }
-            });
+            }
+
             runFirstTime = false;
         }
 
         while (!getRebuildQueue().isEmpty()) {
             final UUID shopId = getRebuildQueue().remove();
 
-            final Shop shop = DisplayShops.getPluginInstance().getManager().getShopMap().getOrDefault(shopId, null);
+            final Shop shop = DisplayShops.getPluginInstance().getManager().getShopById(shopId);
             if (shop == null) continue;
 
             if (shop.getBaseLocation() == null || (!showAdminShops && shop.isAdminShop()) || shop.getShopItem() == null) continue;
