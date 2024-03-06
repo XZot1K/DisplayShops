@@ -49,7 +49,7 @@ public class DManager implements Manager {
 
     private DisplayShops pluginInstance;
 
-    private ConcurrentHashMap<UUID, Shop> shopMap;
+    private ConcurrentHashMap<String, Shop> shopMap;
     private List<MarketRegion> marketRegions;
     private final Pattern hexPattern, uuidPattern;
     private ConcurrentHashMap<UUID, DataPack> dataPackMap;
@@ -233,7 +233,11 @@ public class DManager implements Manager {
      * @param player The player to obtain the data pack for.
      * @return The data pack object (Cooldowns, interactions, unlocks, etc.). (Should never return NULL)
      */
-    public DataPack getDataPack(Player player) {return getDataPackMap().computeIfAbsent(player.getUniqueId(), dataPackMap -> loadDataPack(player));}
+    public DataPack getDataPack(Player player) {
+        DataPack dataPack = getDataPackMap().getOrDefault(player.getUniqueId(), null);
+        if (dataPack == null) dataPack = loadDataPack(player);
+        return dataPack;
+    }
 
     /**
      * Ray traces from the provided vectors to obtain a shop from the locations it passes through.
@@ -245,10 +249,15 @@ public class DManager implements Manager {
      * @return The found shop, returns NULL if NOT found.
      */
     public Shop getShopRayTraced(@NotNull String worldName, @NotNull Vector eyeVector, @NotNull Vector directionVector, double distance) {
-        Shop[] shopList = getShopMap().values().toArray(new Shop[0]);
+        // Shop[] shopList = getShopMap().values().toArray(new Shop[0]);
         for (int i = -1; ++i < distance; ) {
             final Vector newPositionVector = eyeVector.clone().add(directionVector.clone().multiply(i));
-            for (int j = -1; ++j < shopList.length; ) {
+            final String locationToString = worldName + "," + newPositionVector.getBlockX() + "," + newPositionVector.getBlockY() + "," + newPositionVector.getBlockZ();
+
+            Shop shop = getShopMap().getOrDefault(locationToString, null);
+            if (shop != null) return shop;
+
+           /* for (int j = -1; ++j < shopList.length; ) {
                 final Shop shop = shopList[j];
                 if (shop == null || shop.getBaseLocation() == null || !shop.getBaseLocation().getWorldName().equals(worldName)
                         || !((shop.getBaseLocation().getX() + 1.2) > newPositionVector.getX()
@@ -259,7 +268,7 @@ public class DManager implements Manager {
                         && (shop.getBaseLocation().getZ() - 0.2) < newPositionVector.getZ()))
                     continue;
                 return shop;
-            }
+            }*/
         }
         return null;
     }
@@ -405,9 +414,9 @@ public class DManager implements Manager {
         if (location.getWorld() == null) return false;
         double distance = getPluginInstance().getConfig().getDouble("required-shop-distance");
 
-        for (Map.Entry<UUID, Shop> entry : getShopMap().entrySet()) {
-            if (entry.getValue().getBaseLocation() != null && entry.getValue().getBaseLocation().getWorldName().equals(location.getWorld().getName())
-                    && entry.getValue().getBaseLocation().distance(location, true) <= distance)
+        for (Shop shop : getShopMap().values()) {
+            if (shop.getBaseLocation() != null && shop.getBaseLocation().getWorldName().equals(location.getWorld().getName())
+                    && shop.getBaseLocation().distance(location, true) <= distance)
                 return true;
         }
 
@@ -741,7 +750,10 @@ public class DManager implements Manager {
      * @return Whether the id exists in true or false format.
      */
     public boolean doesShopIdExist(@NotNull UUID shopId) {
-        return getShopMap().containsKey(shopId);
+        for (Shop shop : getShopMap().values()) {
+            if (shop.getShopId().toString().equals(shopId.toString())) return true;
+        }
+        return false;
     }
 
     /**
@@ -750,8 +762,13 @@ public class DManager implements Manager {
      * @return a long value for the ID.
      */
     public UUID generateNewId() {
-        UUID generatedId = UUID.randomUUID();
-        return getShopMap().containsKey(generatedId) ? generateNewId() : generatedId;
+        UUID generatedId;
+
+        do {
+            generatedId = UUID.randomUUID();
+        } while (doesShopIdExist(generatedId));
+
+        return generatedId;
     }
 
     /**
@@ -761,7 +778,10 @@ public class DManager implements Manager {
      * @return the shop object. (Can return NULL if the object does not exist)
      */
     public Shop getShopById(@NotNull UUID shopId) {
-        return getShopMap().getOrDefault(shopId, null);
+        for (Shop shop : getShopMap().values()) {
+            if (shop.getShopId().toString().equals(shopId.toString())) return shop;
+        }
+        return null;
     }
 
     /**
@@ -771,10 +791,12 @@ public class DManager implements Manager {
      * @return The shop if found.
      */
     public Shop getShop(@NotNull Location location) {
-        Optional<Map.Entry<UUID, Shop>> shopEntry = getShopMap().entrySet().parallelStream().filter(entry ->
-                (entry.getValue() != null && entry.getValue().getBaseLocation() != null
-                        && entry.getValue().getBaseLocation().isSame(location))).findAny();
-        return shopEntry.map(Map.Entry::getValue).orElse(null);
+        final String locationAsString = getLocationAsString(location);
+        return getShopMap().getOrDefault(locationAsString, null);
+    }
+
+    public String getLocationAsString(@NotNull Location location) {
+        return Objects.requireNonNull(location.getWorld()).getName() + "," + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ();
     }
 
     /**
@@ -822,25 +844,24 @@ public class DManager implements Manager {
      * @param cleanUp Deletes all shops that have invalid data (Example: No longer existing worlds).
      */
     public void loadShops(boolean isAsync, boolean cleanUp) {
-        long loadedShops = 0;
-
         List<String> shopsToDelete = new ArrayList<>();
+        long loadedShops = 0, current = 0, shopCount = 0, shopCountPercentage = 0;
 
         // begins loading from SQLite.
-        try {
-            PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement("SELECT Count(*) FROM shops;");
+        try (PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement("SELECT Count(*) FROM shops;")) {
+            try (ResultSet resultSet = statement.executeQuery()) {
+                shopCount = (resultSet.next() ? resultSet.getInt(1) : 0);
+                shopCountPercentage = ((long) (shopCount * 0.15));
+            } catch (SQLException ex) {getPluginInstance().log(Level.WARNING, "Error counting shops from database (" + ex.getMessage() + ").");}
+        } catch (SQLException e) {
+            getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
+        }
 
-            long current = 0;
-            ResultSet resultSet = statement.executeQuery();
-            final long shopCount = (resultSet.next() ? resultSet.getInt(1) : 0),
-                    shopCountPercentage = ((long) (shopCount * 0.15));
-            resultSet.close();
+        Menu appearanceMenu = getPluginInstance().getMenu("appearance");
+        String defaultAppearance = appearanceMenu.getConfiguration().getString("default-appearance");
 
-            Menu appearanceMenu = getPluginInstance().getMenu("appearance");
-            String defaultAppearance = appearanceMenu.getConfiguration().getString("default-appearance");
-
-            statement = getPluginInstance().getDatabaseConnection().prepareStatement("SELECT * FROM shops;");
-            resultSet = statement.executeQuery();
+        try (PreparedStatement preparedStatement = getPluginInstance().getDatabaseConnection().prepareStatement("SELECT * FROM shops;");
+             ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 try {
                     UUID shopId;
@@ -1006,24 +1027,17 @@ public class DManager implements Manager {
                     getPluginInstance().log(Level.WARNING, "The shop '" + resultSet.getString("id") + "' failed to load(" + e.getMessage() + ").");
                 }
             }
+        } catch (SQLException ex) {getPluginInstance().log(Level.WARNING, "Error retrieving shops from database (" + ex.getMessage() + ").");}
 
-            resultSet.close();
-            statement.close();
-        } catch (SQLException e) {
-            getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
-        }
-
-        if (!shopsToDelete.isEmpty())
+        if (!shopsToDelete.isEmpty()) {
             for (String id : shopsToDelete) {
-                try {
-                    PreparedStatement statement =
-                            getPluginInstance().getDatabaseConnection().prepareStatement("DELETE FROM shops WHERE id = '" + id + "';");
+                try (PreparedStatement statement = getPluginInstance().getDatabaseConnection().prepareStatement("DELETE FROM shops WHERE id = '" + id + "';")) {
                     statement.executeUpdate();
-                    statement.close();
                 } catch (SQLException e) {
                     getPluginInstance().log(Level.WARNING, "An error occurred during shop load time (" + e.getMessage() + ").");
                 }
             }
+        }
 
         if (loadedShops <= 0) getPluginInstance().log(Level.INFO, "No shops were found.");
     }
@@ -1629,11 +1643,11 @@ public class DManager implements Manager {
         this.pluginInstance = pluginInstance;
     }
 
-    public ConcurrentHashMap<UUID, Shop> getShopMap() {
+    public ConcurrentHashMap<String, Shop> getShopMap() {
         return shopMap;
     }
 
-    private void setShopMap(ConcurrentHashMap<UUID, Shop> shopMap) {
+    private void setShopMap(ConcurrentHashMap<String, Shop> shopMap) {
         this.shopMap = shopMap;
     }
 

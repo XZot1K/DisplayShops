@@ -113,11 +113,7 @@ public class DShop implements Shop {
      * Kills the shop's display packets entirely for ALL players.
      */
     public synchronized void killAll() {
-        INSTANCE.getServer().getOnlinePlayers().parallelStream().forEach(player -> {
-            DisplayPacket displayPacket = INSTANCE.getDisplayPacket(this, player);
-            if (displayPacket != null) displayPacket.hide(player);
-            INSTANCE.removeDisplayPacket(this, player);
-        });
+        for (Player player : INSTANCE.getServer().getOnlinePlayers()) kill(player);
     }
 
     /**
@@ -527,14 +523,18 @@ public class DShop implements Shop {
      * Registers the shop into the manager.
      */
     public void register() {
-        INSTANCE.getManager().getShopMap().put(getShopId(), this);
+        final String locationAsString = getBaseLocation().getWorldName() + "," + (int) (getBaseLocation().getX())
+                + "," + (int) (getBaseLocation().getY()) + "," + (int) (getBaseLocation().getZ());
+        INSTANCE.getManager().getShopMap().put(locationAsString, this);
     }
 
     /**
      * Unregisters the shop from the manager.
      */
     public void unRegister() {
-        INSTANCE.getManager().getShopMap().remove(getShopId());
+        final String locationAsString = getBaseLocation().getWorldName() + "," + (int) (getBaseLocation().getX())
+                + "," + (int) (getBaseLocation().getY()) + "," + (int) (getBaseLocation().getZ());
+        INSTANCE.getManager().getShopMap().remove(locationAsString);
     }
 
     /**
@@ -691,8 +691,11 @@ public class DShop implements Shop {
                     && DisplayShops.getPluginInstance().matchesAnyMenu(DisplayShops.getPluginInstance().getMenuListener()
                     .getInventoryName(op.getOpenInventory().getTopInventory(), op.getOpenInventory()))) {
                 setCurrentEditor(null);
-                final DataPack dataPack = DisplayShops.getPluginInstance().getManager().getDataPack(op);
-                dataPack.resetEditData();
+
+                if (op != null) {
+                    final DataPack dataPack = DisplayShops.getPluginInstance().getManager().getDataPack(op);
+                    dataPack.resetEditData();
+                }
             }
         }
     }

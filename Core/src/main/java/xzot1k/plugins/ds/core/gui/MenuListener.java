@@ -244,6 +244,35 @@ public class MenuListener implements Listener {
                     e.getView().getTopInventory().setItem(saleItemSlot, shop.getShopItem());
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-empty-required"));
                     return;
+                } else if (shop.getStock() > 0) {
+                    final int availableSpace = Math.min(INSTANCE.getManager().getInventorySpaceForItem(player, shop.getShopItem()),
+                            (36 * shop.getShopItem().getMaxStackSize()));
+
+                    if (availableSpace <= 0) {
+                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("insufficient-space"),
+                                ("{space}:" + INSTANCE.getManager().formatNumber(availableSpace, false)));
+                        return;
+                    } else if (availableSpace < shop.getStock()) {
+                        shop.setStock(Math.max(0, (shop.getStock() - availableSpace)));
+
+                        final ItemStack itemStack = shop.getShopItem().clone();
+                        INSTANCE.getServer().getScheduler().runTask(INSTANCE, () ->
+                                INSTANCE.getManager().giveItemStacks(player, itemStack, availableSpace));
+
+                        INSTANCE.refreshShop(shop);
+
+                        INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("insufficient-space"),
+                                ("{space}:" + INSTANCE.getManager().formatNumber(availableSpace, false)));
+                        return;
+                    }
+
+                    final int tempStock = shop.getStock();
+                    shop.setStock(0);
+                    final ItemStack itemStack = shop.getShopItem().clone();
+                    INSTANCE.getServer().getScheduler().runTask(INSTANCE, () ->
+                            INSTANCE.getManager().giveItemStacks(player, itemStack, tempStock));
+
+                    INSTANCE.refreshShop(shop);
                 }
 
                 final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
@@ -305,6 +334,14 @@ public class MenuListener implements Listener {
                     e.getView().getTopInventory().setItem(tradeItemSlot, shop.getCurrencyItem());
                     INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("shop-balance-exists"));
                     return;
+                } else if (shop.getStoredBalance() > 0) {
+                    final double storedBalance = shop.getStoredBalance();
+                    shop.setStoredBalance(0);
+
+                    EcoHook ecoHook = INSTANCE.getEconomyHandler().getEcoHook(shop.getCurrencyType());
+                    ecoHook.deposit(player.getUniqueId(), storedBalance);
+
+                    INSTANCE.refreshShop(shop);
                 }
 
                 final EconomyCallEvent economyCallEvent = EconomyCallEvent.call(player, shop, EconomyCallType.EDIT_ACTION,
@@ -584,7 +621,7 @@ public class MenuListener implements Listener {
         boolean forceUse = INSTANCE.getConfig().getBoolean("shop-currency-item.force-use");
         final int previewSlot = menu.getConfiguration().getInt("preview-slot");
 
-        if (e.getSlot() == previewSlot) {
+        if (e.getSlot() == previewSlot && menu.getConfiguration().getBoolean("allow-preview")) {
             ItemStack previewSlotItem = inventory.getItem(previewSlot);
             if (previewSlotItem == null) return;
 
@@ -1466,7 +1503,7 @@ public class MenuListener implements Listener {
         String shopId = INSTANCE.getNBT(e.getCurrentItem(), "shop-id");
         if (shopId == null || shopId.isEmpty()) return;
 
-        final Shop selectedShop = INSTANCE.getManager().getShopMap().get(UUID.fromString(shopId));
+        final Shop selectedShop = INSTANCE.getManager().getShopById(UUID.fromString(shopId));
         if (selectedShop == null) return;
 
         playClickSound(player);
@@ -2526,10 +2563,10 @@ public class MenuListener implements Listener {
         }
 
         if (owner != null && owner.isOnline()) {
-            final DataPack ownerDP = INSTANCE.getManager().getDataPack(owner.getPlayer());
-            if (ownerDP.isTransactionNotify()) {
-                final Player ownerPlayer = owner.getPlayer();
-                if (ownerPlayer != null) {
+            Player ownerPlayer = owner.getPlayer();
+            if (ownerPlayer != null) {
+                final DataPack ownerDP = INSTANCE.getManager().getDataPack(ownerPlayer);
+                if (ownerDP.isTransactionNotify()) {
                     INSTANCE.getManager().sendMessage(ownerPlayer, Objects.requireNonNull(INSTANCE.getLangConfig().getString("shop-" + ecoType + "-owner"))
                             .replace("{item}", (shop.getShopItem().hasItemMeta() && shop.getShopItem().getItemMeta() != null
                                     && shop.getShopItem().getItemMeta().hasDisplayName()) ? shop.getShopItem().getItemMeta().getDisplayName() :

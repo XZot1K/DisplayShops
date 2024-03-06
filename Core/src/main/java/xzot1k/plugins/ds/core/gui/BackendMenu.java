@@ -635,9 +635,7 @@ public class BackendMenu extends YamlConfiguration implements Menu {
                         if (op.hasPlayedBefore()) offlinePlayer = op;
                     }
 
-                    List<Map.Entry<UUID, Shop>> shopList = new ArrayList<>(INSTANCE.getManager().getShopMap().entrySet());
-                    for (int i = -1; ++i < shopList.size(); ) {
-                        final Shop currentShop = shopList.get(i).getValue();
+                    for (Shop currentShop : INSTANCE.getManager().getShopMap().values()) {
                         if (currentShop == null || currentShop.getBaseLocation() == null || currentShop.getShopItem() == null
                                 || currentShop.getStock() == 0 || (currentShop.isAdminShop() ? !showAdminShop : (currentShop.getStock() < currentShop.getShopItemAmount()))
                                 || (finalActionType != null && !finalActionType.passesCheck(currentShop))) continue;

@@ -15,10 +15,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Directional;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.Rotatable;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Item;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
+import org.bukkit.entity.*;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -45,7 +42,10 @@ import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 public class Listeners implements Listener {
 
@@ -628,6 +628,8 @@ public class Listeners implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityBlockChange(EntityChangeBlockEvent e) {
+        if (e.getEntity().getType() == EntityType.FALLING_BLOCK) return;
+
         if (getPluginInstance().getManager().getShop(e.getBlock().getLocation()) != null)
             e.setCancelled(true);
     }
@@ -662,9 +664,9 @@ public class Listeners implements Listener {
 
     private void handlePistons(@NotNull BlockPistonEvent e, @NotNull List<Block> blocks) {
         final boolean altPistonCheck = getPluginInstance().getConfig().getBoolean("piston-protection.alternative-method");
-        for (Map.Entry<UUID, Shop> entry : getPluginInstance().getManager().getShopMap().entrySet()) {
-            final Shop shop = entry.getValue();
-            if (shop == null || shop.getBaseLocation() == null) continue;
+        for (Block block : blocks) {
+            Shop shop = getPluginInstance().getManager().getShop(block.getLocation());
+            if (shop == null) continue;
 
             if (altPistonCheck) {
                 final boolean yDiff = (e.getBlock().getY() != shop.getBaseLocation().getY()),
@@ -682,11 +684,10 @@ public class Listeners implements Listener {
                     e.setCancelled(true);
                     break;
                 }
-            } else {
-                if (blocks.stream().parallel().anyMatch(block -> shop.getBaseLocation().isSame(block.getLocation()))) {
-                    e.setCancelled(true);
-                    break;
-                }
+            } else if (shop.getBaseLocation().isSame(block.getLocation())) {
+
+                e.setCancelled(true);
+                break;
             }
         }
     }

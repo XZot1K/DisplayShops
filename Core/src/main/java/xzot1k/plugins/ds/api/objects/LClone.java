@@ -42,8 +42,8 @@ public class LClone implements LocationClone {
      * @return The result in true or false format.
      */
     public boolean isSame(@NotNull Location location) {
-        return location != null && location.getWorld() != null && location.getWorld().getName().equals(getWorldName())
-                && location.getBlockX() == ((int) getX()) && location.getBlockY() == ((int) getY()) && location.getBlockZ() == ((int) getZ());
+        return location.getWorld() != null && location.getWorld().getName().equals(getWorldName())
+                && location.getBlockX() == (int) getX() && location.getBlockY() == (int) getY() && location.getBlockZ() == (int) getZ();
     }
 
     /**
@@ -53,7 +53,7 @@ public class LClone implements LocationClone {
      * @return The result in true or false format.
      */
     public boolean isSameNormal(@NotNull Location location) {
-        return location != null && location.getWorld() != null && location.getWorld().getName().equals(getWorldName())
+        return location.getWorld() != null && location.getWorld().getName().equals(getWorldName())
                 && location.getX() == getX() && location.getY() == getY() && location.getZ() == getZ();
     }
 
@@ -64,8 +64,8 @@ public class LClone implements LocationClone {
      * @return Whether they are identical.
      */
     public boolean isSame(@NotNull LocationClone location) {
-        return location != null && location.getWorldName() != null && location.getWorldName().equals(getWorldName())
-                && location.getX() == ((int) getX()) && location.getY() == ((int) getY()) && location.getZ() == ((int) getZ());
+        return location.getWorldName() != null && location.getWorldName().equals(getWorldName())
+                && location.getX() == (int) getX() && location.getY() == (int) getY() && location.getZ() == (int) getZ();
     }
 
     /**
@@ -104,7 +104,8 @@ public class LClone implements LocationClone {
      */
     @Override
     public String toString() {
-        return getWorldName().replace("\"", "\\\"").replace("'", "\\'") + "," + getX() + "," + getY() + "," + getZ() + "," + getYaw() + "," + getPitch();
+        return getWorldName().replace("\"", "\\\"").replace("'", "\\'")
+                + "," + getX() + "," + getY() + "," + getZ() + "," + getYaw() + "," + getPitch();
     }
 
     private DisplayShops getPluginInstance() {

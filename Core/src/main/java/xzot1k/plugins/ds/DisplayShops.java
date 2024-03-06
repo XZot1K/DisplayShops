@@ -205,9 +205,11 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setupRecipe();
 
-        getManager().loadShops(false, false);
-        getManager().loadMarketRegions(false);
-        for (Player player : getServer().getOnlinePlayers()) getManager().loadDataPack(player);
+        getServer().getScheduler().runTask(this, () -> {
+            getManager().loadShops(false, false);
+            getManager().loadMarketRegions(false);
+            getServer().getOnlinePlayers().parallelStream().forEach(player -> getManager().loadDataPack(player));
+        });
 
         setupTasks();
         double version = Math.floor(getServerVersion());
@@ -922,7 +924,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         FileConfiguration jarConfig = getConfigFromJar(configPath);
         for (String key : jarConfig.getKeys(true)) {
-            if (!config.contains(key)) {
+            if (!config.contains(key) && !key.toLowerCase().startsWith("min-material-prices") && !key.toLowerCase().startsWith("max-material-prices")) {
                 config.set(key, jarConfig.get(key));
                 log(Level.INFO, "Added \"" + key + "\".");
                 addedCounter++;
@@ -930,7 +932,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         for (String key : config.getKeys(true)) {
-            if (!jarConfig.contains(key) && !key.toLowerCase().startsWith("translated-") && !key.toLowerCase().startsWith("currency-settings")) {
+            if (!jarConfig.contains(key) && !key.toLowerCase().startsWith("translated-") && !key.toLowerCase().startsWith("currency-settings")
+                    && !key.toLowerCase().startsWith("min-material-prices") && !key.toLowerCase().startsWith("max-material-prices")) {
                 config.set(key, null);
                 log(Level.INFO, "Removed \"" + key + "\".");
                 removedCounter++;
@@ -1155,9 +1158,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public void killCurrentShopPacket(@NotNull Player player) {
         if (getShopMemory().isEmpty() || !getShopMemory().containsKey(player.getUniqueId())) return;
 
-        final UUID shopId = getShopMemory().get(player.getUniqueId());
-        if (shopId != null && getManager().getShopMap().containsKey(shopId)) {
-            final Shop tempCurrentShop = getManager().getShopMap().get(shopId);
+        final UUID shopId = getShopMemory().getOrDefault(player.getUniqueId(), null);
+        if (shopId != null) {
+            final Shop tempCurrentShop = getManager().getShopById(shopId);
             if (tempCurrentShop != null) tempCurrentShop.kill(player);
         }
 
@@ -1172,7 +1175,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      */
     public void removeDisplayPacket(@NotNull Shop shop, @NotNull Player player) {
         if (!getDisplayPacketMap().isEmpty() && getDisplayPacketMap().containsKey(player.getUniqueId())) {
-            HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().get(player.getUniqueId());
+            HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().getOrDefault(player.getUniqueId(), null);
             if (packetMap != null) packetMap.remove(shop.getShopId());
         }
     }
@@ -1184,11 +1187,13 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      */
     public void clearDisplayPackets(@NotNull Player player) {
 
-        if (player.isOnline() && getDisplayPacketMap().containsKey(player.getUniqueId()))
-            for (Map.Entry<UUID, DisplayPacket> entry : getDisplayPacketMap().get(player.getUniqueId()).entrySet()) {
-                if (entry == null || entry.getValue() == null) continue;
-                entry.getValue().hide(player);
+        if (player.isOnline() && getDisplayPacketMap().containsKey(player.getUniqueId())) {
+            HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().getOrDefault(player.getUniqueId(), null);
+            for (DisplayPacket displayPacket : packetMap.values()) {
+                if (displayPacket == null) continue;
+                displayPacket.hide(player);
             }
+        }
 
         getDisplayPacketMap().remove(player.getUniqueId());
     }
@@ -1202,7 +1207,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
      */
     public void updateDisplayPacket(@NotNull Shop shop, @NotNull Player player, @NotNull DisplayPacket displayPacket) {
         if (!getDisplayPacketMap().isEmpty() && getDisplayPacketMap().containsKey(player.getUniqueId())) {
-            HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().get(player.getUniqueId());
+            HashMap<UUID, DisplayPacket> packetMap = getDisplayPacketMap().getOrDefault(player.getUniqueId(), null);
             if (packetMap != null) {
                 packetMap.put(shop.getShopId(), displayPacket);
                 return;

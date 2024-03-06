@@ -9,7 +9,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.objects.Shop;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.UUID;
 
@@ -31,46 +30,45 @@ public class VisualTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        if (getPluginInstance().getManager().getShopMap() != null && !getPluginInstance().getManager().getShopMap().isEmpty()) {
+        if (getPluginInstance().getManager().getShopMap() == null || getPluginInstance().getManager().getShopMap().isEmpty()) return;
+
+        for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
+            if (shop == null || shop.getBaseLocation() == null) continue;
+
             for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
-                if (player == null || !player.isOnline()) continue;
-
-                for (Shop shop : new ArrayList<>(getPluginInstance().getManager().getShopMap().values())) {
-                    if (shop == null || shop.getBaseLocation() == null) continue;
-
-                    if (getPlayersToRefresh().contains(player.getUniqueId())) {
-                        shop.kill(player);
-                        getPluginInstance().killCurrentShopPacket(player);
-                        getShopsToRefresh().remove(shop.getShopId());
-                    } else if (getShopsToRefresh().contains(shop.getShopId())) {
-                        shop.kill(player);
-                        getPluginInstance().killCurrentShopPacket(player);
-                        getShopsToRefresh().remove(shop.getShopId());
-                    }
-
-                    final boolean packetExists = (getPluginInstance().getDisplayPacketMap().containsKey(player.getUniqueId())
-                            && getPluginInstance().getDisplayPacketMap().get(player.getUniqueId()).containsKey(shop.getShopId())),
-                            tooFarAway = (!shop.getBaseLocation().getWorldName().equalsIgnoreCase(player.getWorld().getName())
-                                    || shop.getBaseLocation().distance(player.getLocation(), true) > 16);
-                    if (packetExists && tooFarAway) {
-                        shop.kill(player);
-                        continue;
-                    } else if (!tooFarAway && packetExists) continue;
-
-                    getPluginInstance().sendDisplayPacket(shop, player, isAlwaysDisplay());
+                if (getPlayersToRefresh().contains(player.getUniqueId()) || getShopsToRefresh().contains(shop.getShopId())) {
+                    shop.kill(player);
+                    getPluginInstance().killCurrentShopPacket(player);
+                    getShopsToRefresh().remove(shop.getShopId());
+                    getPlayersToRefresh().remove(player.getUniqueId());
                 }
 
-                getPlayersToRefresh().remove(player.getUniqueId());
-                if (isAlwaysDisplay()) continue;
+                final boolean packetExists = (getPluginInstance().getDisplayPacketMap().containsKey(player.getUniqueId())
+                        && getPluginInstance().getDisplayPacketMap().get(player.getUniqueId()).containsKey(shop.getShopId())),
+                        tooFarAway = (!shop.getBaseLocation().getWorldName().equalsIgnoreCase(player.getWorld().getName())
+                                || shop.getBaseLocation().distance(player.getLocation(), true) > 16);
 
-                Shop tempCurrentShop = null;
+                if (tooFarAway) {
+                    shop.kill(player);
+                    continue;
+                }
+
+                if (isAlwaysDisplay()) {
+                    if (packetExists) continue;
+
+                    getPluginInstance().sendDisplayPacket(shop, player, true);
+                    continue;
+                }
+
+                if (!packetExists) getPluginInstance().sendDisplayPacket(shop, player, false);
+
+                Shop currentShop = null;
                 if (!getPluginInstance().getShopMemory().isEmpty() && getPluginInstance().getShopMemory().containsKey(player.getUniqueId())) {
-                    final UUID shopId = getPluginInstance().getShopMemory().get(player.getUniqueId());
-                    if (shopId != null) tempCurrentShop = getPluginInstance().getManager().getShopMap().get(shopId);
+                    final UUID shopId = getPluginInstance().getShopMemory().getOrDefault(player.getUniqueId(), null);
+                    if (shopId != null) currentShop = getPluginInstance().getManager().getShopById(shopId);
                 }
 
-                final Shop currentShop = tempCurrentShop, foundShopAtLocation =
-                        getPluginInstance().getManager().getShopRayTraced(player.getWorld().getName(),
+                final Shop foundShopAtLocation = getPluginInstance().getManager().getShopRayTraced(player.getWorld().getName(),
                         player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), getViewDistance());
 
                 if (foundShopAtLocation == null) {
@@ -79,22 +77,21 @@ public class VisualTask extends BukkitRunnable {
                     continue;
                 }
 
-                if (currentShop != null && currentShop.getShopId().toString().equals(foundShopAtLocation.getShopId().toString()))
-                    continue;
-
-                if (currentShop != null) getPluginInstance().sendDisplayPacket(currentShop, player, false);
-
-                if (!getPluginInstance().getManager().getShopMap().containsKey(foundShopAtLocation.getShopId()))
-                    return;
+                if (currentShop != null) {
+                    if (!currentShop.getShopId().toString().equals(foundShopAtLocation.getShopId().toString())) {
+                        getPluginInstance().sendDisplayPacket(currentShop, player, false);
+                        getPluginInstance().getShopMemory().remove(player.getUniqueId());
+                    } else continue;
+                }
 
                 getPluginInstance().sendDisplayPacket(foundShopAtLocation, player, true);
                 getPluginInstance().getShopMemory().put(player.getUniqueId(), foundShopAtLocation.getShopId());
             }
+        }
 
-            if (getPluginInstance().getConfig().getBoolean("run-gc-immediately") && getGcCounter() >= 15) {
-                setGcCounter(0);
-                System.gc();
-            }
+        if (getPluginInstance().getConfig().getBoolean("run-gc-immediately") && getGcCounter() >= 15) {
+            setGcCounter(0);
+            System.gc();
         }
     }
 
