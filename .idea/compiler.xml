@@ -32,7 +32,6 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="API" target="1.8" />
       <module name="v1_20_r1 (1)" target="17" />
       <module name="v1_20_r1 (2)" target="17" />
     </bytecodeTargetLevel>

@@ -994,6 +994,11 @@ public class DManager implements Manager {
                             if (extraDataArgs.length > 3) shop.setCurrencyType(extraDataArgs[3]);
                             shop.checkCurrencyType(null);
 
+                            if (shop.getCurrencyType().equalsIgnoreCase("item-for-item")
+                                    && getPluginInstance().getConfig().getBoolean("shop-currency-item.force-use")) {
+                                shop.setTradeItem(getPluginInstance().getManager().defaultCurrencyItem.clone());
+                            }
+
                             if (extraDataArgs.length > 2 && extraDataLine.contains(":")) {
                                 String[] buySplit = extraDataArgs[1].split(":"), sellSplit = extraDataArgs[2].split(":");
 
