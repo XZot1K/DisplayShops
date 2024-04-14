@@ -46,8 +46,10 @@ public class DDataPack implements DataPack {
      */
     public void updateCurrentTransactionLimitCounter(@NotNull Shop shop, boolean isBuy, long amount) {
         final Long[] counters = getTransactionLimitMap().getOrDefault(shop.getShopId(), new Long[]{0L, 0L});
+
         if (isBuy) counters[0] = amount;
         else counters[1] = amount;
+
         getTransactionLimitMap().put(shop.getShopId(), counters);
     }
 
@@ -56,13 +58,10 @@ public class DDataPack implements DataPack {
      *
      * @param shop     The shop to check for.
      * @param isBuy    Whether the transaction was buy or sell.
-     * @param isGlobal Whether the limited needs to be global or player specific.
      * @return The current counter for the shop.
      */
-    public long getCurrentTransactionCounter(Shop shop, boolean isBuy, boolean isGlobal) {
-        final Long[] counters = getTransactionLimitMap().getOrDefault(shop.getShopId(), new Long[]{0L, 0L});
-        return (isBuy ? (((isGlobal ? shop.getGlobalBuyLimit() : shop.getPlayerBuyLimit()) > 0 && counters != null) ? counters[0] : 0)
-                : (((isGlobal ? shop.getGlobalSellLimit() : shop.getPlayerSellLimit()) > 0 && counters != null) ? counters[1] : 0));
+    public long getCurrentTransactionCounter(Shop shop, boolean isBuy) {
+        return getTransactionLimitMap().getOrDefault(shop.getShopId(), new Long[]{0L, 0L})[isBuy ? 0 : 1];
     }
 
     /**
@@ -74,13 +73,29 @@ public class DDataPack implements DataPack {
      * @return Whether the limit was met.
      */
     public boolean hasMetTransactionLimit(Shop shop, boolean isBuy, boolean isGlobal) {
-        final long counter = getCurrentTransactionCounter(shop, isBuy, isGlobal);
-
-        final int buyLimit = (isGlobal ? shop.getGlobalBuyLimit() : shop.getPlayerBuyLimit()),
+        final long counter = getCurrentTransactionCounter(shop, isBuy),
+                buyLimit = (isGlobal ? shop.getGlobalBuyLimit() : shop.getPlayerBuyLimit()),
                 sellLimit = (isGlobal ? shop.getGlobalSellLimit() : shop.getPlayerSellLimit());
 
-        return (isBuy ? (buyLimit > 0 && (buyLimit - counter) <= 0)
-                : (sellLimit > 0 && (sellLimit - counter) <= 0));
+        return isBuy ? (buyLimit > -1 && counter >= buyLimit) : (sellLimit > -1 && counter >= sellLimit);
+    }
+
+    /**
+     * Gets the excess amount of units before the limit is met.
+     *
+     * @param shop     The shop to check against.
+     * @param isBuy    Whether the transaction was buy or sell.
+     * @param isGlobal Whether the limited needs to be global or player specific.
+     * @param amount   the unit count requested
+     * @return The excess amount of units available before limit is met
+     */
+    @Override
+    public long getTransactionLimitExcess(Shop shop, boolean isBuy, boolean isGlobal, long amount) {
+        final long counter = getCurrentTransactionCounter(shop, isBuy),
+                buyLimit = (isGlobal ? shop.getGlobalBuyLimit() : shop.getPlayerBuyLimit()),
+                sellLimit = (isGlobal ? shop.getGlobalSellLimit() : shop.getPlayerSellLimit());
+
+        return isBuy ? (buyLimit < 0 ? amount : Math.min(counter + amount, buyLimit)) : (sellLimit < 0 ? amount : Math.min(counter + amount, sellLimit));
     }
 
     @Override

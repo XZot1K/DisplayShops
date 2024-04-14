@@ -446,8 +446,12 @@ public class MenuListener implements Listener {
                 shop.setPlayerBuyLimit(-1);
                 shop.setGlobalSellCounter(0);
                 shop.setGlobalBuyCounter(0);
-                dataPack.updateCurrentTransactionLimitCounter(shop, true, 0);
-                dataPack.updateCurrentTransactionLimitCounter(shop, false, 0);
+
+                // clear all player counters for the shop
+                INSTANCE.getManager().getDataPackMap().forEach((key, value) -> {
+                    value.updateCurrentTransactionLimitCounter(shop, true, 0);
+                    value.updateCurrentTransactionLimitCounter(shop, false, 0);
+                });
 
                 INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("limits-cleared"),
                         ("{amount}:" + INSTANCE.getLangConfig().getString("disabled")));
@@ -763,7 +767,7 @@ public class MenuListener implements Listener {
 
                 int availableUnits = (shop.getStock() < 0 ? -1 : Math.max(0, (shop.getStock() / shop.getShopItemAmount())));
                 if (shop.getGlobalBuyLimit() > 0) {
-                    long remainingLimit = dataPack.getCurrentTransactionCounter(shop, true, true);
+                    long remainingLimit = dataPack.getCurrentTransactionCounter(shop, true);
                     if (remainingLimit <= 0) {
                         player.closeInventory();
                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("buy-limit-exceeded"));
@@ -773,7 +777,7 @@ public class MenuListener implements Listener {
                     availableUnits = (int) Math.min(availableUnits, remainingLimit);
 
                 } else if (shop.getPlayerBuyLimit() > 0) {
-                    long remainingLimit = (shop.getPlayerBuyLimit() - dataPack.getCurrentTransactionCounter(shop, true, false));
+                    long remainingLimit = (shop.getPlayerBuyLimit() - dataPack.getCurrentTransactionCounter(shop, true));
                     if (remainingLimit <= 0) {
                         player.closeInventory();
                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("buy-limit-exceeded"));
@@ -804,6 +808,18 @@ public class MenuListener implements Listener {
                             .replace("{space}", INSTANCE.getManager().formatNumber(availableSpace, false)));
                     return;
                 }
+
+                if (dataPack.hasMetTransactionLimit(shop, true, true) || dataPack.hasMetTransactionLimit(shop, true, false)) {
+                    player.closeInventory();
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("buy-limit-exceeded"));
+                    return;
+                }
+
+                // handle excess units
+                long excessUnits = dataPack.getTransactionLimitExcess(shop, true, true, availableUnits);
+                if (excessUnits <= 0) {excessUnits = dataPack.getTransactionLimitExcess(shop, true, false, availableUnits);}
+
+                if (excessUnits > 0) {availableUnits = (int) excessUnits;}
 
                 runEconomyCall(player, shop, EconomyCallType.BUY, Math.min((availableSpace / shop.getShopItemAmount()), availableUnits));
                 break;
@@ -864,7 +880,7 @@ public class MenuListener implements Listener {
 
                 int sellableUnits = (INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem()) / shop.getShopItemAmount());
                 if (shop.getGlobalSellLimit() > 0) {
-                    long remainingLimit = dataPack.getCurrentTransactionCounter(shop, false, true);
+                    long remainingLimit = dataPack.getCurrentTransactionCounter(shop, false);
                     if (remainingLimit <= 0) {
                         player.closeInventory();
                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sell-limit-exceeded"));
@@ -873,7 +889,7 @@ public class MenuListener implements Listener {
 
                     sellableUnits = Math.min(sellableUnits, ((int) remainingLimit));
                 } else if (shop.getGlobalSellLimit() > 0) {
-                    long remainingLimit = dataPack.getCurrentTransactionCounter(shop, false, false);
+                    long remainingLimit = dataPack.getCurrentTransactionCounter(shop, false);
                     if (remainingLimit <= 0) {
                         player.closeInventory();
                         INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sell-limit-exceeded"));
@@ -913,7 +929,21 @@ public class MenuListener implements Listener {
                     return;
                 }
 
-                runEconomyCall(player, shop, EconomyCallType.SELL, Math.min(sellableUnits, INSTANCE.getConfig().getInt("maximum-sell-all")));
+                if (dataPack.hasMetTransactionLimit(shop, false, true) || dataPack.hasMetTransactionLimit(shop, false, false)) {
+                    player.closeInventory();
+                    INSTANCE.getManager().sendMessage(player, INSTANCE.getLangConfig().getString("sell-limit-exceeded"));
+                    return;
+                }
+
+                int availableUnits = Math.min(sellableUnits, INSTANCE.getConfig().getInt("maximum-sell-all"));
+
+                // handle excess units
+                long excessUnits = dataPack.getTransactionLimitExcess(shop, true, true, availableUnits);
+                if (excessUnits <= 0) {excessUnits = dataPack.getTransactionLimitExcess(shop, true, false, availableUnits);}
+
+                if (excessUnits > 0) {availableUnits = (int) excessUnits;}
+
+                runEconomyCall(player, shop, EconomyCallType.SELL, availableUnits);
                 break;
             }
             case "unit-increase": {
@@ -2426,7 +2456,6 @@ public class MenuListener implements Listener {
         playClickSound(player);
     }
 
-
     // helper methods
     private void playClickSound(@NotNull Player player) {
         player.playSound(player.getLocation(), Math.floor(INSTANCE.getServerVersion()) >= 1_9
@@ -2511,7 +2540,9 @@ public class MenuListener implements Listener {
             return;
         }
 
+        DataPack dataPack = INSTANCE.getManager().getDataPack(player);
         final boolean isInfinite = (shop.isAdminShop() && shop.getStock() <= -1);
+
         if (economyCallEvent.getEconomyCallType() == EconomyCallType.SELL) {
             final int maxStock = shop.getMaxStock();
             int amountToRemove = (shop.getShopItemAmount() * unitCount);
@@ -2519,18 +2550,13 @@ public class MenuListener implements Listener {
                 amountToRemove = (amountToRemove - ((shop.getStock() + amountToRemove) - maxStock));
 
             INSTANCE.getManager().removeItem(player.getInventory(), shop.getShopItem(), amountToRemove);
-            DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-            dataPack.updateCurrentTransactionLimitCounter(shop, false, dataPack.getCurrentTransactionCounter(shop, false, false) + 1);
+            dataPack.updateCurrentTransactionLimitCounter(shop, false, dataPack.getCurrentTransactionCounter(shop, false) + unitCount);
 
             if (!isInfinite) shop.setStock(shop.getStock() + amountToRemove);
-            //  if (shop.getSellLimit() > 0) shop.setSellCounter(shop.getSellCounter() + unitCount);
-
         } else {
             if (!isInfinite) shop.setStock(shop.getStock() - (shop.getShopItemAmount() * unitCount));
-            // if (shop.getBuyLimit() > 0) shop.setBuyCounter(shop.getBuyCounter() + unitCount);
 
-            DataPack dataPack = INSTANCE.getManager().getDataPack(player);
-            dataPack.updateCurrentTransactionLimitCounter(shop, true, dataPack.getCurrentTransactionCounter(shop, true, false) + 1);
+            dataPack.updateCurrentTransactionLimitCounter(shop, true, dataPack.getCurrentTransactionCounter(shop, true) + unitCount);
 
             if (!shop.isCommandOnlyMode() && shop.getShopItem() != null)
                 INSTANCE.getManager().giveItemStacks(player, shop.getShopItem(), (shop.getShopItemAmount() * unitCount));
