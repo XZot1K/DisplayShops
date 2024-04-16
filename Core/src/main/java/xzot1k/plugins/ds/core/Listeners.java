@@ -161,6 +161,14 @@ public class Listeners implements Listener {
             return;
         }
 
+        // ensure blocked nbt is not on the item
+        if (getPluginInstance().getManager().hasBlockedNBT(handItem)) {
+            String message = getPluginInstance().getLangConfig().getString("set-item-blocked");
+            if (message != null && !message.equalsIgnoreCase(""))
+                getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+            return;
+        }
+
         final boolean editPrevention = getPluginInstance().getConfig().getBoolean("editor-prevention"),
                 emptyShopEdit = getPluginInstance().getConfig().getBoolean("empty-shop-edit"),
                 quickActions = getPluginInstance().getConfig().getBoolean("quick-actions");
@@ -378,6 +386,14 @@ public class Listeners implements Listener {
                 ItemStack itemInHand;
                 if (isOffhandVersion) itemInHand = e.getPlayer().getInventory().getItemInMainHand();
                 else itemInHand = e.getPlayer().getItemInHand();
+
+                // ensure blocked nbt is not on the item
+                if (getPluginInstance().getManager().hasBlockedNBT(handItem)) {
+                    String message = getPluginInstance().getLangConfig().getString("set-item-blocked");
+                    if (message != null && !message.equalsIgnoreCase(""))
+                        getPluginInstance().getManager().sendMessage(e.getPlayer(), message);
+                    return;
+                }
 
                 if (getPluginInstance().getManager().isSimilar(itemInHand, shop.getShopItem())) {
                     final int maxStock = shop.getMaxStock(), newTotalStock = (shop.getStock() + itemInHand.getAmount()),

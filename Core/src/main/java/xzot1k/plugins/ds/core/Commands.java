@@ -580,7 +580,7 @@ public class Commands implements CommandExecutor {
         if (economyCallEvent.failed()) return;
 
         if (shop.getSellPrice(false) < 0) shop.setSellPrice(Math.min(price, shop.getBuyPrice(false)));
-        else shop.setBuyPrice(price);
+        else shop.setSellPrice(price);
 
         shop.updateTimeStamp();
         shop.save(true);

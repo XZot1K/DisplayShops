@@ -4,6 +4,7 @@
 
 package xzot1k.plugins.ds.api;
 
+import com.iridium.iridiumcore.dependencies.nbtapi.NBTItem;
 import net.md_5.bungee.api.ChatColor;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.*;
@@ -1456,6 +1457,14 @@ public class DManager implements Manager {
             }
         }
         return removedItems;
+    }
+
+    @Override
+    public boolean hasBlockedNBT(@NotNull ItemStack itemStack) {
+        // ensure blocked nbt is not on the item
+        NBTItem nbtItem = new NBTItem(itemStack);
+        List<String> blockedNbtList = getPluginInstance().getConfig().getStringList("blocked-nbt-list");
+        return blockedNbtList.stream().anyMatch(nbtItem::hasKey);
     }
 
     /**

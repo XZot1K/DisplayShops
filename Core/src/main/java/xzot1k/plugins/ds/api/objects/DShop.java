@@ -719,6 +719,8 @@ public class DShop implements Shop {
         setDynamicSellCounter(0);
         setGlobalBuyLimit(-1);
         setGlobalSellLimit(-1);
+        setPlayerBuyLimit(-1);
+        setPlayerSellLimit(-1);
         setGlobalBuyCounter(0);
         setGlobalSellCounter(0);
         setBuyPrice(INSTANCE.getConfig().getDouble("default-buy-price"));
