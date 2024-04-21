@@ -73,6 +73,10 @@
                                     <shadedPattern>xzot1k.plugins.ds.anvilgui</shadedPattern>
                                 </relocation>
                                 <relocation>
+                                    <pattern>de.tr7zw.changeme.nbtapi</pattern>
+                                    <shadedPattern>xzot1k.plugins.ds.nbtapi</shadedPattern>
+                                </relocation>
+                                <relocation>
                                     <pattern>com.google.code.gson</pattern>
                                     <shadedPattern>xzot1k.plugins.ds.gson</shadedPattern>
                                 </relocation>
@@ -252,13 +256,6 @@
             <artifactId>spigot</artifactId>
             <version>${server.version}</version>
             <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>net.wesjd</groupId>
-            <artifactId>anvilgui</artifactId>
-            <version>1.9.2-SNAPSHOT</version>
-            <scope>compile</scope>
         </dependency>
 
     </dependencies>
