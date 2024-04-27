@@ -1459,12 +1459,14 @@ public class DManager implements Manager {
     }
 
     public boolean hasBlockedNBT(@NotNull ItemStack itemStack) {
+        if (itemStack.getType() == Material.AIR || itemStack.getAmount() == 0) return false;
+
         try {
             // ensure blocked nbt is not on the item
             de.tr7zw.changeme.nbtapi.NBTItem nbtItem = new de.tr7zw.changeme.nbtapi.NBTItem(itemStack);
             List<String> blockedNbtList = getPluginInstance().getConfig().getStringList("blocked-nbt-list");
             return blockedNbtList.stream().anyMatch(nbtItem::hasKey);
-        } catch (Exception e) {e.printStackTrace();}
+        } catch (Exception ignored) {}
         return false;
     }
 
