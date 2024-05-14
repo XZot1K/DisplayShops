@@ -270,12 +270,15 @@ public class CustomItem {
     public CustomItem setEnchanted(boolean enchanted) {
         ItemMeta itemMeta = get().getItemMeta();
         if (itemMeta != null) {
+            Enchantment enchantment = Enchantment.getByName("DURABILITY");
+            if (enchantment == null) enchantment = Enchantment.UNBREAKING;
+
             if (!enchanted) {
                 itemMeta.getItemFlags().add(ItemFlag.HIDE_ENCHANTS);
-                itemMeta.addEnchant(Enchantment.DURABILITY, 10, true);
+                itemMeta.addEnchant(enchantment, 10, true);
             } else {
                 itemMeta.getItemFlags().remove(ItemFlag.HIDE_ENCHANTS);
-                itemMeta.removeEnchant(Enchantment.DURABILITY);
+                itemMeta.removeEnchant(enchantment);
             }
         }
 

@@ -34,6 +34,7 @@
     <bytecodeTargetLevel>
       <module name="v1_20_r1 (1)" target="17" />
       <module name="v1_20_r1 (2)" target="17" />
+      <module name="v1_20_R4" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

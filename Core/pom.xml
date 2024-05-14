@@ -16,13 +16,13 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>5</core.build>
+        <core.build>1</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>DisplayShops_${project.version}-build_${core.build}</finalName>
+        <finalName>DisplayShops_${project.version}</finalName>
         <!--<finalName>DisplayShops_${project.version}-build_${core.build}</finalName>-->
 
         <resources>
@@ -256,6 +256,12 @@
             <artifactId>spigot</artifactId>
             <version>${server.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.20.6-R0.1-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
 
     </dependencies>

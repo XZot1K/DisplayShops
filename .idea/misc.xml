@@ -20,9 +20,9 @@
     <option name="ignoredFiles">
       <set>
         <option value="$PROJECT_DIR$/API/pom.xml" />
+        <option value="$PROJECT_DIR$/v1_20_R4/pom.xml" />
       </set>
     </option>
-    <option name="workspaceImportForciblyTurnedOn" value="true" />
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" project-jdk-name="17" project-jdk-type="JavaSDK" />
 </project>

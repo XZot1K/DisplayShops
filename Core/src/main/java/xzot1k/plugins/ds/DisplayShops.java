@@ -113,9 +113,29 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         saveDefaultMenuConfigs();
 
         final String packageName = getServer().getClass().getPackage().getName();
-        setServerVersion(Double.parseDouble(packageName.replace(".", ",").split(",")[3]
-                .substring(1).replace("_R", ".").replaceAll("[rvV_]*", "")));
-        versionPackageName = packageName.substring(packageName.lastIndexOf('.') + 1);
+
+        System.out.println(packageName);
+
+        // setServerVersion(Double.parseDouble(packageName.replace(".", ",").split(",")[3]
+        //         .substring(1).replace("_R", ".").replaceAll("[rvV_]*", "")));
+        // versionPackageName = packageName.substring(packageName.lastIndexOf('.') + 1);
+
+        // 1.20.5-1.20.6 changed packaging, so the server version is formatted as v1_20_6_R1
+        String[] args = getServer().getClass().getPackage().getName().split("\\.");
+
+        System.out.println(getServer().getBukkitVersion());
+
+        versionPackageName = args.length > 3 ? packageName.substring(packageName.lastIndexOf('.') + 1)
+                : getServer().getBukkitVersion().replace("-R0", "").replace("-SNAPSHOT", "")
+                .substring(getServer().getBukkitVersion().replace("-R0", "").replace("-SNAPSHOT", "").lastIndexOf('.') + 1);
+
+        System.out.println(versionPackageName);
+
+        setServerVersion(args.length > 3 ? Double.parseDouble(packageName.replace(".", ",").split(",")[3]
+                .substring(1).replace("_R", ".").replaceAll("[rvV_]*", ""))
+                : Double.parseDouble(getServer().getBukkitVersion().replace("-R0.1", "").replace("-SNAPSHOT", "")));
+
+        System.out.println(getServerVersion());
 
         fixConfig();
 

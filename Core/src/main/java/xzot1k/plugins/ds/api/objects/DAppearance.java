@@ -162,7 +162,10 @@ public class DAppearance extends Appearance {
 
             if (menu.getConfiguration().getBoolean("selected-format.enchanted")) {
                 try {
-                    itemMeta.addEnchant(Enchantment.DURABILITY, 0, true);
+                    Enchantment enchantment = Enchantment.getByName("DURABILITY");
+                    if (enchantment == null) enchantment = Enchantment.UNBREAKING;
+
+                    itemMeta.addEnchant(enchantment, 0, true);
                     itemMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                 } catch (Exception e) {
                     e.printStackTrace();
