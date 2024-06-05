@@ -7,6 +7,7 @@ package xzot1k.plugins.ds.core.tasks;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.objects.Display;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.util.LinkedList;
@@ -34,6 +35,27 @@ public class VisualTask extends BukkitRunnable {
 
         for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
             if (shop == null || shop.getBaseLocation() == null) continue;
+
+            // if display manager exists, use new displays
+            if (getPluginInstance().getDisplayManager() != null) {
+
+                Display display = getPluginInstance().getDisplayManager().getDisplay(shop.getShopId());
+                if (display == null) {continue;}
+
+                display.update();
+
+                for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
+                    if (player == null || !player.isOnline()) {continue;}
+
+                    final Shop foundShopAtLocation = getPluginInstance().getManager().getShopRayTraced(player.getWorld().getName(),
+                            player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), getViewDistance());
+
+                    boolean isFocused = foundShopAtLocation != null && foundShopAtLocation.getShopId().toString().equals(shop.getShopId().toString());
+                    display.show(player, isFocused);
+                }
+
+                continue;
+            }
 
             for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
                 if (getPlayersToRefresh().contains(player.getUniqueId()) || getShopsToRefresh().contains(shop.getShopId())) {

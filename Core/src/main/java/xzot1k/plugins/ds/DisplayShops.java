@@ -24,11 +24,9 @@ import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.api.DManager;
 import xzot1k.plugins.ds.api.VersionUtil;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
-import xzot1k.plugins.ds.api.objects.DAppearance;
-import xzot1k.plugins.ds.api.objects.DataPack;
-import xzot1k.plugins.ds.api.objects.Menu;
-import xzot1k.plugins.ds.api.objects.Shop;
+import xzot1k.plugins.ds.api.objects.*;
 import xzot1k.plugins.ds.core.Commands;
+import xzot1k.plugins.ds.core.DisplayManager;
 import xzot1k.plugins.ds.core.Listeners;
 import xzot1k.plugins.ds.core.TabCompleter;
 import xzot1k.plugins.ds.core.gui.BackendMenu;
@@ -61,6 +59,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     // Main handlers
     private static DisplayShops pluginInstance;
     private DManager manager;
+    private DisplayManager displayManager;
     private SimpleDateFormat dateFormat;
     private ProfileCache profileCache;
 
@@ -114,8 +113,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         final String packageName = getServer().getClass().getPackage().getName();
 
-        System.out.println(packageName);
-
         // setServerVersion(Double.parseDouble(packageName.replace(".", ",").split(",")[3]
         //         .substring(1).replace("_R", ".").replaceAll("[rvV_]*", "")));
         // versionPackageName = packageName.substring(packageName.lastIndexOf('.') + 1);
@@ -123,19 +120,20 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         // 1.20.5-1.20.6 changed packaging, so the server version is formatted as v1_20_6_R1
         String[] args = getServer().getClass().getPackage().getName().split("\\.");
 
-        System.out.println(getServer().getBukkitVersion());
+        if (args.length > 3) {
+            versionPackageName = packageName.substring(packageName.lastIndexOf('.') + 1);
+            setServerVersion(Double.parseDouble(packageName.replace(".", ",").split(",")[3]
+                    .substring(1).replace("_R", ".").replaceAll("[rvV_]*", "")));
+        } else {
+            // 1.20.6-R0.1-SNAPSHOT
+            versionPackageName = getServer().getBukkitVersion().replaceAll("(-R.*)$", "");
+            setServerVersion(Double.parseDouble(versionPackageName.replace(".", "")));
 
-        versionPackageName = args.length > 3 ? packageName.substring(packageName.lastIndexOf('.') + 1)
-                : getServer().getBukkitVersion().replace("-R0", "").replace("-SNAPSHOT", "")
-                .substring(getServer().getBukkitVersion().replace("-R0", "").replace("-SNAPSHOT", "").lastIndexOf('.') + 1);
-
-        System.out.println(versionPackageName);
-
-        setServerVersion(args.length > 3 ? Double.parseDouble(packageName.replace(".", ",").split(",")[3]
-                .substring(1).replace("_R", ".").replaceAll("[rvV_]*", ""))
-                : Double.parseDouble(getServer().getBukkitVersion().replace("-R0.1", "").replace("-SNAPSHOT", "")));
+            displayManager = new DisplayManager();
+        }
 
         System.out.println(getServerVersion());
+
 
         fixConfig();
 
@@ -147,9 +145,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
         try {
             setup();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+        } catch (ClassNotFoundException e) {e.printStackTrace();}
 
         setPaperSpigot(false);
         Method[] methods = World.class.getMethods();
@@ -233,7 +229,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setupTasks();
         double version = Math.floor(getServerVersion());
-        log(Level.INFO, "Fully loaded and enabled with " + (version / (version >= 100 ? 100 : 10))
+        log(Level.INFO, "Fully loaded and enabled with " + (getDisplayManager() != null ? versionPackageName : (version / (version >= 100 ? 100 : 10)))
                 + " packets (Took " + (System.currentTimeMillis() - startTime) + "ms).");
 
         if (getDescription().getVersion().toLowerCase().contains("build") || getDescription().getVersion().toLowerCase().contains("snapshot"))
@@ -247,6 +243,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     @Override
     public void onDisable() {
         getServer().getScheduler().cancelTasks(this);
+
+        Display.ClearAllEntities();
 
         if (getManager() != null) {
             final int[] shopSaveCount = {0};
@@ -605,10 +603,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                             String[] materialSplit = materialLine.split(":");
                             Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
                             int durability = Integer.parseInt(materialSplit[1]);
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material, durability);
+                            if (material != null && !material.name().contains("AIR")) shapedRecipe.setIngredient(recipeChar, material, durability);
                         } else {
                             Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
+                            if (material != null && !material.name().contains("AIR")) shapedRecipe.setIngredient(recipeChar, material);
                         }
                     }
                 }
@@ -623,10 +621,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                             String[] materialSplit = materialLine.split(":");
                             Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
                             int durability = Integer.parseInt(materialSplit[1]);
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material, durability);
+                            if (material != null && !material.name().contains("AIR")) shapedRecipe.setIngredient(recipeChar, material, durability);
                         } else {
                             Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
+                            if (material != null && !material.name().contains("AIR")) shapedRecipe.setIngredient(recipeChar, material);
                         }
                     }
                 }
@@ -640,19 +638,20 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
                         if (materialLine.contains(":")) {
                             String[] materialSplit = materialLine.split(":");
                             Material material = Material.getMaterial(materialSplit[0].toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) {
+                            if (material != null && !material.name().contains("AIR")) {
                                 int durability = Integer.parseInt(materialSplit[1]);
                                 shapedRecipe.setIngredient(recipeChar, material, durability);
                             }
                         } else {
                             Material material = Material.getMaterial(materialLine.toUpperCase().replace(" ", "_").replace("-", "_"));
-                            if (material != null) shapedRecipe.setIngredient(recipeChar, material);
+                            if (material != null && !material.name().contains("AIR")) shapedRecipe.setIngredient(recipeChar, material);
                         }
                     }
                 }
 
                 getServer().addRecipe(shapedRecipe);
             } catch (Exception e) {
+                e.printStackTrace();
                 log(Level.WARNING, "Unable to create the custom recipe for the shop creation item. This is normally due to the version of Minecraft"
                         + " not supporting the new 'NamespacedKey' API values. To avoid this issue entirely -> DISABLE THE 'craftable' OPTION IN THE 'shop-creation-item'"
                         + " SECTION LOCATED IN THE 'config.yml' file.");
@@ -787,7 +786,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         setInSightTask(new VisualTask(this));
-        getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
+        if (getDisplayManager() != null) {getInSightTask().runTaskTimer(this, 60, getConfig().getInt("view-tick"));} else {
+            getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
+        }
 
         setVisitItemTask(new VisitItemTask(this));
         getVisitItemTask().runTaskTimerAsynchronously(this, 20, (20 * 5));
@@ -834,6 +835,11 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
     // version-based methods
     private void setup() throws ClassNotFoundException {
+        if (getDisplayManager() != null) {
+            versionUtil = new xzot1k.plugins.ds.core.packets.VersionUtil();
+            return;
+        }
+
         try {
             Class<?> vUtilClass = Class.forName("xzot1k.plugins.ds.nms." + getVersionPackageName() + ".VUtil");
             versionUtil = (VersionUtil) vUtilClass.getDeclaredConstructor().newInstance();
@@ -1400,19 +1406,15 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         return versionUtil;
     }
 
-    public boolean isGeyserInstalled() {
-        return geyserInstalled;
-    }
+    public boolean isGeyserInstalled() {return geyserInstalled;}
 
-    public VisitItemTask getVisitItemTask() {
-        return visitItemTask;
-    }
+    public VisitItemTask getVisitItemTask() {return visitItemTask;}
 
-    public void setVisitItemTask(VisitItemTask visitItemTask) {
-        this.visitItemTask = visitItemTask;
-    }
+    public void setVisitItemTask(VisitItemTask visitItemTask) {this.visitItemTask = visitItemTask;}
 
     public ProfileCache getProfileCache() {return profileCache;}
 
     public boolean isOraxenInstalled() {return isOraxenInstalled;}
+
+    public DisplayManager getDisplayManager() {return displayManager;}
 }

@@ -1,5 +1,6 @@
 package xzot1k.plugins.ds.core.hooks;
 
+import com.edwardbelt.edprison.EdPrison;
 import com.willfp.ecobits.currencies.CurrencyUtils;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
@@ -187,7 +188,7 @@ public class EconomyHandler implements EcoHandler {
 
     private void setupPlayerPoints() {
         Plugin ppPlugin = INSTANCE.getServer().getPluginManager().getPlugin("PlayerPoints");
-        if (ppPlugin == null || ppPlugin.getConfig().getBoolean("vault")) return;
+        if (ppPlugin == null) return;
 
         final String locale = ppPlugin.getConfig().getString("locale");
         File localeFile = new File(ppPlugin.getDataFolder().getPath(), "/locale/" + locale + ".yml");
@@ -309,6 +310,63 @@ public class EconomyHandler implements EcoHandler {
                 }
             };
         }
+    }
+
+    public void setupEdPrison() {
+        if (!INSTANCE.getConfig().getBoolean("use-vault")) return;
+
+        EdPrison edPrison = (EdPrison) INSTANCE.getServer().getPluginManager().getPlugin("EdPrison");
+        if(edPrison == null) return;
+
+        //edPrison.getApi().getEconomyApi().
+
+        new EcoHook("EdPrison", this) {
+            @Override
+            public String getSingularName() {
+                return ((getVaultEconomy().currencyNameSingular() == null
+                        || getVaultEconomy().currencyNameSingular().isEmpty()) ? getVaultEconomy().getName() :
+                        getVaultEconomy().currencyNameSingular());
+            }
+
+            @Override
+            public String getPluralName() {
+                return ((getVaultEconomy().currencyNamePlural() == null
+                        || getVaultEconomy().currencyNamePlural().isEmpty()) ? getVaultEconomy().getName() : getVaultEconomy().currencyNamePlural());
+            }
+
+            @Override
+            public boolean deposit(@NotNull UUID playerUniqueId, double amount) {
+                final OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(playerUniqueId);
+                return getVaultEconomy().depositPlayer(offlinePlayer, amount).transactionSuccess();
+            }
+
+            @Override
+            public boolean deposit(@NotNull OfflinePlayer player, double amount) {
+                return getVaultEconomy().depositPlayer(player, amount).transactionSuccess();
+            }
+
+            @Override
+            public boolean withdraw(@NotNull UUID playerUniqueId, double amount) {
+                final OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(playerUniqueId);
+                return getVaultEconomy().withdrawPlayer(offlinePlayer, amount).transactionSuccess();
+            }
+
+            @Override
+            public boolean withdraw(@NotNull OfflinePlayer player, double amount) {
+                return getVaultEconomy().withdrawPlayer(player, amount).transactionSuccess();
+            }
+
+            @Override
+            public double getBalance(@NotNull UUID playerUniqueId) {
+                final OfflinePlayer offlinePlayer = INSTANCE.getServer().getOfflinePlayer(playerUniqueId);
+                return getVaultEconomy().getBalance(offlinePlayer);
+            }
+
+            @Override
+            public double getBalance(@NotNull OfflinePlayer player) {
+                return getVaultEconomy().getBalance(player);
+            }
+        };
     }
 
     // helper methods

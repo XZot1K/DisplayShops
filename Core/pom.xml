@@ -16,14 +16,14 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>1</core.build>
+        <core.build>6</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>DisplayShops_${project.version}</finalName>
-        <!--<finalName>DisplayShops_${project.version}-build_${core.build}</finalName>-->
+        <!--<finalName>DisplayShops_${project.version}</finalName>-->
+        <finalName>DisplayShops_${project.version}-build_${core.build}</finalName>
 
         <resources>
             <resource>
@@ -261,6 +261,18 @@
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>1.20.6-R0.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>xzot1k.plugins.ds</groupId>
+            <artifactId>DisplayShopsAPI</artifactId>
+            <version>2.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.1.0</version>
             <scope>compile</scope>
         </dependency>
 
