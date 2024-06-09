@@ -19,6 +19,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -209,6 +211,9 @@ public class Commands implements CommandExecutor {
                     } else if (args[0].equalsIgnoreCase("renewcost") || args[0].equalsIgnoreCase("rcost")) {
                         runRenewCost(commandSender, null, args[1]);
                         return true;
+                    } else if (args[0].equalsIgnoreCase("kill")) {
+                        runKill(commandSender, args);
+                        return true;
                     }
 
                     break;
@@ -234,6 +239,9 @@ public class Commands implements CommandExecutor {
                     } else if (args[0].equalsIgnoreCase("lock")) {
                         runAppearanceAccess(commandSender, false, args);
                         return true;
+                    } else if (args[0].equalsIgnoreCase("kill")) {
+                        runKill(commandSender, args);
+                        return true;
                     }
                     break;
             }
@@ -242,6 +250,50 @@ public class Commands implements CommandExecutor {
             return true;
         } else
             return false;
+    }
+
+    private void runKill(CommandSender commandSender, String[] args) {
+        if (!(commandSender instanceof Player)) {
+            String message = getPluginInstance().getLangConfig().getString("must-be-player");
+            if (message != null && !message.equalsIgnoreCase(""))
+                commandSender.sendMessage(getPluginInstance().getManager().color(message));
+            return;
+        }
+
+        final Player player = (Player) commandSender;
+
+        String type = "ArmorStand";
+        if (args.length >= 1) {type = args[0];}
+
+        int radius = 8;
+        if (args.length >= 2) {
+            if (getPluginInstance().getManager().isNotNumeric(args[1])) {
+                String message = getPluginInstance().getLangConfig().getString("invalid-amount");
+                if (message != null && !message.equalsIgnoreCase(""))
+                    getPluginInstance().getManager().sendMessage(player, message);
+                return;
+            }
+
+            radius = Integer.parseInt(args[1]);
+        }
+
+        int counter = 0, removedCounter = 0;
+
+        List<Entity> entities = player.getNearbyEntities(radius, radius, radius);
+        counter += entities.size();
+
+        for (int i = -1; ++i < entities.size(); ) {
+            Entity entity = entities.get(i);
+
+            if ((entity instanceof ArmorStand && (type.toLowerCase().contains("armorstand") || type.toLowerCase().contains("stand")))
+                    || (entity instanceof org.bukkit.entity.Item && (type.toLowerCase().contains("item") || type.toLowerCase().contains("drop")))) {
+                entity.remove();
+                removedCounter++;
+            }
+        }
+
+        getPluginInstance().getManager().sendMessage(player, getPluginInstance().getLangConfig().getString("kill-command"),
+                ("{count}:" + counter), ("{removed}:" + removedCounter));
     }
 
     // command helpers
@@ -1372,7 +1424,7 @@ public class Commands implements CommandExecutor {
 
             List<Shop> shopList = new ArrayList<>(getPluginInstance().getManager().getShopMap().values());
             for (Shop shop : shopList) {
-                if (getPluginInstance().getManager().getShopMap().containsKey(shop.getShopId())) {
+                if (getPluginInstance().getManager().getShopMap().containsKey(shop.getBaseLocation().toString())) {
                     for (Player p : getPluginInstance().getServer().getOnlinePlayers())
                         shop.kill(p);
                     shop.save(false);
@@ -1401,6 +1453,8 @@ public class Commands implements CommandExecutor {
                 commandSender.sendMessage(getPluginInstance().getManager().color(message));
             return;
         }
+
+        Display.ClearAllEntities();
 
         final int cleanInactiveTime = getPluginInstance().getConfig().getInt("clean-inactive-duration");
 

@@ -1,26 +1,27 @@
 package xzot1k.plugins.ds.api.objects;
 
-import com.plotsquared.core.command.Clear;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.entity.*;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.inventory.EntityEquipment;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public class Display {
+    public static NamespacedKey key = new NamespacedKey(DisplayShops.getPluginInstance(), "DisplayShops-Entity");
 
     private final Shop shop;
     private final List<ArmorStand> lines = new ArrayList<>();
@@ -46,6 +47,21 @@ public class Display {
         updateLines(world, baseLocation);
     }
 
+    public static void ClearAllEntities() {
+        DisplayShops.getPluginInstance().getServer().getWorlds().forEach(world -> {
+            world.getEntities().forEach(entity -> {
+                if ((entity.getType() == EntityType.ARMOR_STAND || entity.getType() == EntityType.ITEM) && (entity.hasMetadata("DisplayShops-Entity")
+                        || entity.getPersistentDataContainer().has(key))) {entity.remove();}
+            });
+        });
+
+        DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().values().forEach(display -> {
+            if (display.getItem() != null) {display.getItem().remove();}
+            if (display.getGlass() != null) {display.getGlass().remove();}
+            if (display.getLines() != null) {display.getLines().forEach(entity -> {if (entity != null) {entity.remove();}});}
+        });
+    }
+
     private void updateItem(World world, Location baseLocation) {
         Location destination = baseLocation.clone().add(0.5, 1, 0.5);
 
@@ -64,6 +80,8 @@ public class Display {
 
         getItem().setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
 
+        getItem().getPersistentDataContainer().set(key, PersistentDataType.STRING, "item");
+
         // Set properties to make it not tick
         getItem().setGravity(false);
         getItem().setPickupDelay(Integer.MAX_VALUE); // Prevent pickup
@@ -73,34 +91,6 @@ public class Display {
         getItem().setInvulnerable(true);
 
         getItemHolder().addPassenger(getItem()); // add item as passenger
-    }
-
-    private void updateGlass(World world, Location baseLocation) {
-        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
-        if (appearance == null) return;
-
-        final double[] offsets = appearance.getOffset();
-        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
-
-        // return if glass is supposed to be hidden
-        if (DisplayShops.getPluginInstance().getConfig().getBoolean("hide-glass")) return;
-
-        double x = (shop.getBaseLocation().getX() + offsetX),
-                y = (shop.getBaseLocation().getY() + offsetY),
-                z = (shop.getBaseLocation().getZ() + offsetZ);
-
-        Location newLocation = new Location(world, x, y, z);
-
-        if (getGlass() == null || getGlass().isDead()) {glass = world.spawn(newLocation, ArmorStand.class);} else {getGlass().teleport(newLocation);}
-
-        if(getGlass().getEquipment() != null) {getGlass().getEquipment().setHelmet(new ItemStack(Material.GLASS));}
-        getGlass().addEquipmentLock(EquipmentSlot.HEAD, ArmorStand.LockType.REMOVING_OR_CHANGING);
-
-        getGlass().setMarker(true);
-        getGlass().setGravity(false);
-        getGlass().setVisible(false);
-        getGlass().setAI(false);
-        getGlass().setVisibleByDefault(false);
     }
 
     private void updateLines(World world, Location baseLocation) {
@@ -231,6 +221,44 @@ public class Display {
                 shop.getBaseLocation().distance(player.getLocation(), false) <= DisplayShops.getPluginInstance().getConfig().getInt("view-distance"));
     }
 
+    private void updateGlass(World world, Location baseLocation) {
+        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
+        if (appearance == null) return;
+
+        final double[] offsets = appearance.getOffset();
+        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
+
+        // return if glass is supposed to be hidden
+        if (DisplayShops.getPluginInstance().getConfig().getBoolean("hide-glass")) return;
+
+        double x = (shop.getBaseLocation().getX() + offsetX),
+                y = (shop.getBaseLocation().getY() + offsetY),
+                z = (shop.getBaseLocation().getZ() + offsetZ);
+
+        Location newLocation = new Location(world, x, y, z);
+
+        if (getGlass() == null || getGlass().isDead()) {glass = world.spawn(newLocation, ArmorStand.class);} else {getGlass().teleport(newLocation);}
+
+        if (getGlass().getEquipment() != null) {getGlass().getEquipment().setHelmet(new ItemStack(Material.GLASS));}
+        getGlass().addEquipmentLock(EquipmentSlot.HEAD, ArmorStand.LockType.REMOVING_OR_CHANGING);
+
+        getGlass().getPersistentDataContainer().set(key, PersistentDataType.STRING, "glass");
+        getGlass().setMarker(true);
+        getGlass().setGravity(false);
+        getGlass().setVisible(false);
+        getGlass().setAI(false);
+        getGlass().setVisibleByDefault(false);
+    }
+
+    public void ClearLines() {
+        for (int i = -1; ++i < getLines().size(); ++i) {
+            ArmorStand lineEntity = getLines().get(i);
+            if (lineEntity == null || lineEntity.isDead()) {continue;}
+
+            lineEntity.remove();
+        }
+    }
+
     private ArmorStand CreateStand(@NotNull Location location) {
         if (location.getWorld() == null) {return null;}
 
@@ -243,32 +271,9 @@ public class Display {
         lineEntity.setCustomNameVisible(true);
         lineEntity.setVisibleByDefault(false);
         lineEntity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
-
+        lineEntity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "line");
         getLines().add(lineEntity);
         return lineEntity;
-    }
-
-    public void ClearLines() {
-        for (int i = -1; ++i < getLines().size(); ++i) {
-            ArmorStand lineEntity = getLines().get(i);
-            if (lineEntity == null || lineEntity.isDead()) {continue;}
-
-            lineEntity.remove();
-        }
-    }
-
-    public static void ClearAllEntities() {
-        DisplayShops.getPluginInstance().getServer().getWorlds().forEach(world -> {
-            world.getEntities().forEach(entity -> {
-                if ((entity.getType() == EntityType.ARMOR_STAND || entity.getType() == EntityType.ITEM) && entity.hasMetadata("DisplayShops-Entity")) {entity.remove();}
-            });
-        });
-
-        DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().values().forEach(display -> {
-            if (display.getItem() != null) {display.getItem().remove();}
-            if (display.getGlass() != null) {display.getGlass().remove();}
-            if (display.getLines() != null) {display.getLines().forEach(entity -> {if (entity != null) {entity.remove();}});}
-        });
     }
 
     // getters & setters
