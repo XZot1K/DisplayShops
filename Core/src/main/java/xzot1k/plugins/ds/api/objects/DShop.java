@@ -499,12 +499,22 @@ public class DShop implements Shop {
                 && downBlock.getType().name().contains("WEB") && downBlock.getType().name().contains("PISTON") && downBlock.getType().name().contains("MAGMA")));
     }
 
+    public void updateBaseBlockDirection(@NotNull Player player) {
+        float newYaw = Math.round(player.getLocation().getYaw() / 90) * 90;
+        if (newYaw == 180) {newYaw = -180;}
+        getBaseLocation().setYaw(newYaw);
+    }
+
     /**
      * Deletes the shop from the database if found.
      *
      * @param async Whether the shop should be deleted on the main thread or not.
      */
     public synchronized void delete(boolean async) {
+
+        Display display = DisplayShops.getPluginInstance().getDisplayManager().getDisplay(getShopId());
+        if (display != null) {display.delete();}
+
         if (async) INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, (Runnable) this::delete);
         else delete();
     }

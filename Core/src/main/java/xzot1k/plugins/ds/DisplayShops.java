@@ -130,10 +130,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             setServerVersion(Double.parseDouble(versionPackageName.replace(".", "")));
 
             displayManager = new DisplayManager();
+            if (getPluginInstance().getDisplayManager() != null) {Display.ClearAllEntities();}
         }
-
-        System.out.println(getServerVersion());
-
 
         fixConfig();
 
@@ -149,8 +147,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setPaperSpigot(false);
         Method[] methods = World.class.getMethods();
-        if (methods.length > 0)
-            for (int i = -1; ++i < methods.length; ) {
+        if (methods.length > 0) for (int i = -1; ++i < methods.length; ) {
                 final Method method = methods[i];
                 if (method == null || !method.getName().equalsIgnoreCase("getChunkAtAsync")) continue;
                 setPaperSpigot(true);
@@ -244,7 +241,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public void onDisable() {
         getServer().getScheduler().cancelTasks(this);
 
-        Display.ClearAllEntities();
+        if (getPluginInstance().getDisplayManager() != null) {Display.ClearAllEntities();}
 
         if (getManager() != null) {
             final int[] shopSaveCount = {0};
@@ -786,7 +783,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         setInSightTask(new VisualTask(this));
-        if (getDisplayManager() != null) {getInSightTask().runTaskTimer(this, 60, getConfig().getInt("view-tick"));} else {
+        if (getDisplayManager() != null) {getInSightTask().runTaskTimer(this, 1, getConfig().getInt("view-tick"));} else {
             getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
         }
 

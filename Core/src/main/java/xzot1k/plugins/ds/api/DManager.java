@@ -814,6 +814,7 @@ public class DManager implements Manager {
         DShop shop = new DShop(getPluginInstance().getManager().generateNewId(), player.getUniqueId(), block.getLocation(), shopItemAmount,
                 (appearanceMenu != null ? appearanceMenu.getConfiguration().getString("default-appearance") : "Default"));
         shop.register();
+        shop.updateBaseBlockDirection(player);
 
         if (doCreationEffects) {
             String soundString = getPluginInstance().getConfig().getString("immersion-section.shop-creation-sound");

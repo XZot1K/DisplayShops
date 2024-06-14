@@ -282,6 +282,7 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
 
+                shop.updateBaseBlockDirection(player);
                 shop.setShopItem(selectedItemClone);
                 shop.setShopItemAmount(shop.getShopItem().getAmount());
                 e.getView().getTopInventory().setItem(saleItemSlot, shop.getShopItem().clone());
@@ -351,6 +352,7 @@ public class MenuListener implements Listener {
                 dataPack.setInteractionType(null);
                 dataPack.setInteractionValue(null);
 
+                shop.updateBaseBlockDirection(player);
                 shop.setTradeItem(selectedItemClone);
                 e.getView().getTopInventory().setItem(tradeItemSlot, shop.getTradeItem().clone());
 

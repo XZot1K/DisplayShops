@@ -613,6 +613,8 @@ public class EconomyHandler implements EcoHandler {
     public String format(@Nullable Shop shop, @NotNull String currencyType, double amount, @Nullable EconomyCallType... economyCallType) {
         if (amount == -1) return INSTANCE.getLangConfig().getString("disabled");
 
+        if (currencyType.isEmpty()) {currencyType = INSTANCE.getEconomyHandler().getDefaultCurrency();}
+
         if (economyCallType != null && economyCallType.length > 0 && economyCallType[0] != null) {
             final String forcedEconomyCall = getForcedEconomyCall(economyCallType[0]);
             if (forcedEconomyCall != null && !forcedEconomyCall.isEmpty()) currencyType = forcedEconomyCall;

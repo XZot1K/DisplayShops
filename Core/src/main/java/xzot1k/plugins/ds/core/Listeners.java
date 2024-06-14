@@ -905,6 +905,7 @@ public class Listeners implements Listener {
             return;
         }
 
+        shop.updateBaseBlockDirection(player);
         shop.setShopItem(handItemClone);
         shop.setShopItemAmount(shop.getShopItem().getAmount());
 

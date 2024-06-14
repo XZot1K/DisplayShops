@@ -236,20 +236,20 @@ public class MRegion implements MarketRegion {
     public boolean isInRegion(@NotNull Location location) {
         if (this.getRegion().getPointOne() == null || this.getRegion().getPointTwo() == null) return false;
 
+        //System.out.println(location.getX() + "," +location.getY() + "," + location.getZ() + " - " + getRegion().getPointOne().getX() + "-" + getRegion().getPointTwo().getX()
+        //+ " | "+ getRegion().getPointOne().getY() + "-" + getRegion().getPointTwo().getY() + "-" + getRegion().getPointOne().getZ() + "-" + getRegion().getPointTwo().getZ());
+
         return (location.getWorld() != null
                 && (location.getWorld().getName().equalsIgnoreCase(this.getRegion().getPointOne().getWorldName())
-                && (location.getX() >= this.getRegion().getPointOne().getX()
-                && location.getX() <= this.getRegion().getPointTwo().getX()
-                || location.getX() <= this.getRegion().getPointOne().getX()
-                && location.getX() >= this.getRegion().getPointTwo().getX())
-                && (location.getY() >= this.getRegion().getPointOne().getY()
-                && location.getY() <= this.getRegion().getPointTwo().getY()
-                || location.getY() <= this.getRegion().getPointOne().getY()
-                && location.getY() >= this.getRegion().getPointTwo().getY())
-                && (location.getZ() >= this.getRegion().getPointOne().getZ()
-                && location.getZ() <= this.getRegion().getPointTwo().getZ()
-                || location.getZ() <= this.getRegion().getPointOne().getZ()
-                && location.getZ() >= this.getRegion().getPointTwo().getZ())));
+
+                && (location.getX() >= this.getRegion().getPointOne().getX() && location.getX() <= this.getRegion().getPointTwo().getX()
+                || location.getX() <= this.getRegion().getPointOne().getX() && location.getX() >= this.getRegion().getPointTwo().getX())
+
+                && (location.getY() >= this.getRegion().getPointOne().getY() && location.getY() <= this.getRegion().getPointTwo().getY()
+                || location.getY() <= this.getRegion().getPointOne().getY() && location.getY() >= this.getRegion().getPointTwo().getY())
+
+                && (location.getZ() >= this.getRegion().getPointOne().getZ() && location.getZ() <= this.getRegion().getPointTwo().getZ()
+                || location.getZ() <= this.getRegion().getPointOne().getZ() && location.getZ() >= this.getRegion().getPointTwo().getZ())));
     }
 
     @Override
@@ -257,18 +257,15 @@ public class MRegion implements MarketRegion {
         if (this.getRegion().getPointOne() == null || this.getRegion().getPointTwo() == null) return false;
 
         return location.getWorldName().equalsIgnoreCase(this.getRegion().getPointOne().getWorldName())
-                && (location.getX() >= this.getRegion().getPointOne().getX()
-                && location.getX() <= this.getRegion().getPointTwo().getX()
-                || location.getX() <= this.getRegion().getPointOne().getX()
-                && location.getX() >= this.getRegion().getPointTwo().getX())
-                && (location.getY() >= this.getRegion().getPointOne().getY()
-                && location.getY() <= this.getRegion().getPointTwo().getY()
-                || location.getY() <= this.getRegion().getPointOne().getY()
-                && location.getY() >= this.getRegion().getPointTwo().getY())
-                && (location.getZ() >= this.getRegion().getPointOne().getZ()
-                && location.getZ() <= this.getRegion().getPointTwo().getZ()
-                || location.getZ() <= this.getRegion().getPointOne().getZ()
-                && location.getZ() >= this.getRegion().getPointTwo().getZ());
+                && (location.getX() >= this.getRegion().getPointOne().getX() && location.getX() <= this.getRegion().getPointTwo().getX()
+
+                || location.getX() <= this.getRegion().getPointOne().getX() && location.getX() >= this.getRegion().getPointTwo().getX())
+                && (location.getY() >= this.getRegion().getPointOne().getY() && location.getY() <= this.getRegion().getPointTwo().getY()
+
+                || location.getY() <= this.getRegion().getPointOne().getY() && location.getY() >= this.getRegion().getPointTwo().getY())
+
+                && (location.getZ() >= this.getRegion().getPointOne().getZ() && location.getZ() <= this.getRegion().getPointTwo().getZ()
+                || location.getZ() <= this.getRegion().getPointOne().getZ() && location.getZ() >= this.getRegion().getPointTwo().getZ());
     }
 
     @Override

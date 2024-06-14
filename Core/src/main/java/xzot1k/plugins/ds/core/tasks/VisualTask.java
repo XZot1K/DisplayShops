@@ -43,6 +43,7 @@ public class VisualTask extends BukkitRunnable {
                 if (display == null) {continue;}
 
                 display.update();
+                display.rotate();
 
                 for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
                     if (player == null || !player.isOnline()) {continue;}
@@ -118,13 +119,16 @@ public class VisualTask extends BukkitRunnable {
     }
 
     public void refreshShop(Shop shop) {
+        if (getPluginInstance().getDisplayManager() != null) {return;}
+
         if (shop == null || shop.getShopId() == null) return;
         if (getShopsToRefresh() != null && (getShopsToRefresh().isEmpty() || !getShopsToRefresh().contains(shop.getShopId())))
             getShopsToRefresh().add(shop.getShopId());
     }
 
     public void refreshShops(Player player) {
-        if (player == null) return;
+        if (player == null || getPluginInstance().getDisplayManager() != null) return;
+
         if (getPlayersToRefresh() != null && (getPlayersToRefresh().isEmpty() || !getPlayersToRefresh().contains(player.getUniqueId())))
             getPlayersToRefresh().add(player.getUniqueId());
     }

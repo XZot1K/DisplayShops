@@ -263,18 +263,18 @@ public class Commands implements CommandExecutor {
         final Player player = (Player) commandSender;
 
         String type = "ArmorStand";
-        if (args.length >= 1) {type = args[0];}
+        if (args.length >= 2) {type = args[1];}
 
         int radius = 8;
-        if (args.length >= 2) {
-            if (getPluginInstance().getManager().isNotNumeric(args[1])) {
+        if (args.length >= 3) {
+            if (getPluginInstance().getManager().isNotNumeric(args[2])) {
                 String message = getPluginInstance().getLangConfig().getString("invalid-amount");
                 if (message != null && !message.equalsIgnoreCase(""))
                     getPluginInstance().getManager().sendMessage(player, message);
                 return;
             }
 
-            radius = Integer.parseInt(args[1]);
+            radius = Integer.parseInt(args[2]);
         }
 
         int counter = 0, removedCounter = 0;
@@ -285,7 +285,8 @@ public class Commands implements CommandExecutor {
         for (int i = -1; ++i < entities.size(); ) {
             Entity entity = entities.get(i);
 
-            if ((entity instanceof ArmorStand && (type.toLowerCase().contains("armorstand") || type.toLowerCase().contains("stand")))
+            if (((entity instanceof ArmorStand || entity instanceof org.bukkit.entity.Item) && type.toLowerCase().contains("both"))
+                    || (entity instanceof ArmorStand && (type.toLowerCase().contains("armorstand") || type.toLowerCase().contains("stand")))
                     || (entity instanceof org.bukkit.entity.Item && (type.toLowerCase().contains("item") || type.toLowerCase().contains("drop")))) {
                 entity.remove();
                 removedCounter++;
@@ -1706,7 +1707,7 @@ public class Commands implements CommandExecutor {
         if (message != null && !message.equalsIgnoreCase(""))
             getPluginInstance().getManager().sendMessage(player, message
                     .replace("{id}", marketRegion.getMarketId())
-                    .replace("{cost}", String.valueOf(marketRegion.getRenewCost())));
+                    .replace("{cost}", getPluginInstance().getEconomyHandler().format(null, "", marketRegion.getRenewCost())));
     }
 
     private void runSelectionMode(CommandSender commandSender) {
@@ -1790,6 +1791,9 @@ public class Commands implements CommandExecutor {
         // cancel tasks and reload configs
         getPluginInstance().cancelTasks();
         getPluginInstance().reloadConfigs();
+
+        // clear displays
+        if (getPluginInstance().getDisplayManager() != null) {Display.ClearAllEntities();}
 
         // reset EconomyHandler
         getPluginInstance().getEconomyHandler().reset();
