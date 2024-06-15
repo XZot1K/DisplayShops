@@ -259,13 +259,8 @@
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>
             <version>${server.version}</version>
+            <classifier>remapped-mojang</classifier>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>${server.version}</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>xzot1k.plugins.ds</groupId>

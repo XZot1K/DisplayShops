@@ -23,6 +23,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xzot1k.plugins.ds.api.DManager;
 import xzot1k.plugins.ds.api.VersionUtil;
+import xzot1k.plugins.ds.api.enums.FoliaScheduler;
+import xzot1k.plugins.ds.api.handlers.Delegate;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
 import xzot1k.plugins.ds.api.objects.*;
 import xzot1k.plugins.ds.core.Commands;
@@ -83,7 +85,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
-    private boolean isItemAdderInstalled, isOraxenInstalled;
+    private boolean isFolia, isItemAdderInstalled, isOraxenInstalled;
 
     // Task handlers
     private VisualTask inSightTask;
@@ -148,13 +150,17 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         setPaperSpigot(false);
         Method[] methods = World.class.getMethods();
         if (methods.length > 0) for (int i = -1; ++i < methods.length; ) {
-                final Method method = methods[i];
-                if (method == null || !method.getName().equalsIgnoreCase("getChunkAtAsync")) continue;
-                setPaperSpigot(true);
-            }
+            final Method method = methods[i];
+            if (method == null || !method.getName().equalsIgnoreCase("getChunkAtAsync")) continue;
+            setPaperSpigot(true);
+        }
+
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            isFolia = true;
+        } catch (ClassNotFoundException e) {isFolia = false;}
 
         this.economyHandler = new EconomyHandler(this);
-        this.geyserInstalled = (getServer().getPluginManager().getPlugin("Geyser-Spigot") != null);
         this.townyInstalled = (getServer().getPluginManager().getPlugin("Towny") != null);
         this.isItemAdderInstalled = (getServer().getPluginManager().getPlugin("ItemsAdder") != null);
         this.isOraxenInstalled = (getServer().getPluginManager().getPlugin("Oraxen") != null);
@@ -1261,6 +1267,14 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         shop.display(player, showHolograms);
     }
 
+    // folia stuff
+    public void OperateFolia(FoliaScheduler foliaScheduler, Delegate delegate) {
+        switch (foliaScheduler) {
+            case GLOBAL: {
+            }
+        }
+    }
+
     // getters & setters
 
     /**
@@ -1414,4 +1428,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public boolean isOraxenInstalled() {return isOraxenInstalled;}
 
     public DisplayManager getDisplayManager() {return displayManager;}
+
+    public boolean isFolia() {return isFolia;}
 }
