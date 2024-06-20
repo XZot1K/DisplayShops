@@ -3,10 +3,7 @@ package xzot1k.plugins.ds.api.objects;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.*;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.ItemDisplay;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
+import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataType;
@@ -25,8 +22,7 @@ public class Display {
 
     private final Shop shop;
     //private final List<TextDisplay> lines = new ArrayList<>();
-    private TextDisplay textDisplay;
-    private ItemDisplay itemDisplay, blockDisplay;
+    private Entity textDisplay, itemDisplay, blockDisplay;
     //private final List<Integer> usedLines = new ArrayList<>();
 
     // private final int duration = 5 * 20;
@@ -150,7 +146,7 @@ public class Display {
 
                 if (DisplayShops.getPluginInstance().getConfig().getBoolean("allow-item-spinning")) {rotateDisplay(entity, mat, scale, 5);}
             });
-        } else {getItemHolder().setItemStack(item);}
+        } else {((ItemDisplay) getItemHolder()).setItemStack(item);}
 
         //getItemHolder().setRotation(baseLocation.getYaw() + addYaw, baseLocation.getPitch() + addPitch);
 
@@ -335,7 +331,7 @@ public class Display {
                 // see the Display and TextDisplay Javadoc, there are many more options
             });
         } else {
-            getTextDisplay().text(LegacyComponentSerializer.legacySection().deserialize(text));
+            ((TextDisplay) getTextDisplay()).text(LegacyComponentSerializer.legacySection().deserialize(text));
         }
 
         // remove all unused
@@ -472,11 +468,11 @@ public class Display {
 
     public Shop getShop() {return shop;}
 
-    public ItemDisplay getGlass() {return blockDisplay;}
+    public Entity getGlass() {return blockDisplay;}
 
-    public ItemDisplay getItemHolder() {return itemDisplay;}
+    public Entity getItemHolder() {return itemDisplay;}
 
-    public TextDisplay getTextDisplay() {return textDisplay;}
+    public Entity getTextDisplay() {return textDisplay;}
 
     //public ItemFrame getItemFrame() {return itemFrame;}
 }

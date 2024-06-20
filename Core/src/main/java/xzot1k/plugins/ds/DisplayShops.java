@@ -81,11 +81,10 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private MenuListener menuListener;
 
     // hook handlers
-    private boolean paperSpigot, prismaInstalled, townyInstalled, geyserInstalled;
+    private boolean paperSpigot, prismaInstalled, townyInstalled, geyserInstalled, isFolia, isItemAdderInstalled, isOraxenInstalled, isDecentHologramsInstalled;
     private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
-    private boolean isFolia, isItemAdderInstalled, isOraxenInstalled;
 
     // Task handlers
     private VisualTask inSightTask;
@@ -143,6 +142,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         teleportingPlayers = new ArrayList<>();
 
         this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
+        this.geyserInstalled = (getServer().getPluginManager().getPlugin("Geyser-Spigot") != null);
+        this.isDecentHologramsInstalled = (getServer().getPluginManager().getPlugin("DecentHolograms") != null);
+
         try {
             setup();
         } catch (ClassNotFoundException e) {e.printStackTrace();}
@@ -1437,4 +1439,6 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public DisplayManager getDisplayManager() {return displayManager;}
 
     public boolean isFolia() {return isFolia;}
+
+    public boolean isDecentHologramsInstalled() {return isDecentHologramsInstalled;}
 }

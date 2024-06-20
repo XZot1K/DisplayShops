@@ -4,6 +4,7 @@
 
 package xzot1k.plugins.ds.core.tasks;
 
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -50,7 +51,8 @@ public class VisualTask extends BukkitRunnable {
                 float currentScale = 0.5f;
                 double x = 0, y = 0, z = 0;
 
-                if (display.getItemHolder() == null || display.getItemHolder().getItemStack() == null || !display.getItemHolder().getItemStack().isSimilar(item)) {
+                if (display.getItemHolder() == null || (display.getItemHolder().getType().name().equals("ITEM_DISPLAY")
+                        && ((ItemDisplay) display.getItemHolder()).getItemStack() == null || !((ItemDisplay) display.getItemHolder()).getItemStack().isSimilar(item))) {
                     // handle offset
                     List<String> itemOffsets = DisplayShops.getPluginInstance().getConfig().getStringList("item-display-offsets");
                     for (int i = -1; ++i < itemOffsets.size(); ) {

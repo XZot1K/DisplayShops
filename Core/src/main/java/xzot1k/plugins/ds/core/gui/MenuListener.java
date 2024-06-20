@@ -106,10 +106,26 @@ public class MenuListener implements Listener {
         if (e.getClickedInventory() == null) return;
 
         final Player player = (Player) e.getWhoClicked();
-        final String creationItemName = INSTANCE.getManager().color(Objects.requireNonNull(INSTANCE.getConfig().getString("shop-creation-item.display-name")));
-        String[] blockedInventories = {"ANVIL", "DISPENSER", "DROPPER", "FURNACE", "GRINDSTONE", "STONECUTTER"};
-        for (int i = -1; ++i < blockedInventories.length; ) {
-            if (player.getOpenInventory().getType().name().startsWith(blockedInventories[i])) {
+        String creationItemName = INSTANCE.getConfig().getString("shop-creation-item.display-name");
+        if (creationItemName != null && !creationItemName.isEmpty()) {
+            creationItemName = DisplayShops.getPluginInstance().getManager().color(creationItemName);
+            try {
+                String[] blockedInventories = {"ANVIL", "DISPENSER", "DROPPER", "FURNACE", "GRINDSTONE", "STONECUTTER"};
+                for (int i = -1; ++i < blockedInventories.length; ) {
+                    if (player.getOpenInventory().getType().name().startsWith(blockedInventories[i])) {
+                        boolean isCreationItem = (e.getCurrentItem() != null && (e.getCurrentItem().hasItemMeta() && e.getCurrentItem().getItemMeta() != null)
+                                && e.getCurrentItem().getItemMeta().hasDisplayName() && e.getCurrentItem().getItemMeta().getDisplayName().equals(creationItemName))
+                                || (e.getCursor() != null && (e.getCursor().hasItemMeta() && e.getCursor().getItemMeta() != null) && e.getCursor().getItemMeta().hasDisplayName()
+                                && e.getCursor().getItemMeta().getDisplayName().equals(creationItemName));
+
+                        if (isCreationItem) {
+                            e.setCancelled(true);
+                            e.setResult(Event.Result.DENY);
+                            return;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
                 boolean isCreationItem = (e.getCurrentItem() != null && (e.getCurrentItem().hasItemMeta() && e.getCurrentItem().getItemMeta() != null)
                         && e.getCurrentItem().getItemMeta().hasDisplayName() && e.getCurrentItem().getItemMeta().getDisplayName().equals(creationItemName))
                         || (e.getCursor() != null && (e.getCursor().hasItemMeta() && e.getCursor().getItemMeta() != null) && e.getCursor().getItemMeta().hasDisplayName()
