@@ -1,44 +1,42 @@
 package xzot1k.plugins.ds.api.objects;
 
-import io.papermc.lib.PaperLib;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.md_5.bungee.api.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.*;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.util.EulerAngle;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Matrix4f;
 import xzot1k.plugins.ds.DisplayShops;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class Display {
+
     public static NamespacedKey key = new NamespacedKey(DisplayShops.getPluginInstance(), "DisplayShops-Entity");
+    public static final ItemStack barrier = new ItemStack(Material.BARRIER);
 
     private final Shop shop;
-    private final List<ArmorStand> lines = new ArrayList<>();
-    private ArmorStand glass, itemHolder;
+    //private final List<TextDisplay> lines = new ArrayList<>();
+    private TextDisplay textDisplay;
+    private ItemDisplay itemDisplay, blockDisplay;
+    //private final List<Integer> usedLines = new ArrayList<>();
 
-    private final List<Integer> usedLines = new ArrayList<>();
-
-    //private ItemFrame itemFrame;
-    //private Item item;
+    // private final int duration = 5 * 20;
+    // private float scale = 0.5f;
+    // private Matrix4f mat = new Matrix4f();
 
     public Display(@NotNull Shop shop) {
         this.shop = shop;
-        update();
+        //update();
     }
-    private double currentAngle = 0;
 
     public static void ClearAllEntities() {
         DisplayShops.getPluginInstance().getServer().getWorlds().forEach(world -> {
@@ -52,62 +50,37 @@ public class Display {
             //if (display.getItem() != null) {display.getItem().remove();}
             if (display.getItemHolder() != null) {display.getItemHolder().remove();}
             if (display.getGlass() != null) {display.getGlass().remove();}
-            if (display.getLines() != null) {display.getLines().forEach(entity -> {if (entity != null) {entity.remove();}});}
+            if (display.getTextDisplay() != null) {display.getTextDisplay().remove();}
         });
     }
 
-    public void update() {
+    public void update(String generatedText, float itemScale, double itemOffsetX, double itemOffsetY, double itemOffsetZ) {
         if (getShop() == null) return;
 
         World world = DisplayShops.getPluginInstance().getServer().getWorld(getShop().getBaseLocation().getWorldName());
         if (world == null) {return;}
 
+        if (!world.isChunkLoaded((int) (getShop().getBaseLocation().getX()) >> 4, (int) (getShop().getBaseLocation().getZ()) >> 4)) {return;}
+
         Location baseLocation = getShop().getBaseLocation().asBukkitLocation();
         if (baseLocation == null) return;
 
-        updateItem(world, baseLocation);
-        updateGlass(world, baseLocation);
-        updateLines(world, baseLocation);
+        double[] offsets = null;
+        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
+        if (appearance != null) {offsets = appearance.getOffset();}
+
+        updateItem(world, baseLocation, itemScale, itemOffsetX, itemOffsetY, itemOffsetZ, offsets);
+        updateGlass(world, baseLocation, offsets);
+        updateLines(world, baseLocation, generatedText, offsets);
     }
 
     public void rotate() {
-        if (getItemHolder() == null || getItemHolder().isDead() || !DisplayShops.getPluginInstance().getConfig().getBoolean("allow-item-spinning")) {return;}
-
-        if (getItemHolder().getEquipment() != null && getItemHolder().getEquipment().getHelmet() != null) {
-            ItemStack item = getItemHolder().getEquipment().getHelmet();
-
-            List<String> denySpinningList = DisplayShops.getPluginInstance().getConfig().getStringList("deny-item-spinning");
-            for (int i = -1; ++i < denySpinningList.size(); ) {
-                String line = denySpinningList.get(i);
-                if (!line.contains(":")) {continue;}
-
-                String[] args = line.split(":");
-                if (args.length < 2) {continue;}
-
-                final String material = args[0];
-                boolean matches = false;
-
-                if (DisplayShops.getPluginInstance().isItemAdderInstalled()) {
-                    if (dev.lone.itemsadder.api.CustomStack.isInRegistry(material)) {matches = true;}
-                }
-
-                if (DisplayShops.getPluginInstance().isOraxenInstalled()) {
-                    io.th0rgal.oraxen.items.ItemBuilder itemBuilder = io.th0rgal.oraxen.api.OraxenItems.getItemById(material);
-                    if (itemBuilder != null) {matches = true;}
-                }
-
-                if (matches || args[0].equalsIgnoreCase(item.getType().name())) {return;}
-            }
-        }
-
-        currentAngle += Math.PI / 48; // Increment the angle (adjust the speed as needed)
-        if (currentAngle >= 2 * Math.PI) {
-            currentAngle = 0;
-        }
-
-        // Create a new EulerAngle for the head's pose
-        EulerAngle headPose = new EulerAngle(0, currentAngle, 0);
-        getItemHolder().setHeadPose(headPose);
+        /*if(getItemHolder() != null && getItemHolder().getItemStack() != null) {
+            mat = mat.scale(scale);
+            getItemHolder().setTransformationMatrix(mat = mat.rotateY(((float) Math.toRadians(180)) + 0.1F));
+            getItemHolder().setInterpolationDelay(0);
+            getItemHolder().setInterpolationDuration(duration);
+        }*/
     }
 
     public void delete() {
@@ -115,12 +88,12 @@ public class Display {
 
         if (getItemHolder() != null) {getItemHolder().remove();}
         if (getGlass() != null) {getGlass().remove();}
-        if (getLines() != null) {getLines().forEach(entity -> {if (entity != null) {entity.remove();}});}
+        if (getTextDisplay() != null) {getTextDisplay().remove();}
     }
 
-    private void updateItem(World world, Location baseLocation) {
+    private void updateItem(World world, Location baseLocation, float scale, double x, double y, double z, double[] appearanceOffsets) {
         final float yaw = baseLocation.getYaw();
-        final ItemStack item = (shop.getShopItem() != null ? shop.getShopItem() : new ItemStack(Material.BARRIER));
+        final ItemStack item = (shop.getShopItem() != null ? shop.getShopItem() : barrier);
         final boolean isBlock = item.getType().isBlock() && item.getType() != Material.BARRIER,
                 allowsSpinning = DisplayShops.getPluginInstance().getConfig().getBoolean("allow-item-spinning");
 
@@ -156,60 +129,35 @@ public class Display {
 
         }
 
-        // handle offset
-        List<String> itemOffsets = DisplayShops.getPluginInstance().getConfig().getStringList("item-display-offsets");
-        for (int i = -1; ++i < itemOffsets.size(); ) {
-            String line = itemOffsets.get(i);
-            if (!line.contains(":")) {continue;}
+        if (getItemHolder() == null || getItemHolder().isDead() || !getItemHolder().isValid()) {
+            baseLocation.setYaw(addYaw);
 
-            String[] args = line.split(":");
-            if (args.length < 2 || !args[1].contains(",")) {continue;}
+            itemDisplay = world.spawn(baseLocation.clone().add(0.5 + x + (appearanceOffsets != null ? appearanceOffsets[0] : 0),
+                    1.4 + y + (appearanceOffsets != null ? appearanceOffsets[1] : 0), 0.5 + z + (appearanceOffsets != null ? appearanceOffsets[2] : 0)), ItemDisplay.class, entity -> {
+                entity.setItemStack(item);
+                entity.setInvulnerable(true);
+                //entity.setPersistent(true);
+                entity.setGravity(false);
+                entity.setNoPhysics(true);
+                entity.setSilent(true);
+                entity.setVisibleByDefault(true);
 
-            final String material = args[0];
-            boolean matches = false;
+                entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
+                entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "item");
 
-            if (DisplayShops.getPluginInstance().isItemAdderInstalled()) {
-                if (dev.lone.itemsadder.api.CustomStack.isInRegistry(material)) {matches = true;}
-            }
+                Matrix4f mat = new Matrix4f().scale(scale);
+                entity.setTransformationMatrix(mat);
 
-            if (DisplayShops.getPluginInstance().isOraxenInstalled()) {
-                io.th0rgal.oraxen.items.ItemBuilder itemBuilder = io.th0rgal.oraxen.api.OraxenItems.getItemById(material);
-                if (itemBuilder != null) {matches = true;}
-            }
+                if (DisplayShops.getPluginInstance().getConfig().getBoolean("allow-item-spinning")) {rotateDisplay(entity, mat, scale, 5);}
+            });
+        } else {getItemHolder().setItemStack(item);}
 
-            if (!matches && !item.getType().name().contains(args[0].toUpperCase().replace(" ", "_").replace("-", "_"))) {continue;}
+        //getItemHolder().setRotation(baseLocation.getYaw() + addYaw, baseLocation.getPitch() + addPitch);
 
-            String[] offsets = args[1].split(",");
-            if (offsets.length < 5) {continue;}
-
-            destination.add(Double.parseDouble(offsets[0]), Double.parseDouble(offsets[1]), Double.parseDouble(offsets[2]));
-            addYaw = Float.parseFloat(offsets[3]);
-            addPitch = Float.parseFloat(offsets[4]);
-        }
-
-        if (getItemHolder() == null || getItemHolder().isDead()) {itemHolder = world.spawn(destination, ArmorStand.class);} else {
-            if (getItemHolder().getEquipment() != null && getItemHolder().getEquipment().getHelmet() != null
-                    && !DisplayShops.getPluginInstance().getManager().isSimilar(getItemHolder().getEquipment().getHelmet(), shop.getShopItem())) {
-                PaperLib.teleportAsync(getItemHolder(), destination, PlayerTeleportEvent.TeleportCause.PLUGIN);
-            }
-        }
-
-        getItemHolder().setMarker(true);
-        getItemHolder().setGravity(false);
-        getItemHolder().setSmall(true);
-        getItemHolder().setVisible(false);
-        getItemHolder().setAI(false);
-        getItemHolder().setSmall(true);
-        getItemHolder().setRemoveWhenFarAway(false);
-        getItemHolder().setRotation(baseLocation.getYaw() + addYaw, baseLocation.getPitch() + addPitch);
-
-        getItemHolder().setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
-        getItemHolder().getPersistentDataContainer().set(key, PersistentDataType.STRING, "item");
-
-        if (getItemHolder().getEquipment() != null) {
+        /*if (getItemHolder().getEquipment() != null) {
             getItemHolder().getEquipment().setHelmet(item, true);
             getItemHolder().addEquipmentLock(EquipmentSlot.HEAD, ArmorStand.LockType.REMOVING_OR_CHANGING);
-        }
+        }*/
 
         /*if (getItem() == null || getItem().isDead()) {
             item = world.spawn(destination, Item.class);
@@ -231,15 +179,64 @@ public class Display {
         getItemHolder().addPassenger(getItem()); // add item as passenger*/
     }
 
-    private void updateLines(World world, Location baseLocation) {
-        ClearLines(); // remove entities
+    private void rotateDisplay(ItemDisplay display, Matrix4f mat, float scale, int duration) {
+        final float rotationIncrement = (float) Math.toRadians(5); // Rotate 5 degrees per tick
+        final float[] currentAngle = {0}; // Array to hold current angle
 
-        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
-        if (appearance == null) return;
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (display == null || display.isDead() || !display.isValid()) { // display was removed from the world, abort task
+                    cancel();
+                    return;
+                }
 
-        final double[] offsets = appearance.getOffset();
-        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
+                currentAngle[0] += rotationIncrement; // Increment the angle
+                if (currentAngle[0] >= Math.toRadians(360)) {
+                    currentAngle[0] -= (float) Math.toRadians(360); // Reset the angle if it completes a full rotation
+                }
 
+                Matrix4f matrix = null;
+
+                ItemStack itemStack = display.getItemStack();
+                if (itemStack != null) {
+                    if (itemStack.getType().name().contains("SHIELD")) {return;}
+                }
+
+                // Update the transformation matrix with the new rotation
+                display.setTransformationMatrix((matrix != null ? matrix : mat.identity()).scale(scale).rotateY(currentAngle[0]));
+                display.setInterpolationDelay(0); // no delay to the interpolation
+                display.setInterpolationDuration(duration); // set the duration of the interpolated rotation
+            }
+        }.runTaskTimer(DisplayShops.getPluginInstance(), 1, duration); // Schedule the task with the specified duration
+    }
+
+    private void updateGlass(World world, Location baseLocation, double[] appearanceOffsets) {
+        // return if glass is supposed to be hidden
+        if (DisplayShops.getPluginInstance().getConfig().getBoolean("hide-glass")) return;
+
+        double x = (0.5 + baseLocation.getX() + (appearanceOffsets != null ? appearanceOffsets[0] : 0)),
+                y = (1.4 + baseLocation.getY() + (appearanceOffsets != null ? appearanceOffsets[1] : 0)),
+                z = (0.5 + baseLocation.getZ() + (appearanceOffsets != null ? appearanceOffsets[2] : 0));
+
+        Location newLocation = new Location(world, x, y, z);
+
+        if (getGlass() == null || getGlass().isDead() || !getGlass().isValid()) {
+            blockDisplay = world.spawn(newLocation, ItemDisplay.class, entity -> {
+                entity.setInvulnerable(true);
+                entity.setGravity(false);
+                entity.setVisibleByDefault(true);
+                //entity.setPersistent(true);
+                entity.setItemStack(new ItemStack(Material.GLASS));
+                entity.setTransformationMatrix(new Matrix4f().scale((float) DisplayShops.getPluginInstance().getConfig().getDouble("display-glass-scale")));
+
+                entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "glass");
+                entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
+            });
+        } else {getGlass().teleport(newLocation);}
+    }
+
+    public String generateText() {
         List<String> hologramFormat;
         if (shop.getShopItem() != null) {
             if (shop.getOwnerUniqueId() == null) hologramFormat = DisplayShops.getPluginInstance().getConfig().getStringList("admin-shop-format");
@@ -252,24 +249,16 @@ public class Display {
         final String colorCode = DisplayShops.getPluginInstance().getConfig().getString("default-description-color");
         final boolean hidePriceLine = DisplayShops.getPluginInstance().getConfig().getBoolean("price-disabled-hide");
 
-        double x = (baseLocation.getX() + offsetX), y = (baseLocation.getY() + (1.9 + offsetY)), z = (baseLocation.getZ() + offsetZ);
+        StringBuilder text = new StringBuilder();
 
-        for (int i = hologramFormat.size(); --i >= 0; ) {
-            String line = hologramFormat.get(i);
+        for (int i = -1; ++i < hologramFormat.size(); ) {
+            final String line = hologramFormat.get(i);
 
             if ((hidePriceLine && ((line.contains("buy-price") && shop.getBuyPrice(true) < 0)
                     || (line.contains("sell-price") && shop.getSellPrice(true) < 0)))
                     || ((line.contains("{description}") && (shop.getDescription() == null || shop.getDescription().equalsIgnoreCase(""))))) {
                 continue;
             }
-
-            Location location = new Location(world, x, y, z);
-            ArmorStand lineEntity = getNextUnusedLine();
-            if (lineEntity == null) {lineEntity = CreateStand(location);}
-
-            getLines().add(lineEntity);
-
-            if (lineEntity == null || lineEntity.isDead()) {continue;}
 
             if (line.contains("{description}") && !(shop.getDescription() == null || shop.getDescription().equalsIgnoreCase(""))) {
                 final String[] otherContents = line.split("\\{description}");
@@ -283,21 +272,75 @@ public class Display {
                     String descriptionLine = DisplayShops.getPluginInstance().getManager().color(descriptionLines.get(j));
                     descriptionLine = (descriptionLine.contains(ChatColor.COLOR_CHAR + "") ? descriptionLine : (DisplayShops.getPluginInstance().getManager().color(colorCode + descriptionLine)));
 
-                    lineEntity.setCustomName(DisplayShops.getPluginInstance().getManager().color((prefix + descriptionLine + suffix)));
-                    y += 0.3;
+                    // lineEntity.text(LegacyComponentSerializer.legacySection().deserialize(
+                    if (text.length() > 0) {text.append("\n");}
+
+                    text.append(DisplayShops.getPluginInstance().getManager().color((prefix + descriptionLine + suffix)));
+                    // y += 0.3;
                 }
                 continue;
             }
 
-            lineEntity.setCustomName(DisplayShops.getPluginInstance().getManager().color(DisplayShops.getPluginInstance().getManager().applyShopBasedPlaceholders(line, shop)));
-            //getLines().add(lineEntity);
+            if (text.length() > 0) {text.append("\n");}
+            text.append(DisplayShops.getPluginInstance().getManager().color((DisplayShops.getPluginInstance().getManager().applyShopBasedPlaceholders(line, shop))));
+            // y += 0.3;
+        }
 
-            y += 0.3;
+        return text.toString();
+    }
+
+    private void updateLines(World world, Location baseLocation, String text, double[] appearanceOffsets) {
+        double x = (0.5 + baseLocation.getX() + (appearanceOffsets != null ? appearanceOffsets[0] : 0)),
+                y = (1.7 + baseLocation.getY() + (appearanceOffsets != null ? appearanceOffsets[0] : 0)),
+                z = (0.5 + baseLocation.getZ() + (appearanceOffsets != null ? appearanceOffsets[0] : 0));
+
+        if (getTextDisplay() == null || !getTextDisplay().isValid() || getTextDisplay().isDead()) {
+            textDisplay = world.spawn(new Location(world, x, y, z), TextDisplay.class, entity -> {
+                // customize the entity!
+                //entity.text(Component.text("Some awesome content", NamedTextColor.BLACK));
+                entity.setBillboard(org.bukkit.entity.Display.Billboard.VERTICAL); // pivot only around the vertical axis
+
+                int alpha = 60, red = 0, green = 0, blue = 0;
+                String colorLine = DisplayShops.getPluginInstance().getConfig().getString("display-line-color");
+                if (colorLine != null && colorLine.contains(",")) {
+                    String[] colors = colorLine.split(",");
+                    if (colors.length >= 4) {
+                        alpha = Math.max(0, Math.min(Integer.parseInt(colors[0]), 100));
+                        red = Math.max(0, Math.min(Integer.parseInt(colors[1]), 255));
+                        green = Math.max(0, Math.min(Integer.parseInt(colors[2]), 255));
+                        blue = Math.max(0, Math.min(Integer.parseInt(colors[3]), 255));
+                    }
+                }
+
+                entity.setBackgroundColor(Color.fromARGB(alpha, red, green, blue)); // make the background red
+
+                //entity.setSeeThrough(true);
+                entity.setAlignment(TextDisplay.TextAlignment.CENTER);
+                entity.setInvulnerable(true);
+                //entity.setPersistent(true);
+                entity.setNoPhysics(true);
+                entity.setGravity(false);
+                entity.setInvisible(true);
+                entity.setShadowed(false);
+                entity.setSilent(true);
+                entity.setVisibleByDefault(false);
+                entity.text(LegacyComponentSerializer.legacySection().deserialize(text));
+
+                //final int longWordCount = DisplayShops.getPluginInstance().getConfig().getInt("description-long-word-wrap");
+                //entity.setLineWidth(120);
+
+                entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
+                entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "line");
+
+                // see the Display and TextDisplay Javadoc, there are many more options
+            });
+        } else {
+            getTextDisplay().text(LegacyComponentSerializer.legacySection().deserialize(text));
         }
 
         // remove all unused
-        getLines().removeIf(stand -> usedLines.contains(stand.getEntityId()));
-        usedLines.clear();
+        //getLines().removeIf(stand -> !usedLines.contains(stand.getEntityId()));
+        //usedLines.clear();
     }
 
     /**
@@ -312,26 +355,29 @@ public class Display {
             return;
         }
 
-        for (int i = -1; ++i < lines.size(); ) {
-            ArmorStand lineEntity = lines.get(i);
-            if (lineEntity == null || lineEntity.isDead()) {continue;}
+        // for (int i = -1; ++i < lines.size(); ) {
+        //     TextDisplay lineEntity = lines.get(i);
+        //     if (lineEntity == null || lineEntity.isDead()) {continue;}
 
-
-            if (focused && !player.canSee(lineEntity)) {player.showEntity(DisplayShops.getPluginInstance(), lineEntity);} else if (!focused && player.canSee(lineEntity)) {
-                player.hideEntity(DisplayShops.getPluginInstance(), lineEntity);
+        if (getTextDisplay() != null && getTextDisplay().isValid()) {
+            if (focused) {
+                player.showEntity(DisplayShops.getPluginInstance(), getTextDisplay());
+            } else {
+                player.hideEntity(DisplayShops.getPluginInstance(), getTextDisplay());
             }
         }
+        // }
 
         /*if (getItem() != null) {
             if (!player.canSee(getItem())) {player.showEntity(DisplayShops.getPluginInstance(), getItem());}
         }*/
 
         if (getItemHolder() != null) {
-            if (!player.canSee(getItemHolder())) {player.showEntity(DisplayShops.getPluginInstance(), getItemHolder());}
+            player.showEntity(DisplayShops.getPluginInstance(), getItemHolder());
         }
 
         if (getGlass() != null) {
-            if (!player.canSee(getGlass())) {player.showEntity(DisplayShops.getPluginInstance(), getGlass());}
+            player.showEntity(DisplayShops.getPluginInstance(), getGlass());
         }
     }
 
@@ -351,103 +397,86 @@ public class Display {
      * @param hideAll Whether to hide everything or not.
      */
     public void hide(@NotNull Player player, boolean hideAll) {
-        for (int i = -1; ++i < lines.size(); ) {
-            ArmorStand lineEntity = lines.get(i);
-            if (lineEntity == null || lineEntity.isDead()) {continue;}
+        //for (int i = -1; ++i < lines.size(); ) {
+        //TextDisplay lineEntity = lines.get(i);
+        //if (lineEntity == null || lineEntity.isDead()) {continue;}
 
-            if (player.canSee(lineEntity)) {player.hideEntity(DisplayShops.getPluginInstance(), lineEntity);}
-        }
+        // if (player.canSee(lineEntity)) {
+        if (getTextDisplay() != null && getTextDisplay().isValid()) player.hideEntity(DisplayShops.getPluginInstance(), getTextDisplay());
+        //}
+        //}
 
         if (hideAll) {
-            /*if (getItem() != null) {
-                if (player.canSee(getItem())) {player.hideEntity(DisplayShops.getPluginInstance(), getItem());}
-            }*/
 
-            if (getItemHolder() != null) {
-                if (player.canSee(getItemHolder())) {player.hideEntity(DisplayShops.getPluginInstance(), getItemHolder());}
+            if (getItemHolder() != null && getItemHolder().isValid()) {
+                //if (player.canSee(getItemHolder())) {
+                player.hideEntity(DisplayShops.getPluginInstance(), getItemHolder());
+                //}
             }
 
-            if (getGlass() != null) {
-                if (player.canSee(getGlass())) {player.hideEntity(DisplayShops.getPluginInstance(), getGlass());}
+            if (getGlass() != null && getGlass().isValid()) {
+                //if (player.canSee(getGlass())) {
+                player.hideEntity(DisplayShops.getPluginInstance(), getGlass());
+                //}
             }
         }
     }
 
-    private void updateGlass(World world, Location baseLocation) {
-        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
-        if (appearance == null) return;
-
-        final double[] offsets = appearance.getOffset();
-        final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
-
-        // return if glass is supposed to be hidden
-        if (DisplayShops.getPluginInstance().getConfig().getBoolean("hide-glass")) return;
-
-        double x = (shop.getBaseLocation().getX() + offsetX),
-                y = (shop.getBaseLocation().getY() + offsetY),
-                z = (shop.getBaseLocation().getZ() + offsetZ);
-
-        Location newLocation = new Location(world, x, y, z);
-
-        if (getGlass() == null || getGlass().isDead()) {glass = world.spawn(newLocation, ArmorStand.class);} else {getGlass().teleport(newLocation);}
-
-        if (getGlass().getEquipment() != null) {getGlass().getEquipment().setHelmet(new ItemStack(Material.GLASS));}
-        getGlass().addEquipmentLock(EquipmentSlot.HEAD, ArmorStand.LockType.REMOVING_OR_CHANGING);
-
-        getGlass().getPersistentDataContainer().set(key, PersistentDataType.STRING, "glass");
-        getGlass().setMarker(true);
-        getGlass().setGravity(false);
-        getGlass().setVisible(false);
-        getGlass().setAI(false);
-        getGlass().setVisibleByDefault(false);
-        getGlass().setRemoveWhenFarAway(false);
-    }
-
-    public void ClearLines() {
+    /*public void ClearLines() {
         for (int i = -1; ++i < getLines().size(); ) {
-            ArmorStand lineEntity = getLines().get(i);
+            TextDisplay lineEntity = getLines().get(i);
             if (lineEntity == null || lineEntity.isDead()) {continue;}
 
             lineEntity.remove();
         }
-    }
+    }*/
 
-    private ArmorStand CreateStand(@NotNull Location location) {
+    /*private TextDisplay CreateStand(@NotNull Location location) {
         if (location.getWorld() == null) {return null;}
 
-        ArmorStand lineEntity = location.getWorld().spawn(location, ArmorStand.class);
-        lineEntity.setMarker(true);
-        lineEntity.setGravity(false);
-        lineEntity.setSmall(true);
-        lineEntity.setVisible(false);
-        lineEntity.setAI(false);
-        lineEntity.setCustomNameVisible(true);
-        lineEntity.setVisibleByDefault(false);
-        lineEntity.setRemoveWhenFarAway(false);
-        lineEntity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
-        lineEntity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "line");
+        return location.getWorld().spawn(location, TextDisplay.class, entity -> {
+            // customize the entity!
+            //entity.text(Component.text("Some awesome content", NamedTextColor.BLACK));
+            entity.setBillboard(org.bukkit.entity.Display.Billboard.VERTICAL); // pivot only around the vertical axis
+            //entity.setBackgroundColor(Color.RED); // make the background red
 
-        return lineEntity;
-    }
+            entity.setAlignment(TextDisplay.TextAlignment.CENTER);
+            entity.setInvulnerable(true);
+            //entity.setPersistent(true);
+            entity.setNoPhysics(true);
+            entity.setGravity(false);
+            entity.setInvisible(true);
+            entity.setShadowed(false);
+            entity.setSilent(true);
+            entity.setVisibleByDefault(false);
 
-    private ArmorStand getNextUnusedLine() {
+            entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
+            entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "line");
+
+            // see the Display and TextDisplay Javadoc, there are many more options
+        });
+    }*/
+
+   /* private TextDisplay getNextUnusedLine() {
         for (int i = -1; ++i < getLines().size(); ) {
-            ArmorStand lineEntity = getLines().get(i);
+            TextDisplay lineEntity = getLines().get(i);
             if (usedLines.contains(lineEntity.getEntityId())) {return lineEntity;}
         }
         return null;
-    }
+    }*/
 
     // getters & setters
-    public List<ArmorStand> getLines() {return lines;}
+    //public List<TextDisplay> getLines() {return lines;}
 
     //public Item getItem() {return item;}
 
     public Shop getShop() {return shop;}
 
-    public ArmorStand getGlass() {return glass;}
+    public ItemDisplay getGlass() {return blockDisplay;}
 
-    public ArmorStand getItemHolder() {return itemHolder;}
+    public ItemDisplay getItemHolder() {return itemDisplay;}
+
+    public TextDisplay getTextDisplay() {return textDisplay;}
 
     //public ItemFrame getItemFrame() {return itemFrame;}
 }

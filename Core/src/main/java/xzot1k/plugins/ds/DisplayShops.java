@@ -789,9 +789,9 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         }
 
         setInSightTask(new VisualTask(this));
-        if (getDisplayManager() != null) {getInSightTask().runTaskTimer(this, 1, getConfig().getInt("view-tick"));} else {
+        //if (getDisplayManager() != null) {getInSightTask().runTaskTimer(this, 1, getConfig().getInt("view-tick"));} else {
             getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
-        }
+        //  }
 
         setVisitItemTask(new VisitItemTask(this));
         getVisitItemTask().runTaskTimerAsynchronously(this, 20, (20 * 5));
@@ -1268,9 +1268,16 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     }
 
     // folia stuff
-    public void OperateFolia(FoliaScheduler foliaScheduler, Delegate delegate) {
+    public void OperateFolia(FoliaScheduler foliaScheduler, Delegate delegate) {OperateFolia(foliaScheduler, delegate, -1, -1);}
+
+    public void OperateFolia(FoliaScheduler foliaScheduler, Delegate delegate, int delay) {OperateFolia(foliaScheduler, delegate, delay, -1);}
+
+    public void OperateFolia(FoliaScheduler foliaScheduler, Delegate delegate, int delay, int interval) {
         switch (foliaScheduler) {
             case GLOBAL: {
+                if (delay > -1 && interval > -1) {getServer().getGlobalRegionScheduler().runAtFixedRate(this, scheduledTask -> delegate.Method(), delay, interval);} else if (delay > -1) {
+                    getServer().getGlobalRegionScheduler().runDelayed(this, scheduledTask -> delegate.Method(), delay);
+                } else {getServer().getGlobalRegionScheduler().run(this, scheduledTask -> delegate.Method());}
             }
         }
     }

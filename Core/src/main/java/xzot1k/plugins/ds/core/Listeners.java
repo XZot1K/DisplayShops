@@ -1019,7 +1019,6 @@ public class Listeners implements Listener {
            /* if(getPluginInstance().isItemAdderInstalled()) {
                 dev.lone.itemsadder.api.CustomBlock customBlock = dev.lone.itemsadder.api.CustomBlock.byItemStack(itemStack);
             }*/
-
             return false;
         }
 

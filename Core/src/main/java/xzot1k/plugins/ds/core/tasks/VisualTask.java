@@ -5,12 +5,14 @@
 package xzot1k.plugins.ds.core.tasks;
 
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.objects.Display;
 import xzot1k.plugins.ds.api.objects.Shop;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
 public class VisualTask extends BukkitRunnable {
@@ -33,17 +35,62 @@ public class VisualTask extends BukkitRunnable {
     public void run() {
         if (getPluginInstance().getManager().getShopMap() == null || getPluginInstance().getManager().getShopMap().isEmpty()) return;
 
+        boolean isNew = getPluginInstance().getDisplayManager() != null;
+
         for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
             if (shop == null || shop.getBaseLocation() == null) continue;
 
             // if display manager exists, use new displays
-            if (getPluginInstance().getDisplayManager() != null) {
-
+            if (isNew) {
                 Display display = getPluginInstance().getDisplayManager().getDisplay(shop.getShopId());
                 if (display == null) {continue;}
 
-                display.update();
-                display.rotate();
+                final String generateText = display.generateText();
+                final ItemStack item = (shop.getShopItem() != null ? shop.getShopItem() : Display.barrier);
+                float currentScale = 0.5f;
+                double x = 0, y = 0, z = 0;
+
+                if (display.getItemHolder() == null || display.getItemHolder().getItemStack() == null || !display.getItemHolder().getItemStack().isSimilar(item)) {
+                    // handle offset
+                    List<String> itemOffsets = DisplayShops.getPluginInstance().getConfig().getStringList("item-display-offsets");
+                    for (int i = -1; ++i < itemOffsets.size(); ) {
+                        String line = itemOffsets.get(i);
+                        if (!line.contains(":")) {continue;}
+
+                        String[] args = line.split(":");
+                        if (args.length < 2 || !args[1].contains(",")) {continue;}
+
+                        final String material = args[0];
+                        boolean matches = false;
+
+                        if (DisplayShops.getPluginInstance().isItemAdderInstalled()) {
+                            if (dev.lone.itemsadder.api.CustomStack.isInRegistry(material)) {matches = true;}
+                        }
+
+                        if (DisplayShops.getPluginInstance().isOraxenInstalled()) {
+                            io.th0rgal.oraxen.items.ItemBuilder itemBuilder = io.th0rgal.oraxen.api.OraxenItems.getItemById(material);
+                            if (itemBuilder != null) {matches = true;}
+                        }
+
+                        if (!matches && !item.getType().name().contains(args[0].toUpperCase().replace(" ", "_").replace("-", "_"))) {continue;}
+
+                        String[] offsets = args[1].split(",");
+                        if (offsets.length < 4) {continue;}
+
+                        x = Double.parseDouble(offsets[0]);
+                        y = Double.parseDouble(offsets[1]);
+                        z = Double.parseDouble(offsets[2]);
+                        currentScale += Float.parseFloat(offsets[3]);
+                        break;
+                    }
+                }
+
+                float finalCurrentScale = currentScale;
+                double finalX = x, finalY = y, finalZ = z;
+                DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {
+                    display.update(generateText, finalCurrentScale, finalX, finalY, finalZ);
+                    display.rotate();
+                });
 
                 for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
                     if (player == null || !player.isOnline()) {continue;}
@@ -52,7 +99,7 @@ public class VisualTask extends BukkitRunnable {
                             player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), getViewDistance());
 
                     boolean isFocused = foundShopAtLocation != null && foundShopAtLocation.getShopId().toString().equals(shop.getShopId().toString());
-                    display.show(player, isFocused);
+                    DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {display.show(player, isFocused);});
                 }
 
                 continue;
@@ -112,7 +159,7 @@ public class VisualTask extends BukkitRunnable {
             }
         }
 
-        if (getPluginInstance().getConfig().getBoolean("run-gc-immediately") && getGcCounter() >= 15) {
+        if (!isNew && getPluginInstance().getConfig().getBoolean("run-gc-immediately") && getGcCounter() >= 15) {
             setGcCounter(0);
             System.gc();
         }

@@ -2,7 +2,7 @@ package xzot1k.plugins.ds.nms.v1_20_R3;
 
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
@@ -32,16 +32,16 @@ public class VUtil implements VersionUtil {
     @Override
     public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
-        final NBTTagCompound tag = item.w();
-        return tag.l(nbtTag);
+        final CompoundTag tag = item.getOrCreateTag();
+        return tag.getString(nbtTag);
     }
 
     @Override
     public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {
         final net.minecraft.world.item.ItemStack item = CraftItemStack.asNMSCopy(itemStack);
-        final NBTTagCompound tag = item.w(); // getOrCreateTag()
-        tag.a(nbtTag, value); // putString()
-        item.b(tag); // save()
+        final CompoundTag tag = item.getOrCreateTag(); // getOrCreateTag()
+        tag.putString(nbtTag, value); // putString()
+        item.save(tag); // save()
 
         return CraftItemStack.asBukkitCopy(item);
     }

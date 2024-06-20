@@ -16,7 +16,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>9</core.build>
+        <core.build>10</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -33,6 +33,18 @@
         </resources>
 
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <paperweight-mappings-namespace>mojang</paperweight-mappings-namespace>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -80,10 +92,6 @@
                                     <pattern>com.google.code.gson</pattern>
                                     <shadedPattern>xzot1k.plugins.ds.gson</shadedPattern>
                                 </relocation>
-                                <relocation>
-                                    <pattern>io.papermc.lib</pattern>
-                                    <shadedPattern>xzot1k.plugins.ds.paperlib</shadedPattern> <!-- Replace this -->
-                                </relocation>
                             </relocations>
 
                             <filters>
@@ -110,6 +118,13 @@
         </plugins>
     </build>
 
+    <repositories>
+        <repository>
+            <id>papermc-repo</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+    </repositories>
+
     <dependencies>
 
         <!-- API -->
@@ -118,6 +133,20 @@
             <artifactId>DisplayShopsAPI</artifactId>
             <version>${api.version}</version>
             <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>${server.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.mojang</groupId>
+            <artifactId>authlib</artifactId>
+            <version>1.5.21</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- NMS -->
@@ -255,13 +284,6 @@
         </dependency>
         <!-- NMS END -->
 
-        <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot</artifactId>
-            <version>${server.version}</version>
-            <classifier>remapped-mojang</classifier>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>xzot1k.plugins.ds</groupId>
             <artifactId>DisplayShopsAPI</artifactId>

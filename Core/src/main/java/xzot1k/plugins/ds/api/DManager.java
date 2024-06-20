@@ -612,7 +612,22 @@ public class DManager implements Manager {
         final String extended = getPluginInstance().getConfig().getString("potion-description-extended"),
                 upgraded = getPluginInstance().getConfig().getString("potion-description-upgraded");
 
-        return (color(getTranslatedName(potionMeta.getBasePotionData().getType()) + (potionMeta.getBasePotionData().isExtended()
+        if (getPluginInstance().getDisplayManager() != null) {
+            boolean isExtended = false, isUpgraded = false;
+            String potionName = Objects.requireNonNull(potionMeta.getBasePotionType()).name();
+
+            if (potionName.startsWith("LONG")) {isExtended = true;}
+            if (potionName.startsWith("STRONG")) {isUpgraded = true;}
+
+            PotionType type = PotionType.valueOf(potionName.replace("LONG_", "").replace("STRONG_", ""));
+
+            return (color(getTranslatedName(Objects.requireNonNull(type)) + (isExtended
+                    ? (" " + extended) : "") + (isUpgraded ? (" " + upgraded) : ""))
+                    + (totalEffects > 0 ? (" " + getPluginInstance().getConfig().getString("potion-description-format"))
+                    .replace("{remainder}", getPluginInstance().getManager().formatNumber(totalEffects, false)) : ""));
+        }
+
+        return (color(getTranslatedName(Objects.requireNonNull(potionMeta.getBasePotionData()).getType()) + (potionMeta.getBasePotionData().isExtended()
                 ? (" " + extended) : "") + (potionMeta.getBasePotionData().isUpgraded() ? (" " + upgraded) : ""))
                 + (totalEffects > 0 ? (" " + getPluginInstance().getConfig().getString("potion-description-format"))
                 .replace("{remainder}", getPluginInstance().getManager().formatNumber(totalEffects, false)) : ""));
@@ -1462,12 +1477,13 @@ public class DManager implements Manager {
     public boolean hasBlockedNBT(@NotNull ItemStack itemStack) {
         if (itemStack.getType() == Material.AIR || itemStack.getAmount() == 0) return false;
 
-        try {
+        // TODO fix
+       /* try {
             // ensure blocked nbt is not on the item
             de.tr7zw.changeme.nbtapi.NBTItem nbtItem = new de.tr7zw.changeme.nbtapi.NBTItem(itemStack);
             List<String> blockedNbtList = getPluginInstance().getConfig().getStringList("blocked-nbt-list");
             return blockedNbtList.stream().anyMatch(nbtItem::hasKey);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {}*/
         return false;
     }
 

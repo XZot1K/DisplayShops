@@ -31,15 +31,10 @@
         <module name="Core" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="v1_20_r1 (1)" target="17" />
-      <module name="v1_20_r1 (2)" target="17" />
-      <module name="v1_20_R4" target="17" />
-    </bytecodeTargetLevel>
+    <bytecodeTargetLevel target="8" />
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="API" options="-proc:none" />
       <module name="Core" options="" />
       <module name="DisplayShopsAPI" options="-proc:none" />
     </option>
