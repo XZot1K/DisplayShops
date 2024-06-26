@@ -39,6 +39,10 @@ public class DPacket implements DisplayPacket {
         final double[] offsets = appearance.getOffset();
         final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
 
+        double x = (shop.getBaseLocation().getX() + 0.5 + offsetX),
+                y = (shop.getBaseLocation().getY() - 0.3 + offsetY),
+                z = (shop.getBaseLocation().getZ() + 0.5 + offsetZ);
+
         PlayerConnection playerConnection = ((CraftPlayer) player).getHandle().playerConnection;
         NBTTagCompound compoundTag = new NBTTagCompound();
         compoundTag.setBoolean("Marker", true);
@@ -47,9 +51,6 @@ public class DPacket implements DisplayPacket {
         compoundTag.setBoolean("Gravity", false);
         compoundTag.setBoolean("Invulnerable", true);
         if (!this.getPluginInstance().getConfig().getBoolean("hide-glass")) {
-            double x = shop.getBaseLocation().getX() + offsetX;
-            double y = shop.getBaseLocation().getY() + offsetY;
-            double z = shop.getBaseLocation().getZ() + offsetZ;
             this.createStand(playerConnection, compoundTag, player.getWorld(), x, y, z, "", true);
         }
         ItemStack item = shop.getShopItem() != null ? shop.getShopItem().clone()
@@ -59,8 +60,7 @@ public class DPacket implements DisplayPacket {
                 item.setAmount(1);
             }
             net.minecraft.server.v1_9_R1.ItemStack itemStack = CraftItemStack.asNMSCopy(item);
-            EntityItem entityItem = new EntityItem(((CraftWorld) player.getWorld()).getHandle(), shop.getBaseLocation().getX() + offsetX,
-                    shop.getBaseLocation().getY() + 1.325 + offsetY, shop.getBaseLocation().getZ() + offsetZ, itemStack);
+            EntityItem entityItem = new EntityItem(((CraftWorld) player.getWorld()).getHandle(), x, (y + 1.325), z, itemStack);
             this.getEntityIds().add(entityItem.getId());
             entityItem.setItemStack(itemStack);
             entityItem.c(compoundTag);
@@ -90,7 +90,8 @@ public class DPacket implements DisplayPacket {
 
         final String colorCode = getPluginInstance().getConfig().getString("default-description-color");
         final boolean hidePriceLine = getPluginInstance().getConfig().getBoolean("price-disabled-hide");
-        double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
+
+        y = (y + 1.9);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
 
@@ -170,4 +171,3 @@ public class DPacket implements DisplayPacket {
         return this.entityIds;
     }
 }
-

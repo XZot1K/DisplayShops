@@ -7,15 +7,15 @@ package xzot1k.plugins.ds.nms.v1_20_R3;
 import com.mojang.datafixers.util.Pair;
 import io.netty.buffer.Unpooled;
 import net.md_5.bungee.api.ChatColor;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
+import net.minecraft.network.PacketDataSerializer;
+import net.minecraft.network.chat.IChatBaseComponent;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
-import net.minecraft.network.syncher.EntityDataSerializer;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.network.syncher.DataWatcherRegistry;
+import net.minecraft.network.syncher.DataWatcherSerializer;
+import net.minecraft.server.network.PlayerConnection;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.EnumItemSlot;
 import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
@@ -37,7 +37,6 @@ public class DPacket implements DisplayPacket {
 
     private static final AtomicInteger ENTITY_ID_COUNTER_FIELD = getAI();
     private static final Supplier<Integer> idGenerator = setGenerator();
-
     private final DisplayShops INSTANCE;
     private final Collection<Integer> entityIds = new ArrayList<>();
     private net.minecraft.world.item.ItemStack itemStack;
@@ -46,7 +45,7 @@ public class DPacket implements DisplayPacket {
         this.INSTANCE = instance;
         if (!player.isOnline()) return;
 
-        final ServerGamePacketListenerImpl playerConnection = getPlayerConnection(player);
+        final PlayerConnection playerConnection = getPlayerConnection(player);
         if (playerConnection == null) return;
 
         Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
@@ -55,10 +54,11 @@ public class DPacket implements DisplayPacket {
         final double[] offsets = appearance.getOffset();
         final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
 
+        double x = (shop.getBaseLocation().getX() + 0.5 + offsetX),
+                y = (shop.getBaseLocation().getY() - 0.3 + offsetY),
+                z = (shop.getBaseLocation().getZ() + 0.5 + offsetZ);
+
         if (!INSTANCE.getConfig().getBoolean("hide-glass")) {
-            double x = (shop.getBaseLocation().getX() + offsetX),
-                    y = (shop.getBaseLocation().getY() + offsetY),
-                    z = (shop.getBaseLocation().getZ() + offsetZ);
             createStand(playerConnection, x, y, z, "", true);
         }
 
@@ -74,48 +74,46 @@ public class DPacket implements DisplayPacket {
                     final int id = idGenerator.get();
                     getEntityIds().add(id);
 
-                    FriendlyByteBuf pds = buildSerializer(id, true, (shop.getBaseLocation().getX() + offsetX),
-                            ((shop.getBaseLocation().getY() + 1.325) + offsetY), (shop.getBaseLocation().getZ() + offsetZ));
+                    PacketDataSerializer pds = buildSerializer(id, true, x, (y + 1.325), z);
 
-                    final ClientboundAddEntityPacket itemPacket = new ClientboundAddEntityPacket(pds);
+                    final PacketPlayOutSpawnEntity itemPacket = new PacketPlayOutSpawnEntity(pds);
                     sendPacket(playerConnection, itemPacket);
 
-                    FriendlyByteBuf metaData = new FriendlyByteBuf(Unpooled.buffer());
-                    metaData.writeVarInt(id);
+                    PacketDataSerializer metaData = new PacketDataSerializer(Unpooled.buffer());
+                    metaData.c(id);
 
                     writeEntry(metaData, 8, itemStack); // add itemstack data
 
-                    metaData.writeVarInt(0xFF);
+                    metaData.c(0xFF);
 
-                    ClientboundSetEntityDataPacket md = new ClientboundSetEntityDataPacket(metaData);
+                    PacketPlayOutEntityMetadata md = new PacketPlayOutEntityMetadata(metaData);
                     sendPacket(playerConnection, md);
                     //</editor-fold>
 
                     //<editor-fold desc="Vehicle Mount Packets">
                     final int vehicleId = idGenerator.get();
                     getEntityIds().add(vehicleId);
-                    FriendlyByteBuf vehicleData = buildSerializer(vehicleId, false, (shop.getBaseLocation().getX() + offsetX),
-                            ((shop.getBaseLocation().getY() + 1.325) + offsetY), (shop.getBaseLocation().getZ() + offsetZ));
-                    final ClientboundAddEntityPacket vehiclePacket = new ClientboundAddEntityPacket(vehicleData);
+                    PacketDataSerializer vehicleData = buildSerializer(vehicleId, false, x, (y + 1.325), z);
+                    final PacketPlayOutSpawnEntity vehiclePacket = new PacketPlayOutSpawnEntity(vehicleData);
                     sendPacket(playerConnection, vehiclePacket);
 
-                    FriendlyByteBuf vehiclePDS = new FriendlyByteBuf(Unpooled.buffer());
-                    vehiclePDS.writeVarInt(vehicleId);
+                    PacketDataSerializer vehiclePDS = new PacketDataSerializer(Unpooled.buffer());
+                    vehiclePDS.c(vehicleId);
 
                     writeEntry(vehiclePDS, 0, (byte) 0x20); // invisibility
                     writeEntry(vehiclePDS, 15, (byte) (0x01 | 0x02 | 0x08 | 0x10));  // small, no gravity, no base-plate marker, etc.
 
-                    vehiclePDS.writeVarInt(0xFF);
+                    vehiclePDS.c(0xFF);
 
-                    ClientboundSetEntityDataPacket vehicleMD = new ClientboundSetEntityDataPacket(vehiclePDS);
+                    PacketPlayOutEntityMetadata vehicleMD = new PacketPlayOutEntityMetadata(vehiclePDS);
                     sendPacket(playerConnection, vehicleMD);
 
-                    FriendlyByteBuf mountData = new FriendlyByteBuf(Unpooled.buffer());
-                    mountData.writeVarInt(vehicleId);
-                    mountData.writeVarInt(1);
-                    mountData.writeVarInt(id);
+                    PacketDataSerializer mountData = new PacketDataSerializer(Unpooled.buffer());
+                    mountData.c(vehicleId);
+                    mountData.c(1);
+                    mountData.c(id);
 
-                    ClientboundSetPassengersPacket mountPacket = new ClientboundSetPassengersPacket(mountData);
+                    PacketPlayOutMount mountPacket = new PacketPlayOutMount(mountData);
                     sendPacket(playerConnection, mountPacket);
                     //</editor-fold>
                 }
@@ -137,7 +135,7 @@ public class DPacket implements DisplayPacket {
 
         final String colorCode = INSTANCE.getConfig().getString("default-description-color");
         final boolean hidePriceLine = INSTANCE.getConfig().getBoolean("price-disabled-hide");
-        double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
+        y = (y + 1.9);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
 
@@ -185,16 +183,16 @@ public class DPacket implements DisplayPacket {
         return Objects.requireNonNull(ENTITY_ID_COUNTER_FIELD)::incrementAndGet;
     }
 
-    private ServerGamePacketListenerImpl getPlayerConnection(@NotNull Player player) {
-        return ((CraftPlayer) player).getHandle().connection;
+    private PlayerConnection getPlayerConnection(@NotNull Player player) {
+        return ((CraftPlayer) player).getHandle().c;
     }
 
-    private FriendlyByteBuf buildSerializer(int id, boolean isItem, double x, double y, double z) {
-        FriendlyByteBuf pds = new FriendlyByteBuf(Unpooled.buffer());
+    private PacketDataSerializer buildSerializer(int id, boolean isItem, double x, double y, double z) {
+        PacketDataSerializer pds = new PacketDataSerializer(Unpooled.buffer());
 
-        pds.writeVarInt(id);
-        pds.writeUUID(UUID.randomUUID());
-        pds.writeVarInt(isItem ? 55 : 2); // (item is 54 , armor stand is 2, and slime is 83)
+        pds.c(id);
+        pds.a(UUID.randomUUID());
+        pds.c(isItem ? 55 : 2); // (item is 54 , armor stand is 2, and slime is 83)
 
         // Position
         pds.writeDouble(x);
@@ -216,27 +214,27 @@ public class DPacket implements DisplayPacket {
         return pds;
     }
 
-    private void createStand(@NotNull ServerGamePacketListenerImpl playerConnection, double x, double y, double z,
+    private void createStand(@NotNull PlayerConnection playerConnection, double x, double y, double z,
                              @NotNull String name, boolean glassHead) {
         final int id = idGenerator.get();
         getEntityIds().add(id);
 
-        final FriendlyByteBuf pds = buildSerializer(id, false, x, y, z);
-        final ClientboundAddEntityPacket spawnPacket = new ClientboundAddEntityPacket(pds);
+        final PacketDataSerializer pds = buildSerializer(id, false, x, y, z);
+        final PacketPlayOutSpawnEntity spawnPacket = new PacketPlayOutSpawnEntity(pds);
         sendPacket(playerConnection, spawnPacket);
 
         if (glassHead) {
             itemStack = CraftItemStack.asNMSCopy(new ItemStack(Material.GLASS));
             if (itemStack != null) {
-                List<Pair<EquipmentSlot, net.minecraft.world.item.ItemStack>> list = new ArrayList<>();
-                list.add(new Pair<>(EquipmentSlot.HEAD /*HEAD or HELMET*/, itemStack));
-                ClientboundSetEquipmentPacket packet = new ClientboundSetEquipmentPacket(id, list);
+                List<Pair<EnumItemSlot, net.minecraft.world.item.ItemStack>> list = new ArrayList<>();
+                list.add(new Pair<>(EnumItemSlot.f /*HEAD or HELMET*/, itemStack));
+                PacketPlayOutEntityEquipment packet = new PacketPlayOutEntityEquipment(id, list);
                 sendPacket(playerConnection, packet);
             }
         }
 
-        FriendlyByteBuf metaData = new FriendlyByteBuf(Unpooled.buffer());
-        metaData.writeVarInt(id);
+        PacketDataSerializer metaData = new PacketDataSerializer(Unpooled.buffer());
+        metaData.c(id);
 
         writeEntry(metaData, 0, (byte) 0x20); // invisibility
         writeEntry(metaData, 15, (glassHead ? (byte) (0x02 | 0x08 | 0x10) : (byte) (0x01 | 0x02 | 0x08 | 0x10)));  // small, no gravity, no base-plate marker, etc.
@@ -251,44 +249,44 @@ public class DPacket implements DisplayPacket {
 
         metaData.writeByte(0xFF);
 
-        ClientboundSetEntityDataPacket md = new ClientboundSetEntityDataPacket(metaData);
+        PacketPlayOutEntityMetadata md = new PacketPlayOutEntityMetadata(metaData);
         sendPacket(playerConnection, md);
     }
 
     @SuppressWarnings("unchecked")
-    private void writeEntry(@NotNull FriendlyByteBuf serializer, int id, Object value) { // data watcher entry
+    private void writeEntry(@NotNull PacketDataSerializer serializer, int id, Object value) { // data watcher entry
         serializer.writeByte(id);
 
-        final EntityDataSerializer<net.minecraft.world.item.ItemStack> ITEM_STACK_SERIALIZER = EntityDataSerializers.ITEM_STACK;
-        final EntityDataSerializer<Byte> BYTE_SERIALIZER = EntityDataSerializers.BYTE;
-        final EntityDataSerializer<Boolean> BOOLEAN_SERIALIZER = EntityDataSerializers.BOOLEAN;
-        final EntityDataSerializer<Optional<Component>> OPTIONAL_CHAT_COMPONENT_SERIALIZER = EntityDataSerializers.OPTIONAL_COMPONENT;
+        final DataWatcherSerializer<net.minecraft.world.item.ItemStack> ITEM_STACK_SERIALIZER = DataWatcherRegistry.h;
+        final DataWatcherSerializer<Byte> BYTE_SERIALIZER = DataWatcherRegistry.a;
+        final DataWatcherSerializer<Boolean> BOOLEAN_SERIALIZER = DataWatcherRegistry.k;
+        final DataWatcherSerializer<Optional<IChatBaseComponent>> OPTIONAL_CHAT_COMPONENT_SERIALIZER = DataWatcherRegistry.g;
 
-        EntityDataSerializer<?> dataWatcherRegistry = (id == 2 ? OPTIONAL_CHAT_COMPONENT_SERIALIZER : id == 3 ? BOOLEAN_SERIALIZER
+        DataWatcherSerializer<?> dataWatcherRegistry = (id == 2 ? OPTIONAL_CHAT_COMPONENT_SERIALIZER : id == 3 ? BOOLEAN_SERIALIZER
                 : id == 8 ? ITEM_STACK_SERIALIZER : BYTE_SERIALIZER);
-        int serializerTypeID = EntityDataSerializers.getSerializedId(dataWatcherRegistry); // BYTE_SERIALIZER is 0 or 15
+        int serializerTypeID = DataWatcherRegistry.b(dataWatcherRegistry); // BYTE_SERIALIZER is 0 or 15
 
         if (serializerTypeID >= 0) {
-            serializer.writeVarInt(serializerTypeID);
+            serializer.c(serializerTypeID);
 
-            if (id == 2) OPTIONAL_CHAT_COMPONENT_SERIALIZER.write(serializer, (Optional<Component>) value);
-            else if (id == 3) BOOLEAN_SERIALIZER.write(serializer, (Boolean) value);
-            else if (id == 8) ITEM_STACK_SERIALIZER.write(serializer, (net.minecraft.world.item.ItemStack) value);
-            else BYTE_SERIALIZER.write(serializer, (Byte) value);
+            if (id == 2) OPTIONAL_CHAT_COMPONENT_SERIALIZER.a(serializer, (Optional<IChatBaseComponent>) value);
+            else if (id == 3) BOOLEAN_SERIALIZER.a(serializer, (Boolean) value);
+            else if (id == 8) ITEM_STACK_SERIALIZER.a(serializer, (net.minecraft.world.item.ItemStack) value);
+            else BYTE_SERIALIZER.a(serializer, (Byte) value);
         }
     }
 
     public void hide(@NotNull Player player) {
         if (getEntityIds() != null && !getEntityIds().isEmpty()) {
-            final ServerGamePacketListenerImpl playerConnection = getPlayerConnection(player);
+            final PlayerConnection playerConnection = getPlayerConnection(player);
             for (int entityId : getEntityIds()) {
-                final ClientboundRemoveEntitiesPacket standPacket = new ClientboundRemoveEntitiesPacket(entityId);
+                final PacketPlayOutEntityDestroy standPacket = new PacketPlayOutEntityDestroy(entityId);
                 sendPacket(playerConnection, standPacket);
             }
         }
     }
 
-    public void sendPacket(@NotNull ServerGamePacketListenerImpl playerConnection, @NotNull Packet<?> packet) {playerConnection.send(packet);}
+    public void sendPacket(@NotNull PlayerConnection playerConnection, @NotNull Packet<?> packet) {playerConnection.b(packet);}
 
     public Collection<Integer> getEntityIds() {return entityIds;}
 }

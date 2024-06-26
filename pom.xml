@@ -111,7 +111,7 @@
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
-            <version>1.9.5-SNAPSHOT</version>
+            <version>1.9.6-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
 

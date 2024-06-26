@@ -19,9 +19,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import xzot1k.plugins.ds.DisplayShops;
@@ -33,10 +34,7 @@ import xzot1k.plugins.ds.api.objects.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 public class Commands implements CommandExecutor {
@@ -285,9 +283,9 @@ public class Commands implements CommandExecutor {
         for (int i = -1; ++i < entities.size(); ) {
             Entity entity = entities.get(i);
 
-            if (((entity instanceof ArmorStand || entity instanceof org.bukkit.entity.Item) && type.toLowerCase().contains("both"))
-                    || (entity instanceof ArmorStand && (type.toLowerCase().contains("armorstand") || type.toLowerCase().contains("stand")))
-                    || (entity instanceof org.bukkit.entity.Item && (type.toLowerCase().contains("item") || type.toLowerCase().contains("drop")))) {
+            if (((entity instanceof TextDisplay || entity instanceof ItemDisplay) && type.toLowerCase().contains("both"))
+                    || (entity instanceof TextDisplay && (type.toLowerCase().contains("armorstand") || type.toLowerCase().contains("stand")))
+                    || (entity instanceof ItemDisplay && (type.toLowerCase().contains("item") || type.toLowerCase().contains("drop")))) {
                 entity.remove();
                 removedCounter++;
             }
@@ -1455,7 +1453,17 @@ public class Commands implements CommandExecutor {
             return;
         }
 
-        Display.ClearAllEntities();
+        if (DisplayShops.getPluginInstance().getDisplayManager() != null) {
+            DisplayShops.getPluginInstance().getInSightTask().setPaused(true);
+
+            Display.ClearAllEntities();
+
+            for (Map.Entry<UUID, Display> entry : new ArrayList<>(DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().entrySet())) {
+                entry.getValue().delete();
+            }
+
+            DisplayShops.getPluginInstance().getInSightTask().setPaused(false);
+        }
 
         final int cleanInactiveTime = getPluginInstance().getConfig().getInt("clean-inactive-duration");
 
@@ -1793,7 +1801,13 @@ public class Commands implements CommandExecutor {
         getPluginInstance().reloadConfigs();
 
         // clear displays
-        if (getPluginInstance().getDisplayManager() != null) {Display.ClearAllEntities();}
+        if (getPluginInstance().getDisplayManager() != null) {
+            Display.ClearAllEntities();
+
+            for (Map.Entry<UUID, Display> entry : new ArrayList<>(DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().entrySet())) {
+                entry.getValue().delete();
+            }
+        }
 
         // reset EconomyHandler
         getPluginInstance().getEconomyHandler().reset();

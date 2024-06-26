@@ -4,6 +4,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.*;
 import org.bukkit.entity.*;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataType;
@@ -14,6 +15,8 @@ import xzot1k.plugins.ds.DisplayShops;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class Display {
 
@@ -21,70 +24,50 @@ public class Display {
     public static final ItemStack barrier = new ItemStack(Material.BARRIER);
 
     private final Shop shop;
-    //private final List<TextDisplay> lines = new ArrayList<>();
     private Entity textDisplay, itemDisplay, blockDisplay;
-    //private final List<Integer> usedLines = new ArrayList<>();
-
-    // private final int duration = 5 * 20;
-    // private float scale = 0.5f;
-    // private Matrix4f mat = new Matrix4f();
 
     public Display(@NotNull Shop shop) {
         this.shop = shop;
-        //update();
     }
 
     public static void ClearAllEntities() {
-        DisplayShops.getPluginInstance().getServer().getWorlds().forEach(world -> {
-            world.getEntities().forEach(entity -> {
-                if ((entity.getType() == EntityType.ARMOR_STAND || entity.getType() == EntityType.ITEM_FRAME) && (entity.hasMetadata("DisplayShops-Entity")
-                        || entity.getPersistentDataContainer().has(key))) {entity.remove();}
-            });
-        });
+        for (World world : DisplayShops.getPluginInstance().getServer().getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if ((entity.getType() == EntityType.ARMOR_STAND || entity.getType() == EntityType.ITEM_FRAME || entity.getType().name().endsWith("_DISPLAY"))
+                        && (entity.hasMetadata("DisplayShops-Entity") || entity.getPersistentDataContainer().has(key))) {entity.remove();}
+            }
+        }
 
-        DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().values().forEach(display -> {
-            //if (display.getItem() != null) {display.getItem().remove();}
+        for (Map.Entry<UUID, Display> entry : DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().entrySet()) {
+            Display display = entry.getValue();
             if (display.getItemHolder() != null) {display.getItemHolder().remove();}
             if (display.getGlass() != null) {display.getGlass().remove();}
             if (display.getTextDisplay() != null) {display.getTextDisplay().remove();}
+        }
+    }
+
+    public void Clear() {
+        DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {
+            if (getItemHolder() != null) {getItemHolder().remove();}
+            if (getGlass() != null) {getGlass().remove();}
+            if (getTextDisplay() != null) {getTextDisplay().remove();}
         });
     }
 
-    public void update(String generatedText, float itemScale, double itemOffsetX, double itemOffsetY, double itemOffsetZ) {
+    public void update(World world, String generatedText, float itemScale, double itemOffsetX, double itemOffsetY, double itemOffsetZ, double[] offsets) {
         if (getShop() == null) return;
-
-        World world = DisplayShops.getPluginInstance().getServer().getWorld(getShop().getBaseLocation().getWorldName());
-        if (world == null) {return;}
-
-        if (!world.isChunkLoaded((int) (getShop().getBaseLocation().getX()) >> 4, (int) (getShop().getBaseLocation().getZ()) >> 4)) {return;}
 
         Location baseLocation = getShop().getBaseLocation().asBukkitLocation();
         if (baseLocation == null) return;
-
-        double[] offsets = null;
-        Appearance appearance = Appearance.getAppearance(shop.getAppearanceId());
-        if (appearance != null) {offsets = appearance.getOffset();}
 
         updateItem(world, baseLocation, itemScale, itemOffsetX, itemOffsetY, itemOffsetZ, offsets);
         updateGlass(world, baseLocation, offsets);
         updateLines(world, baseLocation, generatedText, offsets);
     }
 
-    public void rotate() {
-        /*if(getItemHolder() != null && getItemHolder().getItemStack() != null) {
-            mat = mat.scale(scale);
-            getItemHolder().setTransformationMatrix(mat = mat.rotateY(((float) Math.toRadians(180)) + 0.1F));
-            getItemHolder().setInterpolationDelay(0);
-            getItemHolder().setInterpolationDuration(duration);
-        }*/
-    }
-
     public void delete() {
         DisplayShops.getPluginInstance().getDisplayManager().getShopDisplays().remove(shop.getOwnerUniqueId());
-
-        if (getItemHolder() != null) {getItemHolder().remove();}
-        if (getGlass() != null) {getGlass().remove();}
-        if (getTextDisplay() != null) {getTextDisplay().remove();}
+        Clear();
     }
 
     private void updateItem(World world, Location baseLocation, float scale, double x, double y, double z, double[] appearanceOffsets) {
@@ -204,7 +187,7 @@ public class Display {
                 display.setInterpolationDelay(0); // no delay to the interpolation
                 display.setInterpolationDuration(duration); // set the duration of the interpolated rotation
             }
-        }.runTaskTimer(DisplayShops.getPluginInstance(), 1, duration); // Schedule the task with the specified duration
+        }.runTaskTimer(DisplayShops.getPluginInstance(), 1, duration);
     }
 
     private void updateGlass(World world, Location baseLocation, double[] appearanceOffsets) {
@@ -229,7 +212,7 @@ public class Display {
                 entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "glass");
                 entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
             });
-        } else {getGlass().teleport(newLocation);}
+        } else {getGlass().teleportAsync(newLocation, PlayerTeleportEvent.TeleportCause.PLUGIN);}
     }
 
     public String generateText() {
@@ -287,11 +270,13 @@ public class Display {
 
     private void updateLines(World world, Location baseLocation, String text, double[] appearanceOffsets) {
         double x = (0.5 + baseLocation.getX() + (appearanceOffsets != null ? appearanceOffsets[0] : 0)),
-                y = (1.7 + baseLocation.getY() + (appearanceOffsets != null ? appearanceOffsets[0] : 0)),
-                z = (0.5 + baseLocation.getZ() + (appearanceOffsets != null ? appearanceOffsets[0] : 0));
+                y = (1.8 + baseLocation.getY() + (appearanceOffsets != null ? appearanceOffsets[1] : 0)),
+                z = (0.5 + baseLocation.getZ() + (appearanceOffsets != null ? appearanceOffsets[2] : 0));
+
+        Location location = new Location(world, x, y, z);
 
         if (getTextDisplay() == null || !getTextDisplay().isValid() || getTextDisplay().isDead()) {
-            textDisplay = world.spawn(new Location(world, x, y, z), TextDisplay.class, entity -> {
+            textDisplay = world.spawn(location, TextDisplay.class, entity -> {
                 // customize the entity!
                 //entity.text(Component.text("Some awesome content", NamedTextColor.BLACK));
                 entity.setBillboard(org.bukkit.entity.Display.Billboard.VERTICAL); // pivot only around the vertical axis
@@ -332,6 +317,7 @@ public class Display {
             });
         } else {
             ((TextDisplay) getTextDisplay()).text(LegacyComponentSerializer.legacySection().deserialize(text));
+            getTextDisplay().teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN);
         }
 
         // remove all unused

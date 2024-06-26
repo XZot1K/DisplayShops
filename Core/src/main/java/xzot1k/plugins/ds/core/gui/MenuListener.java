@@ -31,6 +31,7 @@ import xzot1k.plugins.ds.api.events.ShopEditEvent;
 import xzot1k.plugins.ds.api.objects.*;
 
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -1743,109 +1744,116 @@ public class MenuListener implements Listener {
         switch (buttonName) {
             case "custom-amount": {
                 final String title = menu.getConfiguration().getString("custom-amount-entry.title");
-                if (title != null) new AnvilGUI.Builder().onClose(stateSnapshot ->
-                                INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> stateSnapshot.getPlayer().openInventory(inventory), 1))
-                        .onClick((slot, stateSnapshot) -> {
-                            if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-                            String text = stateSnapshot.getText().replace(" ", "").replace(",", ".");
+                if (title != null) {
+                    new AnvilGUI.Builder().onClose(stateSnapshot ->
+                                    INSTANCE.getServer().getScheduler().runTaskLater(INSTANCE, () -> stateSnapshot.getPlayer().openInventory(inventory), 1))
+                            .onClick((slot, stateSnapshot) -> {
+                                if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
+                                String text = stateSnapshot.getText().replace(" ", "").replace(",", ".");
 
-                            if (text.startsWith("-") && !dataPack.getInteractionType().name().contains("PRICE") && !dataPack.getInteractionType().name().contains("LIMIT")) {
-                                final String negativeText = menu.getConfiguration().getString("custom-amount-entry.negative");
-                                return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(negativeText != null ? negativeText : ""));
-                            }
-
-                            if (text.equalsIgnoreCase("all")) {
-                                double maxAmount = 0;
-                                switch (dataPack.getInteractionType()) {
-                                    case AMOUNT_BUY_PRICE: {
-                                        maxAmount = INSTANCE.getConfig().getDouble("buy-price-limit");
-                                        break;
-                                    }
-
-                                    case AMOUNT_SELL_PRICE: {
-                                        maxAmount = INSTANCE.getConfig().getDouble("sell-price-limit");
-                                        break;
-                                    }
-
-                                    case SHOP_ITEM_AMOUNT: {
-                                        maxAmount = INSTANCE.getConfig().getDouble("max-item-stack-size");
-                                        break;
-                                    }
-
-                                    case AMOUNT_STOCK: {
-                                        maxAmount = (shop.getStock() + INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem()));
-                                        break;
-                                    }
-
-                                    case AMOUNT_BALANCE: {
-                                        maxAmount = (shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop));
-                                        break;
-                                    }
-
-                                    case AMOUNT_PLAYER_BUY_LIMIT:
-                                    case AMOUNT_GLOBAL_BUY_LIMIT: {
-                                        maxAmount = INSTANCE.getConfig().getLong("buy-limit-cap");
-                                        break;
-                                    }
-
-                                    case AMOUNT_GLOBAL_SELL_LIMIT:
-                                    case AMOUNT_PLAYER_SELL_LIMIT: {
-                                        maxAmount = INSTANCE.getConfig().getLong("sell-limit-cap");
-                                        break;
-                                    }
-
-                                    default: {
-                                        break;
-                                    }
+                                if (text.startsWith("-") && !dataPack.getInteractionType().name().contains("PRICE") && !dataPack.getInteractionType().name().contains("LIMIT")) {
+                                    final String negativeText = menu.getConfiguration().getString("custom-amount-entry.negative");
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(negativeText != null ? negativeText : ""));
                                 }
-                                dataPack.setInteractionValue(maxAmount);
+
+                                if (text.equalsIgnoreCase("all")) {
+                                    double maxAmount = 0;
+                                    switch (dataPack.getInteractionType()) {
+                                        case AMOUNT_BUY_PRICE: {
+                                            maxAmount = INSTANCE.getConfig().getDouble("buy-price-limit");
+                                            break;
+                                        }
+
+                                        case AMOUNT_SELL_PRICE: {
+                                            maxAmount = INSTANCE.getConfig().getDouble("sell-price-limit");
+                                            break;
+                                        }
+
+                                        case SHOP_ITEM_AMOUNT: {
+                                            maxAmount = INSTANCE.getConfig().getDouble("max-item-stack-size");
+                                            break;
+                                        }
+
+                                        case AMOUNT_STOCK: {
+                                            maxAmount = (shop.getStock() + INSTANCE.getManager().getItemAmount(player.getInventory(), shop.getShopItem()));
+                                            break;
+                                        }
+
+                                        case AMOUNT_BALANCE: {
+                                            maxAmount = (shop.getStoredBalance() + INSTANCE.getEconomyHandler().getBalance(player, shop));
+                                            break;
+                                        }
+
+                                        case AMOUNT_PLAYER_BUY_LIMIT:
+                                        case AMOUNT_GLOBAL_BUY_LIMIT: {
+                                            maxAmount = INSTANCE.getConfig().getLong("buy-limit-cap");
+                                            break;
+                                        }
+
+                                        case AMOUNT_GLOBAL_SELL_LIMIT:
+                                        case AMOUNT_PLAYER_SELL_LIMIT: {
+                                            maxAmount = INSTANCE.getConfig().getLong("sell-limit-cap");
+                                            break;
+                                        }
+
+                                        default: {
+                                            break;
+                                        }
+                                    }
+                                    dataPack.setInteractionValue(maxAmount);
+                                    amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
+                                    updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, new BigDecimal(dataPack.getInteractionValue().toString()).doubleValue());
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                } else if (text.equalsIgnoreCase("clear") || text.equalsIgnoreCase("reset")) {
+                                    double finalAmount;
+                                    amountItem.setAmount(1);
+                                    switch (dataPack.getInteractionType()) {
+                                        case AMOUNT_GLOBAL_BUY_LIMIT:
+                                        case AMOUNT_GLOBAL_SELL_LIMIT:
+                                        case AMOUNT_PLAYER_BUY_LIMIT:
+                                        case AMOUNT_PLAYER_SELL_LIMIT:
+                                        case AMOUNT_BUY_PRICE:
+                                        case AMOUNT_SELL_PRICE: {
+                                            finalAmount = -1;
+                                            break;
+                                        }
+
+                                        case SHOP_ITEM_AMOUNT: {
+                                            finalAmount = 1;
+                                            break;
+                                        }
+
+                                        default: {
+                                            finalAmount = 0;
+                                            break;
+                                        }
+                                    }
+                                    amountItem.setAmount((int) Math.max(Math.min(amountItem.getType().getMaxStackSize(), finalAmount), 1));
+                                    updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, finalAmount);
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                                }
+
+                                if (INSTANCE.getManager().isNotNumeric(text)) {
+                                    final String invalidText = menu.getConfiguration().getString("custom-amount-entry.invalid");
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(invalidText != null ? invalidText : ""));
+                                }
+
+                                try {
+                                    dataPack.setInteractionValue(Math.max((dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK
+                                            && !player.hasPermission("displayshops.admin") ? 0 : -1), Double.parseDouble(text)));
+                                } catch (Exception ignored) {
+                                    final String invalidText = menu.getConfiguration().getString("custom-amount-entry.invalid");
+                                    return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(invalidText != null ? invalidText : ""));
+                                }
+
+
                                 amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
-                                updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, ((Double) dataPack.getInteractionValue()).intValue());
+                                updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, new BigDecimal(dataPack.getInteractionValue().toString()).doubleValue());
                                 return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                            } else if (text.equalsIgnoreCase("clear") || text.equalsIgnoreCase("reset")) {
-                                double finalAmount;
-                                amountItem.setAmount(1);
-                                switch (dataPack.getInteractionType()) {
-                                    case AMOUNT_GLOBAL_BUY_LIMIT:
-                                    case AMOUNT_GLOBAL_SELL_LIMIT:
-                                    case AMOUNT_PLAYER_BUY_LIMIT:
-                                    case AMOUNT_PLAYER_SELL_LIMIT:
-                                    case AMOUNT_BUY_PRICE:
-                                    case AMOUNT_SELL_PRICE: {
-                                        finalAmount = -1;
-                                        break;
-                                    }
-
-                                    case SHOP_ITEM_AMOUNT: {
-                                        finalAmount = 1;
-                                        break;
-                                    }
-
-                                    default: {
-                                        finalAmount = 0;
-                                        break;
-                                    }
-                                }
-                                amountItem.setAmount((int) Math.max(Math.min(amountItem.getType().getMaxStackSize(), finalAmount), 1));
-                                updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, finalAmount);
-                                return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                            }
-
-                            if (INSTANCE.getManager().isNotNumeric(text)) {
-                                final String invalidText = menu.getConfiguration().getString("custom-amount-entry.invalid");
-                                return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(invalidText != null ? invalidText : ""));
-                            }
-
-                            dataPack.setInteractionValue(Math.max((dataPack.getInteractionType() == InteractionType.AMOUNT_STOCK
-                                    && !player.hasPermission("displayshops.admin") ? 0 : -1), Double.parseDouble(text)));
-
-
-                            amountItem.setAmount(Math.max(1, Math.min(((Double) dataPack.getInteractionValue()).intValue(), amountItem.getMaxStackSize())));
-                            updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, ((Double) dataPack.getInteractionValue()).intValue());
-                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
-                        }).text(" ")
-                        .title(INSTANCE.getManager().color(title))
-                        .plugin(INSTANCE).open(player);
+                            }).text(" ")
+                            .title(INSTANCE.getManager().color(title))
+                            .plugin(INSTANCE).open(player);
+                }
                 playClickSound(player);
                 break;
             }
@@ -2475,7 +2483,7 @@ public class MenuListener implements Listener {
     }
 
     // helper methods
-    private void playClickSound(@NotNull Player player) {
+    public void playClickSound(@NotNull Player player) {
         player.playSound(player.getLocation(), Math.floor(INSTANCE.getServerVersion()) >= 1_9
                 ? Sound.valueOf("UI_BUTTON_CLICK") : Sound.valueOf("CLICK"), 1, 1);
     }
@@ -2567,6 +2575,7 @@ public class MenuListener implements Listener {
             if (!isInfinite && ((shop.getStock() + amountToRemove) > maxStock))
                 amountToRemove = (amountToRemove - ((shop.getStock() + amountToRemove) - maxStock));
 
+            System.out.println("Remove " + amountToRemove);
             INSTANCE.getManager().removeItem(player.getInventory(), shop.getShopItem(), amountToRemove);
             dataPack.updateCurrentTransactionLimitCounter(shop, false, dataPack.getCurrentTransactionCounter(shop, false) + unitCount);
 

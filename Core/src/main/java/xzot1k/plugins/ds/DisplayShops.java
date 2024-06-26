@@ -149,6 +149,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
             setup();
         } catch (ClassNotFoundException e) {e.printStackTrace();}
 
+        if (getDisplayManager() != null) {Display.ClearAllEntities();}
+
         setPaperSpigot(false);
         Method[] methods = World.class.getMethods();
         if (methods.length > 0) for (int i = -1; ++i < methods.length; ) {
@@ -249,7 +251,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public void onDisable() {
         getServer().getScheduler().cancelTasks(this);
 
-        if (getPluginInstance().getDisplayManager() != null) {Display.ClearAllEntities();}
+        if (getDisplayManager() != null) {Display.ClearAllEntities();}
 
         if (getManager() != null) {
             final int[] shopSaveCount = {0};

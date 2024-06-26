@@ -69,10 +69,12 @@ public class DPacket implements DisplayPacket {
         final double[] offsets = appearance.getOffset();
         final double offsetX = offsets[0], offsetY = offsets[1], offsetZ = offsets[2];
 
+        double x = (shop.getBaseLocation().getX() + 0.5 + offsetX),
+                y = (shop.getBaseLocation().getY() - 0.3 + offsetY),
+                z = (shop.getBaseLocation().getZ() + 0.5 + offsetZ);
+
         if (!getPluginInstance().getConfig().getBoolean("hide-glass")) {
-            double x = (shop.getBaseLocation().getX() + offsetX),
-                    y = (shop.getBaseLocation().getY() + offsetY),
-                    z = (shop.getBaseLocation().getZ() + offsetZ);
+
             createStand(playerConnection, x, y, z, "", true);
         }
 
@@ -91,10 +93,7 @@ public class DPacket implements DisplayPacket {
                         final int id = idGenerator.get();
                         getEntityIds().add(id);
 
-                        PacketDataSerializer pds = buildSerializer(id, true,
-                                (shop.getBaseLocation().getX() + offsetX),
-                                ((shop.getBaseLocation().getY() + 1.325) + offsetY),
-                                (shop.getBaseLocation().getZ() + offsetZ));
+                        PacketDataSerializer pds = buildSerializer(id, true, x, (y + 1.325) + offsetY, z);
 
                         final PacketPlayOutSpawnEntity itemPacket = new PacketPlayOutSpawnEntity(pds);
                         sendPacket(playerConnection, itemPacket);
@@ -120,8 +119,7 @@ public class DPacket implements DisplayPacket {
                         //<editor-fold desc="Vehicle Mount Packets">
                         final int vehicleId = idGenerator.get();
                         getEntityIds().add(vehicleId);
-                        PacketDataSerializer vehicleData = buildSerializer(vehicleId, false, (shop.getBaseLocation().getX() + offsetX),
-                                ((shop.getBaseLocation().getY() + 1.325) + offsetY), (shop.getBaseLocation().getZ() + offsetZ));
+                        PacketDataSerializer vehicleData = buildSerializer(vehicleId, false, x, (y + 1.325) + offsetY, z);
                         final PacketPlayOutSpawnEntityLiving vehiclePacket = new PacketPlayOutSpawnEntityLiving(vehicleData);
                         sendPacket(playerConnection, vehiclePacket);
 
@@ -176,7 +174,8 @@ public class DPacket implements DisplayPacket {
 
         final String colorCode = getPluginInstance().getConfig().getString("default-description-color");
         final boolean hidePriceLine = getPluginInstance().getConfig().getBoolean("price-disabled-hide");
-        double x = (shop.getBaseLocation().getX() + offsetX), y = (shop.getBaseLocation().getY() + (1.9 + offsetY)), z = (shop.getBaseLocation().getZ() + offsetZ);
+
+        y = (y + 1.9);
         for (int i = hologramFormat.size(); --i >= 0; ) {
             String line = hologramFormat.get(i);
 
