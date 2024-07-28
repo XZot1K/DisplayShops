@@ -20,4 +20,4 @@ Create immersive simplistic shops with animations, efficient transaction handlin
 * To build DisplayShops core, clone the repository and open the project in Intellij IDE.
 * Ensure the DisplayShopsAPI is installed and linked to the core as a seperate module.
 * Run the "Build Jar" run configuration at the top-right of the IDE near the run/debug buttons. 
-* If successful, the JAR will be located in the "target" folder found in the project directory.
+* If successful, the JAR will be located in the "target" folder under the "Core" module folder found in the project directory.
