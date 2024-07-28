@@ -2,6 +2,8 @@
 | [How Does It Work?](https://github.com/XZot1K/DisplayShopsAPI/wiki/shop-guide) | [Developer API](https://github.com/XZot1K/DisplayShopsAPI/wiki/developer-api)
 | [Java Docs](https://xzot1k.github.io/DisplayShopsAPI/)**
 
+## v2.0+ code is unde rthe "recode" branch while v1.7.x code (pre-2.0) is under the "master" branch
+
 This is the core DisplayShops source code, which depends on the [DisplayShopsAPI](https://github.com/XZot1K/DisplayShopsAPI). Sicne the core depends on the API, the DisplayShopsAPI will need to be cloned, built, and installed to your local Maven respository. 
 
 Alternatively, the Latest API found on GitHub can be swapped out in the POM files of the core using jitpack.
