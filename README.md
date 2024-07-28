@@ -13,6 +13,8 @@ Alternatively, the Latest API found on GitHub can be swapped out in the POM file
 Create immersive simplistic shops with animations, efficient transaction handling, and much more!
 ***
 
+** NOTE: all major MC jar version releases will need to be built using BuildTools for the individual per-version modules up until 1.20.4 (you can remove or disable them, but code will need adjustments) 
+
 * To build DisplayShops core, clone the repository and open the project in Intellij IDE.
 * Ensure the DisplayShopsAPI is installed and linked to the core as a seperate module.
 * Run the "Build Jar" run configuration at the top-right of the IDE near the run/debug buttons. 
