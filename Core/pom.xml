@@ -16,14 +16,14 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <core.build>12</core.build>
+        <core.build>1</core.build>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <!--<finalName>DisplayShops_${project.version}</finalName>-->
-        <finalName>DisplayShops_${project.version}-build_${core.build}</finalName>
+        <finalName>DisplayShops_${project.version}</finalName>
+        <!--<finalName>DisplayShops_${project.version}-build_${core.build}</finalName>-->
 
         <resources>
             <resource>
