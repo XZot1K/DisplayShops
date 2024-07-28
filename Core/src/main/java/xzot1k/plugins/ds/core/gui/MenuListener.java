@@ -1592,7 +1592,7 @@ public class MenuListener implements Listener {
         if (buttonName.startsWith("add-")) {
             final String amountString = buttonName.replace("add-", "");
 
-            double finalAmount;
+            double finalAmount = 0;
             if (amountString.equals("all")) {
                 double maxAmount = 0;
 
@@ -1645,34 +1645,37 @@ public class MenuListener implements Listener {
             } else {
                 if (INSTANCE.getManager().isNotNumeric(amountString)) return;
 
-                double amount = Double.parseDouble(amountString),
-                        foundAmount = Double.parseDouble(INSTANCE.getNBT(amountItem, "ds-amount"));
+                String nbtAmount = INSTANCE.getNBT(amountItem, "ds-amount");
+                if (nbtAmount != null && !nbtAmount.isEmpty()) {
+                    double amount = Double.parseDouble(amountString),
+                            foundAmount = Double.parseDouble(nbtAmount);
 
-                switch (dataPack.getInteractionType()) {
-                    case AMOUNT_STOCK:
-                    case AMOUNT_BALANCE:
-                    case AMOUNT_GLOBAL_BUY_LIMIT:
-                    case AMOUNT_GLOBAL_SELL_LIMIT:
-                    case AMOUNT_PLAYER_BUY_LIMIT:
-                    case AMOUNT_PLAYER_SELL_LIMIT:
-                    case AMOUNT_BUY_PRICE:
-                    case AMOUNT_SELL_PRICE: {
-                        if (foundAmount <= -1) foundAmount = 0;
-                        break;
+                    switch (dataPack.getInteractionType()) {
+                        case AMOUNT_STOCK:
+                        case AMOUNT_BALANCE:
+                        case AMOUNT_GLOBAL_BUY_LIMIT:
+                        case AMOUNT_GLOBAL_SELL_LIMIT:
+                        case AMOUNT_PLAYER_BUY_LIMIT:
+                        case AMOUNT_PLAYER_SELL_LIMIT:
+                        case AMOUNT_BUY_PRICE:
+                        case AMOUNT_SELL_PRICE: {
+                            if (foundAmount <= -1) foundAmount = 0;
+                            break;
+                        }
+
+                        case SHOP_ITEM_AMOUNT: {
+                            if (foundAmount <= 0) foundAmount = 1;
+                            break;
+                        }
+
+                        default: {
+                            break;
+                        }
                     }
 
-                    case SHOP_ITEM_AMOUNT: {
-                        if (foundAmount <= 0) foundAmount = 1;
-                        break;
-                    }
-
-                    default: {
-                        break;
-                    }
+                    finalAmount = (foundAmount + amount);
+                    amountItem.setAmount((int) Math.max(Math.min(amountItem.getType().getMaxStackSize(), finalAmount), 1));
                 }
-
-                finalAmount = (foundAmount + amount);
-                amountItem.setAmount((int) Math.max(Math.min(amountItem.getType().getMaxStackSize(), finalAmount), 1));
             }
 
             updateItemAmount(inventory, menu, player, dataPack, amountSlot, amountItem, finalAmount);

@@ -297,6 +297,8 @@ public class BackendMenu extends YamlConfiguration implements Menu {
 
     @Override
     public boolean matches(@Nullable String title) {
+        if ((title == null || title.isEmpty()) && (getTitle() == null || getTitle().isEmpty())) {return true;}
+        if (title == null || title.isEmpty() || getTitle() == null || getTitle().isEmpty()) {return false;}
         return ChatColor.stripColor(getTitle()).equals(ChatColor.stripColor(title));
     }
 

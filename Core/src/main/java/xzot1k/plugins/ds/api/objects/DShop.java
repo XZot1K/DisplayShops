@@ -19,6 +19,7 @@ import xzot1k.plugins.ds.api.enums.EconomyCallType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.events.ShopVisitEvent;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
+import xzot1k.plugins.ds.core.packets.Display;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -512,8 +513,10 @@ public class DShop implements Shop {
      */
     public synchronized void delete(boolean async) {
 
-        Display display = DisplayShops.getPluginInstance().getDisplayManager().getDisplay(getShopId());
-        if (display != null) {display.delete();}
+        if (DisplayShops.getPluginInstance().getDisplayManager() != null) {
+            Display display = DisplayShops.getPluginInstance().getDisplayManager().getDisplay(getShopId());
+            if (display != null) {display.delete();}
+        }
 
         if (async) INSTANCE.getServer().getScheduler().runTaskAsynchronously(INSTANCE, (Runnable) this::delete);
         else delete();

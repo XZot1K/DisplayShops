@@ -31,6 +31,7 @@ import xzot1k.plugins.ds.api.enums.EditType;
 import xzot1k.plugins.ds.api.events.EconomyCallEvent;
 import xzot1k.plugins.ds.api.events.ShopEditEvent;
 import xzot1k.plugins.ds.api.objects.*;
+import xzot1k.plugins.ds.core.packets.Display;
 
 import java.io.File;
 import java.io.IOException;

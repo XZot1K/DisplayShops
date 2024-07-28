@@ -26,7 +26,10 @@ import xzot1k.plugins.ds.api.VersionUtil;
 import xzot1k.plugins.ds.api.enums.FoliaScheduler;
 import xzot1k.plugins.ds.api.handlers.Delegate;
 import xzot1k.plugins.ds.api.handlers.DisplayPacket;
-import xzot1k.plugins.ds.api.objects.*;
+import xzot1k.plugins.ds.api.objects.DAppearance;
+import xzot1k.plugins.ds.api.objects.DataPack;
+import xzot1k.plugins.ds.api.objects.Menu;
+import xzot1k.plugins.ds.api.objects.Shop;
 import xzot1k.plugins.ds.core.Commands;
 import xzot1k.plugins.ds.core.DisplayManager;
 import xzot1k.plugins.ds.core.Listeners;
@@ -35,6 +38,7 @@ import xzot1k.plugins.ds.core.gui.BackendMenu;
 import xzot1k.plugins.ds.core.gui.MenuListener;
 import xzot1k.plugins.ds.core.hooks.*;
 import xzot1k.plugins.ds.core.http.ProfileCache;
+import xzot1k.plugins.ds.core.packets.Display;
 import xzot1k.plugins.ds.core.tasks.CleanupTask;
 import xzot1k.plugins.ds.core.tasks.ManagementTask;
 import xzot1k.plugins.ds.core.tasks.VisitItemTask;
@@ -81,7 +85,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     private MenuListener menuListener;
 
     // hook handlers
-    private boolean paperSpigot, prismaInstalled, townyInstalled, geyserInstalled, isFolia, isItemAdderInstalled, isOraxenInstalled, isDecentHologramsInstalled;
+    private boolean paperSpigot, prismaInstalled, townyInstalled, geyserInstalled,
+            isFolia, isItemAdderInstalled, isOraxenInstalled, isDecentHologramsInstalled, isNBTAPIInstalled;
     private EconomyHandler economyHandler;
     private HeadDatabaseAPI headDatabaseAPI;
     private PapiHelper papiHelper;
@@ -144,6 +149,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
         this.dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
         this.geyserInstalled = (getServer().getPluginManager().getPlugin("Geyser-Spigot") != null);
         this.isDecentHologramsInstalled = (getServer().getPluginManager().getPlugin("DecentHolograms") != null);
+        this.isNBTAPIInstalled = (getServer().getPluginManager().getPlugin("NBTAPI") != null);
 
         try {
             setup();
@@ -794,7 +800,7 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
 
         setInSightTask(new VisualTask(this));
         //if (getDisplayManager() != null) {getInSightTask().runTaskTimer(this, 1, getConfig().getInt("view-tick"));} else {
-            getInSightTask().runTaskTimerAsynchronously(this, 60, getConfig().getInt("view-tick"));
+        getInSightTask().runTaskTimerAsynchronously(this, 60, 4/*getConfig().getInt("view-tick")*/);
         //  }
 
         setVisitItemTask(new VisitItemTask(this));
@@ -1443,4 +1449,8 @@ public class DisplayShops extends JavaPlugin implements DisplayShopsAPI {
     public boolean isFolia() {return isFolia;}
 
     public boolean isDecentHologramsInstalled() {return isDecentHologramsInstalled;}
+
+    public boolean isNBTAPIInstalled() {
+        return isNBTAPIInstalled;
+    }
 }

@@ -1,4 +1,4 @@
-package xzot1k.plugins.ds.api.objects;
+package xzot1k.plugins.ds.core.packets;
 
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.md_5.bungee.api.ChatColor;
@@ -12,11 +12,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
 import xzot1k.plugins.ds.DisplayShops;
+import xzot1k.plugins.ds.api.objects.Shop;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class Display {
 
@@ -25,6 +23,7 @@ public class Display {
 
     private final Shop shop;
     private Entity textDisplay, itemDisplay, blockDisplay;
+    private final List<UUID> entityIds = new ArrayList<>();
 
     public Display(@NotNull Shop shop) {
         this.shop = shop;
@@ -43,14 +42,27 @@ public class Display {
             if (display.getItemHolder() != null) {display.getItemHolder().remove();}
             if (display.getGlass() != null) {display.getGlass().remove();}
             if (display.getTextDisplay() != null) {display.getTextDisplay().remove();}
+
+            World world = DisplayShops.getPluginInstance().getServer().getWorld(display.getShop().getBaseLocation().getWorldName());
+            if (world != null) {
+                world.getEntities().stream().filter(entity -> display.getEntityIds().contains(entity.getUniqueId())).forEach(Entity::remove);
+            }
         }
     }
 
     public void Clear() {
+        World world = DisplayShops.getPluginInstance().getServer().getWorld(shop.getBaseLocation().getWorldName());
+
         DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {
             if (getItemHolder() != null) {getItemHolder().remove();}
             if (getGlass() != null) {getGlass().remove();}
             if (getTextDisplay() != null) {getTextDisplay().remove();}
+
+            if (world != null) {
+                world.getEntities().stream().filter(entity -> getEntityIds().contains(entity.getUniqueId())).forEach(Entity::remove);
+            }
+
+            getEntityIds().clear();
         });
     }
 
@@ -111,18 +123,33 @@ public class Display {
         if (getItemHolder() == null || getItemHolder().isDead() || !getItemHolder().isValid()) {
             baseLocation.setYaw(addYaw);
 
-            itemDisplay = world.spawn(baseLocation.clone().add(0.5 + x + (appearanceOffsets != null ? appearanceOffsets[0] : 0),
-                    1.4 + y + (appearanceOffsets != null ? appearanceOffsets[1] : 0), 0.5 + z + (appearanceOffsets != null ? appearanceOffsets[2] : 0)), ItemDisplay.class, entity -> {
+            Location newLocation = baseLocation.clone().add(0.5 + x + (appearanceOffsets != null ? appearanceOffsets[0] : 0),
+                    1.4 + y + (appearanceOffsets != null ? appearanceOffsets[1] : 0), 0.5 + z + (appearanceOffsets != null ? appearanceOffsets[2] : 0));
+
+            for (ItemDisplay itemDisplay : newLocation.getNearbyEntitiesByType(ItemDisplay.class, 1)) {
+                if (!itemDisplay.getPersistentDataContainer().has(key)) {continue;}
+
+                String value = itemDisplay.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+                if (value == null || !value.equals("item")) {continue;}
+
+                itemDisplay.remove();
+                getEntityIds().remove(itemDisplay.getUniqueId());
+            }
+
+            itemDisplay = world.spawn(newLocation, ItemDisplay.class, entity -> {
                 entity.setItemStack(item);
                 entity.setInvulnerable(true);
-                //entity.setPersistent(true);
+                entity.setPersistent(true);
                 entity.setGravity(false);
                 entity.setNoPhysics(true);
                 entity.setSilent(true);
                 entity.setVisibleByDefault(true);
+                entity.setViewRange(0.2f);
 
                 entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
                 entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "item");
+
+                if (getEntityIds().contains(entity.getUniqueId())) {getEntityIds().add(entity.getUniqueId());}
 
                 Matrix4f mat = new Matrix4f().scale(scale);
                 entity.setTransformationMatrix(mat);
@@ -201,16 +228,30 @@ public class Display {
         Location newLocation = new Location(world, x, y, z);
 
         if (getGlass() == null || getGlass().isDead() || !getGlass().isValid()) {
+
+            for (ItemDisplay itemDisplay : newLocation.getNearbyEntitiesByType(ItemDisplay.class, 1)) {
+                if (!itemDisplay.getPersistentDataContainer().has(key)) {continue;}
+
+                String value = itemDisplay.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+                if (value == null || !value.equals("glass")) {continue;}
+
+                itemDisplay.remove();
+                getEntityIds().remove(itemDisplay.getUniqueId());
+            }
+
             blockDisplay = world.spawn(newLocation, ItemDisplay.class, entity -> {
                 entity.setInvulnerable(true);
                 entity.setGravity(false);
                 entity.setVisibleByDefault(true);
-                //entity.setPersistent(true);
+                entity.setPersistent(true);
                 entity.setItemStack(new ItemStack(Material.GLASS));
                 entity.setTransformationMatrix(new Matrix4f().scale((float) DisplayShops.getPluginInstance().getConfig().getDouble("display-glass-scale")));
+                entity.setViewRange(0.2f);
 
                 entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "glass");
                 entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
+
+                if (getEntityIds().contains(entity.getUniqueId())) {getEntityIds().add(entity.getUniqueId());}
             });
         } else {getGlass().teleportAsync(newLocation, PlayerTeleportEvent.TeleportCause.PLUGIN);}
     }
@@ -265,7 +306,7 @@ public class Display {
             // y += 0.3;
         }
 
-        return text.toString();
+        return DisplayShops.getPluginInstance().getManager().color(text.toString());
     }
 
     private void updateLines(World world, Location baseLocation, String text, double[] appearanceOffsets) {
@@ -276,6 +317,17 @@ public class Display {
         Location location = new Location(world, x, y, z);
 
         if (getTextDisplay() == null || !getTextDisplay().isValid() || getTextDisplay().isDead()) {
+
+            for (TextDisplay textDisplay : location.getNearbyEntitiesByType(TextDisplay.class, 1)) {
+                if (!textDisplay.getPersistentDataContainer().has(key)) {continue;}
+
+                String value = textDisplay.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+                if (value == null || !value.equals("line")) {continue;}
+
+                textDisplay.remove();
+                getEntityIds().remove(textDisplay.getUniqueId());
+            }
+
             textDisplay = world.spawn(location, TextDisplay.class, entity -> {
                 // customize the entity!
                 //entity.text(Component.text("Some awesome content", NamedTextColor.BLACK));
@@ -294,18 +346,17 @@ public class Display {
                 }
 
                 entity.setBackgroundColor(Color.fromARGB(alpha, red, green, blue)); // make the background red
-
-                //entity.setSeeThrough(true);
+                entity.setViewRange(0.2f);
                 entity.setAlignment(TextDisplay.TextAlignment.CENTER);
                 entity.setInvulnerable(true);
-                //entity.setPersistent(true);
+                entity.setPersistent(true);
                 entity.setNoPhysics(true);
                 entity.setGravity(false);
                 entity.setInvisible(true);
                 entity.setShadowed(false);
                 entity.setSilent(true);
                 entity.setVisibleByDefault(false);
-                entity.text(LegacyComponentSerializer.legacySection().deserialize(text));
+                DisplayShops.getPluginInstance().getServer().getScheduler().runTaskAsynchronously(DisplayShops.getPluginInstance(), () -> entity.setText(text));
 
                 //final int longWordCount = DisplayShops.getPluginInstance().getConfig().getInt("description-long-word-wrap");
                 //entity.setLineWidth(120);
@@ -313,7 +364,7 @@ public class Display {
                 entity.setMetadata("DisplayShops-Entity", new FixedMetadataValue(DisplayShops.getPluginInstance(), ""));
                 entity.getPersistentDataContainer().set(key, PersistentDataType.STRING, "line");
 
-                // see the Display and TextDisplay Javadoc, there are many more options
+                if (getEntityIds().contains(entity.getUniqueId())) {getEntityIds().add(entity.getUniqueId());}
             });
         } else {
             ((TextDisplay) getTextDisplay()).text(LegacyComponentSerializer.legacySection().deserialize(text));
@@ -332,10 +383,10 @@ public class Display {
      * @param focused Whether the player is looking directly at the shop
      */
     public void show(@NotNull Player player, boolean focused) {
-        if (!shouldSee(player)) {
+       /* if (!shouldSee(player)) {
             hide(player, true);
             return;
-        }
+        }*/
 
         // for (int i = -1; ++i < lines.size(); ) {
         //     TextDisplay lineEntity = lines.get(i);
@@ -459,6 +510,8 @@ public class Display {
     public Entity getItemHolder() {return itemDisplay;}
 
     public Entity getTextDisplay() {return textDisplay;}
+
+    public List<UUID> getEntityIds() {return entityIds;}
 
     //public ItemFrame getItemFrame() {return itemFrame;}
 }

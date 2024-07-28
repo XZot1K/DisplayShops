@@ -11,8 +11,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import xzot1k.plugins.ds.DisplayShops;
 import xzot1k.plugins.ds.api.objects.Appearance;
-import xzot1k.plugins.ds.api.objects.Display;
 import xzot1k.plugins.ds.api.objects.Shop;
+import xzot1k.plugins.ds.core.packets.Display;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -21,7 +21,8 @@ import java.util.UUID;
 public class VisualTask extends BukkitRunnable {
 
     private DisplayShops pluginInstance;
-    private int viewDistance, gcCounter;
+    private int //viewDistance,
+            gcCounter;
     private boolean alwaysDisplay, pause = false;
     private LinkedList<UUID> shopsToRefresh, playersToRefresh;
 
@@ -31,7 +32,7 @@ public class VisualTask extends BukkitRunnable {
         setPlayersToRefresh(new LinkedList<>());
         setGcCounter(0);
         setAlwaysDisplay(getPluginInstance().getConfig().getBoolean("always-display"));
-        setViewDistance(getPluginInstance().getConfig().getInt("view-distance"));
+        //setViewDistance(getPluginInstance().getConfig().getInt("view-distance"));
     }
 
     @Override
@@ -41,26 +42,17 @@ public class VisualTask extends BukkitRunnable {
         boolean isNew = getPluginInstance().getDisplayManager() != null;
 
         for (Shop shop : getPluginInstance().getManager().getShopMap().values()) {
-            if (shop == null || shop.getBaseLocation() == null) continue;
+            if (shop == null || shop.getBaseLocation() == null) {continue;}
 
             // if display manager exists, use new displays
             if (isNew) {
+                World world = DisplayShops.getPluginInstance().getServer().getWorld(shop.getBaseLocation().getWorldName());
+                if (world == null) {continue;}
+
+                if (!world.isChunkLoaded((int) shop.getBaseLocation().getX() >> 4, (int) shop.getBaseLocation().getZ() >> 4)) {continue;}
+
                 Display display = getPluginInstance().getDisplayManager().getDisplay(shop.getShopId());
                 if (display == null || shop.getBaseLocation() == null) {continue;}
-
-                World world = DisplayShops.getPluginInstance().getServer().getWorld(shop.getBaseLocation().getWorldName());
-                if (world == null) {
-                    display.Clear();
-                    return;
-                }
-
-                if (!world.isChunkLoaded((int) shop.getBaseLocation().getX() >> 4, (int) shop.getBaseLocation().getZ() >> 4)) {
-
-                    //System.out.println("[Failed] - " + shop.getShopId() + " is in an unloaded chunk (" + shop.getBaseLocation().toString() + ")."); // TODO REMOVE
-
-                    display.Clear();
-                    return;
-                }
 
                 final String generateText = display.generateText();
                 final ItemStack item = (shop.getShopItem() != null ? shop.getShopItem() : Display.barrier);
@@ -110,22 +102,21 @@ public class VisualTask extends BukkitRunnable {
 
                 float finalCurrentScale = currentScale;
                 double finalX = x, finalY = y, finalZ = z;
-                DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {
-                    display.update(world, generateText, finalCurrentScale, finalX, finalY, finalZ, offsets);
-                    //display.rotate();
-                });
+                DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(),
+                        () -> display.update(world, generateText, finalCurrentScale, finalX, finalY, finalZ, offsets));
 
                 for (Player player : getPluginInstance().getServer().getOnlinePlayers()) {
                     if (player == null || !player.isOnline()) {continue;}
 
                     final Shop foundShopAtLocation = getPluginInstance().getManager().getShopRayTraced(player.getWorld().getName(),
-                            player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), getViewDistance());
+                            player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), 10/*getViewDistance()*/);
 
                     boolean isFocused = foundShopAtLocation != null && foundShopAtLocation.getShopId().toString().equals(shop.getShopId().toString());
-                    DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {display.show(player, isFocused);});
-                }
+                    DisplayShops.getPluginInstance().getServer().getScheduler().runTask(DisplayShops.getPluginInstance(), () -> {
 
-                //System.out.println("[VISIBLE] - " + shop.getShopId() + " should be visible (" + shop.getBaseLocation().toString() + ")."); // TODO REMOVE
+                        display.show(player, isFocused);
+                    });
+                }
 
                 continue;
             }
@@ -164,7 +155,7 @@ public class VisualTask extends BukkitRunnable {
                 }
 
                 final Shop foundShopAtLocation = getPluginInstance().getManager().getShopRayTraced(player.getWorld().getName(),
-                        player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), getViewDistance());
+                        player.getEyeLocation().toVector(), player.getEyeLocation().getDirection(), 10/*getViewDistance()*/);
 
                 if (foundShopAtLocation == null) {
                     if (currentShop != null) getPluginInstance().sendDisplayPacket(currentShop, player, false);
@@ -214,13 +205,13 @@ public class VisualTask extends BukkitRunnable {
         this.pluginInstance = pluginInstance;
     }
 
-    public int getViewDistance() {
+    /*public int getViewDistance() {
         return viewDistance;
-    }
+    }*/
 
-    private void setViewDistance(int viewDistance) {
+   /* private void setViewDistance(int viewDistance) {
         this.viewDistance = viewDistance;
-    }
+    }*/
 
     private boolean isAlwaysDisplay() {
         return alwaysDisplay;

@@ -49,6 +49,12 @@ public class VersionUtil implements xzot1k.plugins.ds.api.VersionUtil {
 
     @Override
     public String getNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag) {
+
+        if (DisplayShops.getPluginInstance().isNBTAPIInstalled()) {
+            de.tr7zw.nbtapi.NBTItem nbtItem = new de.tr7zw.nbtapi.NBTItem(itemStack);
+            return (nbtItem.hasTag(nbtTag) ? nbtItem.getString(nbtTag) : null);
+        }
+
         NamespacedKey key = keyMap.getOrDefault(nbtTag, null);
         if (key == null) {return null;}
         return itemStack.getItemMeta().getPersistentDataContainer().has(key) ? itemStack.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING) : null;
@@ -56,6 +62,13 @@ public class VersionUtil implements xzot1k.plugins.ds.api.VersionUtil {
 
     @Override
     public ItemStack updateNBT(@NotNull ItemStack itemStack, @NotNull String nbtTag, @NotNull String value) {
+
+        if (DisplayShops.getPluginInstance().isNBTAPIInstalled()) {
+            de.tr7zw.nbtapi.NBTItem nbtItem = new de.tr7zw.nbtapi.NBTItem(itemStack);
+            nbtItem.setString(nbtTag, value);
+            return nbtItem.getItem();
+        }
+
         NamespacedKey key = keyMap.getOrDefault(nbtTag, null);
         if (key == null) {key = keyMap.put(nbtTag, new NamespacedKey(DisplayShops.getPluginInstance(), nbtTag));}
         if (key != null) {
